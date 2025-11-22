@@ -59,14 +59,14 @@ func prepareTemplateData(results *test.Results, cfg *config.Config) map[string]i
 	totalRegisterTime := int64(0)
 	registrationMetricsHTML := ""
 
-	// Process each model
+	// First, build registration metrics for ALL registered models (not just those with inference)
 	testModels := getTestModels(cfg.TestAllModels)
 	for _, spec := range testModels {
 		if spec.Category != "nlp" {
-			continue // Skip non-NLP for inference display
+			continue // Skip non-NLP for registration display
 		}
-
-		// Registration time
+		
+		// Registration time - show for all registered models
 		if regTime, ok := results.Metrics.ModelRegistrationTimes[spec.Name]; ok && regTime > 0 {
 			displayName := getDisplayName(spec.Name)
 			registrationMetricsHTML += fmt.Sprintf(`
@@ -75,6 +75,13 @@ func prepareTemplateData(results *test.Results, cfg *config.Config) map[string]i
 					<div class="metric-value">%d ms</div>
 				</div>`, displayName, regTime)
 			totalRegisterTime += regTime
+		}
+	}
+
+	// Then, process inference metrics for models with inference results
+	for _, spec := range testModels {
+		if spec.Category != "nlp" {
+			continue // Skip non-NLP for inference display
 		}
 
 		// Small inference
