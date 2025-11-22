@@ -479,6 +479,87 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Comprehensive Data Summary -->
+            <div class="section">
+                <h2>📋 Complete Metrics Summary</h2>
+                <div style="background: #f8f9fa; padding: 30px; border-radius: 15px; overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.95em;">
+                        <thead>
+                            <tr style="background: #667eea; color: white;">
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #555;">Metric</th>
+                                <th style="padding: 12px; text-align: right; border-bottom: 2px solid #555;">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; font-weight: 600;">Success Rate</td>
+                                <td style="padding: 10px; text-align: right;">{{printf "%.1f" .SuccessRate}}%</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; font-weight: 600;">Total Duration</td>
+                                <td style="padding: 10px; text-align: right;">{{printf "%.2f" .TotalDuration}}s</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; font-weight: 600;">Successful Inferences</td>
+                                <td style="padding: 10px; text-align: right;">{{.SuccessfulInferences}}/{{.TotalInferences}}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; font-weight: 600;">Models Installed</td>
+                                <td style="padding: 10px; text-align: right;">{{.ModelsInstalled}}</td>
+                            </tr>
+                            <tr style="border-bottom: 2px solid #ccc; background: #f0f0f0;">
+                                <td style="padding: 10px; font-weight: 700;">Installation Times</td>
+                                <td style="padding: 10px;"></td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; padding-left: 30px;">Axon Download</td>
+                                <td style="padding: 10px; text-align: right;">{{.AxonDownloadTime}} ms</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; padding-left: 30px;">Core Download</td>
+                                <td style="padding: 10px; text-align: right;">{{.CoreDownloadTime}} ms</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; padding-left: 30px;">Core Startup</td>
+                                <td style="padding: 10px; text-align: right;">{{.CoreStartupTime}} ms</td>
+                            </tr>
+                            {{if hasMetrics .RegistrationMetrics}}
+                            <tr style="border-bottom: 2px solid #ccc; background: #f0f0f0;">
+                                <td style="padding: 10px; font-weight: 700;">Model Registration Times</td>
+                                <td style="padding: 10px;"></td>
+                            </tr>
+                            {{range .RegistrationMetrics}}
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; padding-left: 30px;">{{.Name}}</td>
+                                <td style="padding: 10px; text-align: right;">{{.Value}} ms</td>
+                            </tr>
+                            {{end}}
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; padding-left: 30px; font-weight: 600;">Total</td>
+                                <td style="padding: 10px; text-align: right; font-weight: 600;">{{$.TotalRegisterTime}} ms</td>
+                            </tr>
+                            {{end}}
+                            {{if hasMetrics .InferenceMetrics}}
+                            <tr style="border-bottom: 2px solid #ccc; background: #f0f0f0;">
+                                <td style="padding: 10px; font-weight: 700;">Inference Times</td>
+                                <td style="padding: 10px;"></td>
+                            </tr>
+                            {{range .InferenceMetrics}}
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; padding-left: 30px;">{{.Name}} {{if eq .Type "inference-small"}}(small){{else if eq .Type "inference-large"}}(large){{end}}</td>
+                                <td style="padding: 10px; text-align: right;">{{.Value}} ms <span style="color: {{if eq .Status "success"}}#28a745{{else}}#dc3545{{end}};">{{.StatusText}}</span></td>
+                            </tr>
+                            {{end}}
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; padding-left: 30px; font-weight: 600;">Total</td>
+                                <td style="padding: 10px; text-align: right; font-weight: 600;">{{$.TotalInferenceTime}} ms</td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
         
         <div class="footer">
