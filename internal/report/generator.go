@@ -46,6 +46,7 @@ func (g *Generator) Generate(results *test.Results) (string, error) {
 	}
 	defer file.Close()
 
+	// Execute template with the structured data
 	if err := tmpl.Execute(file, data); err != nil {
 		return "", fmt.Errorf("failed to execute template: %w", err)
 	}

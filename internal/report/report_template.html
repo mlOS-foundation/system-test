@@ -340,14 +340,17 @@
                     <div class="metric-card">
                         <h4>Axon Download Time</h4>
                         <div class="metric-value">{{.AxonDownloadTime}} ms</div>
+                        <div style="font-size: 0.85em; color: #666; margin-top: 5px;">Binary installation</div>
                     </div>
                     <div class="metric-card">
                         <h4>Core Download Time</h4>
                         <div class="metric-value">{{.CoreDownloadTime}} ms</div>
+                        <div style="font-size: 0.85em; color: #666; margin-top: 5px;">Release tarball download</div>
                     </div>
                     <div class="metric-card">
                         <h4>Core Startup Time</h4>
                         <div class="metric-value">{{.CoreStartupTime}} ms</div>
+                        <div style="font-size: 0.85em; color: #666; margin-top: 5px;">Server initialization</div>
                     </div>
                 </div>
             </div>
@@ -358,12 +361,19 @@
                 {{if hasMetrics .RegistrationMetrics}}
                 <div class="metrics-grid">
                     {{range .RegistrationMetrics}}
-                    <div class="metric-card">
+                    <div class="metric-card {{.Status}}">
                         <h4>{{.Name}} Registration</h4>
                         <div class="metric-value">{{.Value}} ms</div>
                         <span class="status-badge {{.Status}}">{{.StatusText}}</span>
                     </div>
                     {{end}}
+                </div>
+                <div class="metrics-grid" style="margin-top: 20px;">
+                    <div class="metric-card" style="border-left-color: #667eea;">
+                        <h4>Total Registration Time</h4>
+                        <div class="metric-value">{{.TotalRegisterTime}} ms</div>
+                        <div style="font-size: 0.85em; color: #666; margin-top: 5px;">All models combined</div>
+                    </div>
                 </div>
                 {{else}}
                 <div style="text-align: center; padding: 40px; color: #666;">
