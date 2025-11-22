@@ -170,7 +170,24 @@ func formatHardwareSpecs(specs map[string]string) map[string]string {
 	if specs == nil {
 		return nil
 	}
-	return specs
+	// Convert lowercase keys to capitalized keys for template
+	formatted := make(map[string]string)
+	if os, ok := specs["os"]; ok {
+		formatted["OS"] = os
+	}
+	if arch, ok := specs["arch"]; ok {
+		formatted["Arch"] = arch
+	}
+	if cpu, ok := specs["cpu"]; ok {
+		formatted["CPU"] = cpu
+	}
+	if memory, ok := specs["memory"]; ok {
+		formatted["Memory"] = memory
+	}
+	if gpu, ok := specs["gpu"]; ok {
+		formatted["GPU"] = gpu
+	}
+	return formatted
 }
 
 func formatResourceUsage(usage map[string]interface{}) map[string]interface{} {
@@ -226,12 +243,18 @@ func getDisplayName(modelName string) string {
 func calculateCategoryStatuses(results *test.Results, models []test.ModelSpec) map[string]interface{} {
 	categories := map[string]int{"nlp": 0, "vision": 0, "multimodal": 0}
 	categoryPassed := map[string]int{"nlp": 0, "vision": 0, "multimodal": 0}
+	categoryTested := map[string]int{"nlp": 0, "vision": 0, "multimodal": 0}
 
+	// Count models that were actually tested (have inference results)
 	for _, spec := range models {
 		categories[spec.Category]++
-		status := results.Metrics.ModelInferenceStatus[spec.Name]
-		if status == "success" {
-			categoryPassed[spec.Category]++
+		// Check if model was tested (has inference status)
+		if _, hasStatus := results.Metrics.ModelInferenceStatus[spec.Name]; hasStatus {
+			categoryTested[spec.Category]++
+			status := results.Metrics.ModelInferenceStatus[spec.Name]
+			if status == "success" {
+				categoryPassed[spec.Category]++
+			}
 		}
 	}
 
@@ -240,16 +263,24 @@ func calculateCategoryStatuses(results *test.Results, models []test.ModelSpec) m
 	for cat := range categories {
 		var status, statusClass string
 		total := categories[cat]
+		tested := categoryTested[cat]
 		passed := categoryPassed[cat]
 		
-		if total == 0 {
-			status = "✅ Ready (not tested)"
+		if tested == 0 {
+			// No models in this category were tested
+			status = "⏸️ Not Tested"
 			statusClass = "ready"
-		} else if passed == total {
+		} else if passed == tested && tested == total {
+			// All models tested and all passed
 			status = "✅ Passing"
 			statusClass = "success"
+		} else if passed == tested {
+			// All tested models passed, but not all models were tested
+			status = fmt.Sprintf("✅ Passing (%d/%d tested)", tested, total)
+			statusClass = "success"
 		} else {
-			status = "❌ Failed"
+			// Some tests failed
+			status = fmt.Sprintf("❌ Failed (%d/%d passed)", passed, tested)
 			statusClass = "failed"
 		}
 		

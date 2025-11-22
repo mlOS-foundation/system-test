@@ -370,9 +370,9 @@
                     <div class="metric-card" style="border-left: 4px solid #FF6B6B;">
                         <h3 style="margin-top: 0;">🔥 Vision Models</h3>
                         <ul style="list-style: none; padding: 0; text-align: left;">
-                            <li style="margin: 8px 0;">✅ ResNet (50, 101, 152)</li>
-                            <li style="margin: 8px 0;">✅ VGG (16, 19)</li>
-                            <li style="margin: 8px 0;">✅ AlexNet</li>
+                            <li style="margin: 8px 0;">⏸️ ResNet (50, 101, 152) <span style="color: #999; font-size: 0.85em;">(not tested)</span></li>
+                            <li style="margin: 8px 0;">⏸️ VGG (16, 19) <span style="color: #999; font-size: 0.85em;">(not tested)</span></li>
+                            <li style="margin: 8px 0;">⏸️ AlexNet <span style="color: #999; font-size: 0.85em;">(not tested)</span></li>
                         </ul>
                         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
                             <strong>Status:</strong> <span class="status-badge {{.CategoryStatuses.VisionClass}}">{{.CategoryStatuses.VisionStatus}}</span>
@@ -382,8 +382,8 @@
                     <div class="metric-card" style="border-left: 4px solid #FFD93D;">
                         <h3 style="margin-top: 0;">🎨 Multi-Modal</h3>
                         <ul style="list-style: none; padding: 0; text-align: left;">
-                            <li style="margin: 8px 0;">✅ CLIP (text + image)</li>
-                            <li style="margin: 8px 0;">✅ Wav2Vec2 (audio)</li>
+                            <li style="margin: 8px 0;">⏸️ CLIP (text + image) <span style="color: #999; font-size: 0.85em;">(not tested)</span></li>
+                            <li style="margin: 8px 0;">⏸️ Wav2Vec2 (audio) <span style="color: #999; font-size: 0.85em;">(not tested)</span></li>
                         </ul>
                         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
                             <strong>Status:</strong> <span class="status-badge {{.CategoryStatuses.MultimodalClass}}">{{.CategoryStatuses.MultimodalStatus}}</span>
@@ -410,13 +410,16 @@
     <script>
         // Installation Times Chart
         const installationCtx = document.getElementById('installationChart').getContext('2d');
+        const axonTime = {{.AxonDownloadTime}} || 0;
+        const coreDownloadTime = {{.CoreDownloadTime}} || 0;
+        const coreStartupTime = {{.CoreStartupTime}} || 0;
         new Chart(installationCtx, {
             type: 'bar',
             data: {
                 labels: ['Axon Download', 'Core Download', 'Core Startup'],
                 datasets: [{
                     label: 'Time (ms)',
-                    data: [{{.AxonDownloadTime}}, {{.CoreDownloadTime}}, {{.CoreStartupTime}}],
+                    data: [Math.max(axonTime, 1), Math.max(coreDownloadTime, 1), Math.max(coreStartupTime, 1)],
                     backgroundColor: [
                         'rgba(102, 126, 234, 0.8)',
                         'rgba(118, 75, 162, 0.8)',
@@ -505,16 +508,18 @@
         
         // Performance Breakdown Chart (Doughnut)
         const breakdownCtx = document.getElementById('breakdownChart').getContext('2d');
+        const totalRegisterTime = {{.TotalRegisterTime}} || 0;
+        const totalInferenceTime = {{.TotalInferenceTime}} || 0;
         new Chart(breakdownCtx, {
             type: 'doughnut',
             data: {
                 labels: ['Axon Download', 'Core Download', 'Model Registration', 'Inference Tests'],
                 datasets: [{
                     data: [
-                        {{.AxonDownloadTime}},
-                        {{.CoreDownloadTime}},
-                        {{.TotalRegisterTime}},
-                        {{.TotalInferenceTime}}
+                        Math.max(axonTime, 1),
+                        Math.max(coreDownloadTime, 1),
+                        Math.max(totalRegisterTime, 1),
+                        Math.max(totalInferenceTime, 1)
                     ],
                     backgroundColor: [
                         'rgba(102, 126, 234, 0.8)',
