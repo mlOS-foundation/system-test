@@ -125,6 +125,7 @@ func prepareTemplateData(results *test.Results, cfg *config.Config) map[string]i
 	categoryStatuses := calculateCategoryStatuses(results, testModels)
 
 	// Format inference data as JSON for JavaScript
+	// Use template.JS to ensure proper escaping
 	inferenceLabelsJSON, _ := json.Marshal(inferenceLabels)
 	inferenceDataJSON, _ := json.Marshal(inferenceData)
 	inferenceColorsJSON, _ := json.Marshal(inferenceColors)
@@ -153,9 +154,9 @@ func prepareTemplateData(results *test.Results, cfg *config.Config) map[string]i
 		"AxonDownloadTime":      results.Metrics.AxonDownloadTimeMs,
 		"CoreDownloadTime":      results.Metrics.CoreDownloadTimeMs,
 		"CoreStartupTime":       results.Metrics.CoreStartupTimeMs,
-		"InferenceLabelsJSON":   string(inferenceLabelsJSON),
-		"InferenceDataJSON":     string(inferenceDataJSON),
-		"InferenceColorsJSON":   string(inferenceColorsJSON),
+		"InferenceLabelsJSON":   template.JS(inferenceLabelsJSON),
+		"InferenceDataJSON":     template.JS(inferenceDataJSON),
+		"InferenceColorsJSON":    template.JS(inferenceColorsJSON),
 		"InferenceMetricsHTML":  template.HTML(metricsHTML),
 		"TotalInferenceTime":    totalInferenceTime,
 		"TotalRegisterTime":     totalRegisterTime,

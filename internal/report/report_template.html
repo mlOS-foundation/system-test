@@ -408,12 +408,16 @@
     </div>
     
     <script>
+        // Shared variables for all charts
+        const axonTime = {{.AxonDownloadTime}} || 0;
+        const coreDownloadTime = {{.CoreDownloadTime}} || 0;
+        const coreStartupTime = {{.CoreStartupTime}} || 0;
+        const totalRegisterTime = {{.TotalRegisterTime}} || 0;
+        const totalInferenceTime = {{.TotalInferenceTime}} || 0;
+        
         // Installation Times Chart
         const installationCtx = document.getElementById('installationChart');
         if (installationCtx) {
-            const axonTime = {{.AxonDownloadTime}} || 0;
-            const coreDownloadTime = {{.CoreDownloadTime}} || 0;
-            const coreStartupTime = {{.CoreStartupTime}} || 0;
             new Chart(installationCtx.getContext('2d'), {
             type: 'bar',
             data: {
@@ -465,12 +469,13 @@
         // Inference Performance Chart
         const inferenceCtx = document.getElementById('inferenceChart');
         if (inferenceCtx) {
-            const inferenceLabels = {{.InferenceLabelsJSON}} || [];
-            const inferenceData = {{.InferenceDataJSON}} || [];
-            const inferenceColors = {{.InferenceColorsJSON}} || [];
-            
-            if (inferenceLabels.length > 0 && inferenceData.length > 0) {
-                new Chart(inferenceCtx.getContext('2d'), {
+            try {
+                const inferenceLabels = {{.InferenceLabelsJSON}} || [];
+                const inferenceData = {{.InferenceDataJSON}} || [];
+                const inferenceColors = {{.InferenceColorsJSON}} || [];
+                
+                if (inferenceLabels && inferenceLabels.length > 0 && inferenceData && inferenceData.length > 0) {
+                    new Chart(inferenceCtx.getContext('2d'), {
                     type: 'bar',
                     data: {
                         labels: inferenceLabels,
@@ -508,18 +513,23 @@
                             }
                         }
                     }
-                });
-            } else {
-                inferenceCtx.parentElement.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No inference data available</p>';
+                    });
+                } else {
+                    inferenceCtx.parentElement.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No inference data available</p>';
+                }
+            } catch (e) {
+                console.error('Error rendering inference chart:', e);
+                if (inferenceCtx.parentElement) {
+                    inferenceCtx.parentElement.innerHTML = '<p style="text-align: center; color: #f00; padding: 40px;">Error loading inference chart</p>';
+                }
             }
         }
         
         // Performance Breakdown Chart (Doughnut)
         const breakdownCtx = document.getElementById('breakdownChart');
         if (breakdownCtx) {
-            const totalRegisterTime = {{.TotalRegisterTime}} || 0;
-            const totalInferenceTime = {{.TotalInferenceTime}} || 0;
-            new Chart(breakdownCtx.getContext('2d'), {
+            try {
+                new Chart(breakdownCtx.getContext('2d'), {
             type: 'doughnut',
             data: {
                 labels: ['Axon Download', 'Core Download', 'Model Registration', 'Inference Tests'],
@@ -556,6 +566,12 @@
                     }
                 }
             });
+            } catch (e) {
+                console.error('Error rendering breakdown chart:', e);
+                if (breakdownCtx.parentElement) {
+                    breakdownCtx.parentElement.innerHTML = '<p style="text-align: center; color: #f00; padding: 40px;">Error loading breakdown chart</p>';
+                }
+            }
         }
     </script>
 </body>
