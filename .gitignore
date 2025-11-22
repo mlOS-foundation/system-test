@@ -1,0 +1,29 @@
+# Binaries
+bin/
+e2e-test
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test results
+e2e-results-*/
+
+# Go
+*.test
+*.out
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+scripts/*.bak

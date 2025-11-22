@@ -1,0 +1,71 @@
+name: Test Release E2E
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      axon_version:
+        description: 'Axon version to test'
+        required: true
+        default: 'v3.0.0'
+      core_version:
+        description: 'MLOS Core version to test'
+        required: true
+        default: 'v2.3.0-alpha'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl
+      
+      - name: Install gh CLI
+        run: |
+          type -p curl >/dev/null || (apt-get update && apt-get install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt-get update \
+          && sudo apt-get install gh -y
+      
+      - name: Authenticate gh CLI
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+      
+      - name: Build test tool
+        run: |
+          go build -o bin/e2e-test ./cmd/e2e-test
+      
+      - name: Run E2E tests
+        run: |
+          sudo ./bin/e2e-test \
+            -axon-version ${{ github.event.inputs.axon_version || 'v3.0.0' }} \
+            -core-version ${{ github.event.inputs.core_version || 'v2.3.0-alpha' }} \
+            -all-models
+        continue-on-error: true
+      
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          path: e2e-results-*/release-validation-report.html
+      
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-logs
+          path: e2e-results-*/test.log
+
