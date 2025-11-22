@@ -9,7 +9,7 @@ import (
 )
 
 // RunInference runs an inference test for a model
-func RunInference(modelID, modelType string, large bool) error {
+func RunInference(modelID, modelType string, large bool, port int) error {
 	// Generate test input based on model type
 	input, err := generateTestInput(modelID, modelType, large)
 	if err != nil {
@@ -23,7 +23,7 @@ func RunInference(modelID, modelType string, large bool) error {
 	}
 
 	// Make HTTP request
-	url := fmt.Sprintf("http://localhost:8080/models/%s/inference", modelID)
+	url := fmt.Sprintf("http://localhost:%d/models/%s/inference", port, modelID)
 	req, err := http.NewRequest("POST", url, strings.NewReader(string(payload)))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)

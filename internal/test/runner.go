@@ -125,8 +125,17 @@ func (r *Runner) installModels(results *Results) error {
 			log.Printf("WARN: Failed to install %s: %v", spec.ID, err)
 			continue
 		}
+		// Count model if it was just installed OR if it was already installed
+		// (Install returns false if already installed, but we still want to count it)
 		if installed {
 			results.Metrics.ModelsInstalled++
+			log.Printf("✅ Installed %s", spec.ID)
+		} else {
+			// Check if model exists (was already installed)
+			if modelPath, err := model.GetPath(spec.ID); err == nil {
+				results.Metrics.ModelsInstalled++
+				log.Printf("✅ Model already installed: %s at %s", spec.ID, modelPath)
+			}
 		}
 	}
 
@@ -138,15 +147,16 @@ func (r *Runner) startCore(results *Results) (*monitor.Process, error) {
 	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	log.Printf("🚀 Starting MLOS Core Server")
 	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Printf("Using port %d (non-privileged, no sudo required)", r.cfg.CorePort)
 
 	start := time.Now()
-	process, err := release.StartCore(r.cfg.CoreVersion, r.cfg.OutputDir)
+	process, err := release.StartCore(r.cfg.CoreVersion, r.cfg.OutputDir, r.cfg.CorePort)
 	if err != nil {
 		return nil, err
 	}
 
 	results.Metrics.CoreStartupTimeMs = time.Since(start).Milliseconds()
-	log.Printf("✅ MLOS Core ready (%dms)", results.Metrics.CoreStartupTimeMs)
+	log.Printf("✅ MLOS Core ready on port %d (%dms)", r.cfg.CorePort, results.Metrics.CoreStartupTimeMs)
 
 	return process, nil
 }
@@ -165,7 +175,7 @@ func (r *Runner) registerModels(results *Results) error {
 			continue
 		}
 
-		if err := model.Register(spec.Name, modelPath); err != nil {
+		if err := model.Register(spec.Name, modelPath, r.cfg.CorePort); err != nil {
 			log.Printf("ERROR: Failed to register %s: %v", spec.Name, err)
 			continue
 		}
@@ -192,7 +202,7 @@ func (r *Runner) runInferenceTests(results *Results) error {
 
 		// Small inference test
 		start := time.Now()
-		err := model.RunInference(spec.Name, spec.Type, false)
+		err := model.RunInference(spec.Name, spec.Type, false, r.cfg.CorePort)
 		elapsed := time.Since(start).Milliseconds()
 		results.Metrics.TotalInferences++
 
@@ -209,7 +219,7 @@ func (r *Runner) runInferenceTests(results *Results) error {
 
 		// Large inference test
 		start = time.Now()
-		err = model.RunInference(spec.Name, spec.Type, true)
+		err = model.RunInference(spec.Name, spec.Type, true, r.cfg.CorePort)
 		elapsed = time.Since(start).Milliseconds()
 		results.Metrics.TotalInferences++
 

@@ -71,26 +71,23 @@ func GetPath(modelSpec string) (string, error) {
 }
 
 // GetModelPath returns the expected path for a model
+// Matches bash script: ~/.axon/cache/models/${model_id%@*}/${model_id##*@}/model.onnx
+// For "hf/distilgpt2@latest": ~/.axon/cache/models/hf/distilgpt2/latest/model.onnx
 func GetModelPath(repoModel, version string) string {
 	homeDir, _ := os.UserHomeDir()
-	// Format: ~/.axon/cache/models/{repo}/{model}/{version}/model.onnx
-	// Example: hf/distilgpt2 -> hf/distilgpt2/latest/model.onnx
-	parts := strings.Split(repoModel, "/")
-	if len(parts) >= 2 {
-		modelName := parts[len(parts)-1]
-		repo := strings.Join(parts[:len(parts)-1], "/")
-		return filepath.Join(homeDir, ".axon", "cache", "models", repo, modelName, version, "model.onnx")
-	}
+	// Format: ~/.axon/cache/models/{repoModel}/{version}/model.onnx
+	// Example: hf/distilgpt2 + latest -> ~/.axon/cache/models/hf/distilgpt2/latest/model.onnx
 	return filepath.Join(homeDir, ".axon", "cache", "models", repoModel, version, "model.onnx")
 }
 
 // Register registers a model with MLOS Core
-func Register(modelID, modelPath string) error {
+func Register(modelID, modelPath string, port int) error {
 	// Register via HTTP API
 	jsonPayload := fmt.Sprintf(`{"model_id":"%s","path":"%s"}`, modelID, modelPath)
+	url := fmt.Sprintf("http://localhost:%d/models/register", port)
 	
 	cmd := exec.Command("curl", "-X", "POST", 
-		"http://localhost:8080/models/register",
+		url,
 		"-H", "Content-Type: application/json",
 		"-d", jsonPayload)
 	

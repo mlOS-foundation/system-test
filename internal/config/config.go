@@ -15,6 +15,7 @@ type Config struct {
 	TestAllModels bool
 	SkipInstall   bool
 	Verbose       bool
+	CorePort      int // HTTP port for MLOS Core (default: 18080, non-privileged)
 	
 	// Derived paths
 	TestDir       string
@@ -31,6 +32,7 @@ func New(axonVersion, coreVersion, outputDir string, testAllModels, skipInstall,
 		TestAllModels: testAllModels,
 		SkipInstall:   skipInstall,
 		Verbose:       verbose,
+		CorePort:      18080, // Use non-privileged port to avoid sudo requirement
 	}
 
 	// Set output directory
