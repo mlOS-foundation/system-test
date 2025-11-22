@@ -177,9 +177,9 @@ func DownloadCore(version, outputDir string) error {
 func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	coreDir := filepath.Join(outputDir, "mlos-core")
 	
-	// Handle nested directory structure
-	entries, err := os.ReadDir(coreDir)
+	// Handle nested directory structure (same logic as DownloadCore)
 	extractDir := coreDir
+	entries, err := os.ReadDir(coreDir)
 	if err == nil {
 		dirCount := 0
 		var nestedDir string
@@ -197,9 +197,49 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	}
 	
 	binaryPath := filepath.Join(extractDir, "build", "mlos-server")
+	
+	// Verify binary exists
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		// Try to find binary in alternative locations
+		altPaths := []string{
+			filepath.Join(extractDir, "mlos-server"),
+			filepath.Join(extractDir, "mlos_core"),
+			filepath.Join(extractDir, "bin", "mlos-server"),
+			filepath.Join(extractDir, "bin", "mlos_core"),
+		}
+		found := false
+		for _, altPath := range altPaths {
+			if _, err := os.Stat(altPath); err == nil {
+				binaryPath = altPath
+				found = true
+				break
+			}
+		}
+		if !found {
+			// Try recursive search
+			cmd := exec.Command("find", extractDir, "-type", "f", "(", "-name", "mlos-server", "-o", "-name", "mlos_core", ")", "-print", "-quit")
+			output, err := cmd.Output()
+			if err == nil {
+				path := strings.TrimSpace(string(output))
+				if path != "" {
+					binaryPath = path
+					found = true
+				}
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("Core binary not found in %s (expected at %s)", extractDir, filepath.Join(extractDir, "build", "mlos-server"))
+		}
+	}
 
+	// Ensure we use absolute path for binary
+	absBinaryPath, err := filepath.Abs(binaryPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path for binary: %w", err)
+	}
+	
 	// Start server on non-privileged port (no sudo needed)
-	cmd := exec.Command(binaryPath, "--http-port", fmt.Sprintf("%d", port))
+	cmd := exec.Command(absBinaryPath, "--http-port", fmt.Sprintf("%d", port))
 	cmd.Dir = extractDir
 	
 	// Start process
@@ -210,7 +250,7 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	process := &monitor.Process{
 		PID:    cmd.Process.Pid,
 		Cmd:    cmd,
-		Binary: binaryPath,
+		Binary: absBinaryPath,
 	}
 
 	// Wait for server to be ready
