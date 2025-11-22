@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/mlOS-foundation/system-test/internal/monitor"
@@ -70,60 +71,83 @@ func DownloadCore(version, outputDir string) error {
 		return fmt.Errorf("failed to download Core release: %w", err)
 	}
 
-	// Extract archive
-	extractDir := filepath.Join(coreDir, fmt.Sprintf("mlos-core-%s-%s", version, platform))
-	if err := os.MkdirAll(extractDir, 0755); err != nil {
-		return fmt.Errorf("failed to create extract directory: %w", err)
-	}
-
-	cmd = exec.Command("tar", "-xzf", archivePath, "-C", extractDir)
+	// Extract archive (extract to coreDir, then handle nested structure)
+	cmd = exec.Command("tar", "-xzf", archivePath, "-C", coreDir)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to extract Core archive: %w", err)
 	}
 
-	// Find and copy binary
-	binaryName := "mlos_core"
-	if runtime.GOOS == "windows" {
-		binaryName = "mlos_core.exe"
-	}
-
-	// Look for binary in extracted directory
-	binaryPath := filepath.Join(extractDir, "build", binaryName)
-	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-		// Try alternative locations
-		altPaths := []string{
-			filepath.Join(extractDir, binaryName),
-			filepath.Join(extractDir, "bin", binaryName),
-		}
-		found := false
-		for _, altPath := range altPaths {
-			if _, err := os.Stat(altPath); err == nil {
-				binaryPath = altPath
-				found = true
-				break
+	// Handle nested directory structure (archive may extract to a subdirectory)
+	extractDir := coreDir
+	entries, err := os.ReadDir(coreDir)
+	if err == nil {
+		// Count subdirectories
+		dirCount := 0
+		var nestedDir string
+		for _, entry := range entries {
+			if entry.IsDir() {
+				dirCount++
+				if dirCount == 1 {
+					nestedDir = entry.Name()
+				}
 			}
 		}
-		if !found {
-			return fmt.Errorf("Core binary not found in release archive")
+		// If there's only one directory, use it as extractDir
+		if dirCount == 1 {
+			extractDir = filepath.Join(coreDir, nestedDir)
 		}
 	}
 
-	// Copy to build directory
+	// Search for binary recursively (can be named mlos_core or mlos-server)
+	binaryPath := ""
+
+	// Try common locations first
+	commonPaths := []string{
+		filepath.Join(extractDir, "mlos_core"),
+		filepath.Join(extractDir, "mlos-server"),
+		filepath.Join(extractDir, "bin", "mlos_core"),
+		filepath.Join(extractDir, "bin", "mlos-server"),
+		filepath.Join(extractDir, "build", "mlos-server"),
+		filepath.Join(extractDir, "build", "mlos_core"),
+	}
+
+	for _, path := range commonPaths {
+		if _, err := os.Stat(path); err == nil {
+			binaryPath = path
+			break
+		}
+	}
+
+	// If not found, search recursively
+	if binaryPath == "" {
+		cmd := exec.Command("find", extractDir, "-type", "f", "-name", "mlos_core", "-o", "-name", "mlos-server")
+		output, err := cmd.Output()
+		if err == nil {
+			lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+			if len(lines) > 0 && lines[0] != "" {
+				binaryPath = lines[0]
+			}
+		}
+	}
+
+	if binaryPath == "" {
+		return fmt.Errorf("Core binary not found in release archive (searched in %s)", extractDir)
+	}
+
+	// Copy to build directory (normalize name to mlos-server)
 	buildDir := filepath.Join(extractDir, "build")
 	if err := os.MkdirAll(buildDir, 0755); err != nil {
 		return fmt.Errorf("failed to create build directory: %w", err)
 	}
 
 	finalBinaryPath := filepath.Join(buildDir, "mlos-server")
-	if binaryPath != finalBinaryPath {
-		// Copy binary
-		data, err := os.ReadFile(binaryPath)
-		if err != nil {
-			return fmt.Errorf("failed to read Core binary: %w", err)
-		}
-		if err := os.WriteFile(finalBinaryPath, data, 0755); err != nil {
-			return fmt.Errorf("failed to write Core binary: %w", err)
-		}
+	// Always copy (even if same path, to normalize the name)
+	data, err := os.ReadFile(binaryPath)
+	if err != nil {
+		return fmt.Errorf("failed to read Core binary: %w", err)
+	}
+	if err := os.WriteFile(finalBinaryPath, data, 0755); err != nil {
+		return fmt.Errorf("failed to write Core binary: %w", err)
 	}
 
 	// Install to ~/.local/bin
@@ -138,11 +162,11 @@ func DownloadCore(version, outputDir string) error {
 	}
 
 	installPath := filepath.Join(localBin, "mlos-server")
-	data, err := os.ReadFile(finalBinaryPath)
+	data2, err := os.ReadFile(finalBinaryPath)
 	if err != nil {
 		return fmt.Errorf("failed to read Core binary for installation: %w", err)
 	}
-	if err := os.WriteFile(installPath, data, 0755); err != nil {
+	if err := os.WriteFile(installPath, data2, 0755); err != nil {
 		return fmt.Errorf("failed to install Core binary: %w", err)
 	}
 
@@ -151,9 +175,28 @@ func DownloadCore(version, outputDir string) error {
 
 // StartCore starts the MLOS Core server
 func StartCore(version, outputDir string) (*monitor.Process, error) {
-	platform := getPlatform()
-	coreDir := filepath.Join(outputDir, "mlos-core", fmt.Sprintf("mlos-core-%s-%s", version, platform))
-	binaryPath := filepath.Join(coreDir, "build", "mlos-server")
+	coreDir := filepath.Join(outputDir, "mlos-core")
+	
+	// Handle nested directory structure
+	entries, err := os.ReadDir(coreDir)
+	extractDir := coreDir
+	if err == nil {
+		dirCount := 0
+		var nestedDir string
+		for _, entry := range entries {
+			if entry.IsDir() {
+				dirCount++
+				if dirCount == 1 {
+					nestedDir = entry.Name()
+				}
+			}
+		}
+		if dirCount == 1 {
+			extractDir = filepath.Join(coreDir, nestedDir)
+		}
+	}
+	
+	binaryPath := filepath.Join(extractDir, "build", "mlos-server")
 
 	// Start server with sudo (required for binding to ports)
 	cmd := exec.Command("sudo", binaryPath)
@@ -180,26 +223,26 @@ func StartCore(version, outputDir string) (*monitor.Process, error) {
 }
 
 func getPlatform() string {
-	os := runtime.GOOS
+	osName := runtime.GOOS
 	arch := runtime.GOARCH
 	
-	// Map Go arch to release arch names
+	// Map Go arch to release arch names (archives use amd64, not x86_64)
 	if arch == "amd64" {
-		arch = "x86_64"
+		arch = "amd64" // Keep as amd64 for archive names
 	} else if arch == "arm64" {
 		arch = "arm64"
 	}
 
 	// Map Go OS to release OS names
-	if os == "darwin" {
-		os = "darwin"
-	} else if os == "linux" {
-		os = "linux"
-	} else if os == "windows" {
-		os = "windows"
+	if osName == "darwin" {
+		osName = "darwin"
+	} else if osName == "linux" {
+		osName = "linux"
+	} else if osName == "windows" {
+		osName = "windows"
 	}
 
-	return fmt.Sprintf("%s-%s", os, arch)
+	return fmt.Sprintf("%s-%s", osName, arch)
 }
 
 func waitForServer() error {
