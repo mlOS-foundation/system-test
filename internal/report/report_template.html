@@ -409,11 +409,12 @@
     
     <script>
         // Installation Times Chart
-        const installationCtx = document.getElementById('installationChart').getContext('2d');
-        const axonTime = {{.AxonDownloadTime}} || 0;
-        const coreDownloadTime = {{.CoreDownloadTime}} || 0;
-        const coreStartupTime = {{.CoreStartupTime}} || 0;
-        new Chart(installationCtx, {
+        const installationCtx = document.getElementById('installationChart');
+        if (installationCtx) {
+            const axonTime = {{.AxonDownloadTime}} || 0;
+            const coreDownloadTime = {{.CoreDownloadTime}} || 0;
+            const coreStartupTime = {{.CoreStartupTime}} || 0;
+            new Chart(installationCtx.getContext('2d'), {
             type: 'bar',
             data: {
                 labels: ['Axon Download', 'Core Download', 'Core Startup'],
@@ -458,59 +459,67 @@
                         }
                     }
                 }
-            }
-        });
+            });
+        }
         
         // Inference Performance Chart
-        const inferenceCtx = document.getElementById('inferenceChart').getContext('2d');
-        const inferenceLabels = {{.InferenceLabelsJSON}};
-        const inferenceData = {{.InferenceDataJSON}};
-        const inferenceColors = {{.InferenceColorsJSON}};
-        new Chart(inferenceCtx, {
-            type: 'bar',
-            data: {
-                labels: inferenceLabels,
-                datasets: [{
-                    label: 'Inference Time (ms)',
-                    data: inferenceData,
-                    backgroundColor: inferenceColors,
-                    borderColor: inferenceColors.map(c => c.replace('0.8', '1')),
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
+        const inferenceCtx = document.getElementById('inferenceChart');
+        if (inferenceCtx) {
+            const inferenceLabels = {{.InferenceLabelsJSON}} || [];
+            const inferenceData = {{.InferenceDataJSON}} || [];
+            const inferenceColors = {{.InferenceColorsJSON}} || [];
+            
+            if (inferenceLabels.length > 0 && inferenceData.length > 0) {
+                new Chart(inferenceCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: inferenceLabels,
+                        datasets: [{
+                            label: 'Inference Time (ms)',
+                            data: inferenceData,
+                            backgroundColor: inferenceColors,
+                            borderColor: inferenceColors.map(c => c.replace('0.8', '1')),
+                            borderWidth: 2
+                        }]
                     },
-                    title: {
-                        display: true,
-                        text: 'Inference Performance by Model',
-                        font: {
-                            size: 16,
-                            weight: 'bold'
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Inference Performance by Model',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Time (milliseconds)'
+                                }
+                            }
                         }
                     }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Time (milliseconds)'
-                        }
-                    }
-                }
+                });
+            } else {
+                inferenceCtx.parentElement.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No inference data available</p>';
             }
-        });
+        }
         
         // Performance Breakdown Chart (Doughnut)
-        const breakdownCtx = document.getElementById('breakdownChart').getContext('2d');
-        const totalRegisterTime = {{.TotalRegisterTime}} || 0;
-        const totalInferenceTime = {{.TotalInferenceTime}} || 0;
-        new Chart(breakdownCtx, {
+        const breakdownCtx = document.getElementById('breakdownChart');
+        if (breakdownCtx) {
+            const totalRegisterTime = {{.TotalRegisterTime}} || 0;
+            const totalInferenceTime = {{.TotalInferenceTime}} || 0;
+            new Chart(breakdownCtx.getContext('2d'), {
             type: 'doughnut',
             data: {
                 labels: ['Axon Download', 'Core Download', 'Model Registration', 'Inference Tests'],
@@ -546,8 +555,8 @@
                         }
                     }
                 }
-            }
-        });
+            });
+        }
     </script>
 </body>
 </html>

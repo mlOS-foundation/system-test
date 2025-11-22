@@ -182,12 +182,32 @@ func formatHardwareSpecs(specs map[string]string) map[string]string {
 		formatted["CPU"] = cpu
 	}
 	if memory, ok := specs["memory"]; ok {
-		formatted["Memory"] = memory
+		// Format memory - convert bytes to GB if it's a number
+		formatted["Memory"] = formatMemory(memory)
 	}
 	if gpu, ok := specs["gpu"]; ok {
-		formatted["GPU"] = gpu
+		// Clean up GPU text (remove "Chipset Model: " prefix if present)
+		formatted["GPU"] = strings.TrimPrefix(gpu, "Chipset Model: ")
 	}
 	return formatted
+}
+
+func formatMemory(memory string) string {
+	// Try to parse as bytes and convert to GB
+	if strings.Contains(memory, "bytes") {
+		// Extract number
+		parts := strings.Fields(memory)
+		if len(parts) > 0 {
+			// Try to parse the number
+			var bytes int64
+			if _, err := fmt.Sscanf(parts[0], "%d", &bytes); err == nil {
+				gb := float64(bytes) / (1024 * 1024 * 1024)
+				return fmt.Sprintf("%.1f GB", gb)
+			}
+		}
+	}
+	// Return as-is if we can't parse it
+	return memory
 }
 
 func formatResourceUsage(usage map[string]interface{}) map[string]interface{} {
