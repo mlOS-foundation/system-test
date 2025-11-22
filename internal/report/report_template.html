@@ -344,6 +344,16 @@
                 </div>
             </div>
             
+            <!-- Model Registration Times -->
+            {{if .RegistrationMetricsHTML}}
+            <div class="section">
+                <h2>📝 Model Registration Times</h2>
+                <div class="metrics-grid">
+                    {{.RegistrationMetricsHTML}}
+                </div>
+            </div>
+            {{end}}
+            
             <!-- Inference Performance -->
             <div class="section">
                 <h2>🚀 Inference Performance</h2>

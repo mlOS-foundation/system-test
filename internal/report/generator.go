@@ -57,12 +57,24 @@ func prepareTemplateData(results *test.Results, cfg *config.Config) map[string]i
 	metricsHTML := ""
 	totalInferenceTime := int64(0)
 	totalRegisterTime := int64(0)
+	registrationMetricsHTML := ""
 
 	// Process each model
 	testModels := getTestModels(cfg.TestAllModels)
 	for _, spec := range testModels {
 		if spec.Category != "nlp" {
 			continue // Skip non-NLP for inference display
+		}
+
+		// Registration time
+		if regTime, ok := results.Metrics.ModelRegistrationTimes[spec.Name]; ok && regTime > 0 {
+			displayName := getDisplayName(spec.Name)
+			registrationMetricsHTML += fmt.Sprintf(`
+				<div class="metric-card">
+					<h4>%s Registration</h4>
+					<div class="metric-value">%d ms</div>
+				</div>`, displayName, regTime)
+			totalRegisterTime += regTime
 		}
 
 		// Small inference
@@ -114,11 +126,6 @@ func prepareTemplateData(results *test.Results, cfg *config.Config) map[string]i
 
 			totalInferenceTime += time
 		}
-
-		// Registration time
-		if time, ok := results.Metrics.ModelRegistrationTimes[spec.Name]; ok {
-			totalRegisterTime += time
-		}
 	}
 
 	// Calculate category statuses
@@ -158,6 +165,7 @@ func prepareTemplateData(results *test.Results, cfg *config.Config) map[string]i
 		"InferenceDataJSON":     template.JS(inferenceDataJSON),
 		"InferenceColorsJSON":    template.JS(inferenceColorsJSON),
 		"InferenceMetricsHTML":  template.HTML(metricsHTML),
+		"RegistrationMetricsHTML": template.HTML(registrationMetricsHTML),
 		"TotalInferenceTime":    totalInferenceTime,
 		"TotalRegisterTime":     totalRegisterTime,
 		"HardwareSpecs":         hardwareSpecs,
