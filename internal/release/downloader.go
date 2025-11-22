@@ -1,6 +1,7 @@
 package release
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -242,6 +243,11 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	cmd := exec.Command(absBinaryPath, "--http-port", fmt.Sprintf("%d", port))
 	cmd.Dir = extractDir
 	
+	// Capture output for debugging
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	
 	// Start process
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start Core server: %w", err)
@@ -253,8 +259,27 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 		Binary: absBinaryPath,
 	}
 
+	// Give server a moment to start
+	time.Sleep(1 * time.Second)
+	
+	// Check if process is still running
+	if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+		output := stdout.String()
+		errOutput := stderr.String()
+		return nil, fmt.Errorf("server process exited immediately. stdout: %s, stderr: %s", output, errOutput)
+	}
+	
 	// Wait for server to be ready
 	if err := waitForServer(port); err != nil {
+		// Log server output for debugging
+		output := stdout.String()
+		if output != "" {
+			fmt.Printf("Server stdout: %s\n", output)
+		}
+		errOutput := stderr.String()
+		if errOutput != "" {
+			fmt.Printf("Server stderr: %s\n", errOutput)
+		}
 		monitor.StopProcess(process)
 		return nil, fmt.Errorf("server failed to start: %w", err)
 	}
@@ -290,15 +315,29 @@ func waitForServer(port int) error {
 	maxRetries := 30
 	url := fmt.Sprintf("http://localhost:%d/health", port)
 	for i := 0; i < maxRetries; i++ {
-		// Try health endpoint - any response (even 404) means server is up
-		cmd := exec.Command("curl", "-s", "-o", "/dev/null", url)
-		if err := cmd.Run(); err == nil {
-			// Server responded, it's ready
-			return nil
+		// Try health endpoint - check for any HTTP response (even 404 means server is up)
+		cmd := exec.Command("curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", url)
+		output, err := cmd.Output()
+		if err == nil {
+			statusCode := strings.TrimSpace(string(output))
+			// Any HTTP status code (200, 404, etc.) means server is responding
+			if statusCode != "" && statusCode != "000" {
+				return nil
+			}
+		}
+		// Also try root endpoint as fallback
+		rootURL := fmt.Sprintf("http://localhost:%d/", port)
+		cmd2 := exec.Command("curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", rootURL)
+		output2, err2 := cmd2.Output()
+		if err2 == nil {
+			statusCode := strings.TrimSpace(string(output2))
+			if statusCode != "" && statusCode != "000" {
+				return nil
+			}
 		}
 		// Wait a bit before retrying
 		time.Sleep(500 * time.Millisecond)
 	}
-	return fmt.Errorf("server did not become ready after %d attempts", maxRetries)
+	return fmt.Errorf("server did not become ready after %d attempts (checked %s)", maxRetries, url)
 }
 
