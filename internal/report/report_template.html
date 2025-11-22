@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLOS Release E2E Validation Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 40px;
+            background: #f8f9fa;
+        }
+        
+        .summary-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .summary-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.15);
+        }
+        
+        .summary-card h3 {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        
+        .summary-card .value {
+            font-size: 2.5em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .summary-card .unit {
+            font-size: 0.8em;
+            color: #999;
+            margin-left: 5px;
+        }
+        
+        .summary-card.success .value {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .summary-card.warning .value {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            height: 400px;
+            position: relative;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .metric-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .metric-card h4 {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        
+        .metric-card .metric-value {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .metric-card.success {
+            border-left-color: #38ef7d;
+        }
+        
+        .metric-card.failed {
+            border-left-color: #f5576c;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
+        
+        .status-badge.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-badge.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-badge.ready {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .footer {
+            background: #2d3748;
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        
+        .footer p {
+            opacity: 0.8;
+            margin: 5px 0;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 MLOS Release E2E Validation</h1>
+            <p>Comprehensive testing of Axon and MLOS Core releases</p>
+        </div>
+        
+        <div class="summary">
+            <div class="summary-card {{.SummaryCardClass}}">
+                <h3>Overall Status</h3>
+                <div class="value">{{printf "%.1f" .SuccessRate}}%</div>
+            </div>
+            <div class="summary-card">
+                <h3>Total Duration</h3>
+                <div class="value">{{printf "%.1f" .TotalDuration}}<span class="unit">s</span></div>
+            </div>
+            <div class="summary-card">
+                <h3>Inferences</h3>
+                <div class="value">{{.SuccessfulInferences}}/{{.TotalInferences}}</div>
+            </div>
+            <div class="summary-card">
+                <h3>Models Tested</h3>
+                <div class="value">{{.ModelsInstalled}}</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- Release Versions -->
+            <div class="section">
+                <h2>📦 Release Versions</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h4>Axon Version</h4>
+                        <div class="metric-value">{{.AxonVersion}}</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>MLOS Core Version</h4>
+                        <div class="metric-value">{{.CoreVersion}}</div>
+                    </div>
+                </div>
+            </div>
+            
+            {{if .HardwareSpecs}}
+            <!-- Hardware Specifications -->
+            <div class="section">
+                <h2>💻 Hardware Specifications</h2>
+                <div class="metrics-grid">
+                    {{if .HardwareSpecs.OS}}
+                    <div class="metric-card">
+                        <h4>Operating System</h4>
+                        <div class="metric-value">{{.HardwareSpecs.OS}}</div>
+                        {{if .HardwareSpecs.Arch}}
+                        <div style="font-size: 0.9em; color: #666; margin-top: 5px;">Architecture: {{.HardwareSpecs.Arch}}</div>
+                        {{end}}
+                    </div>
+                    {{end}}
+                    {{if .HardwareSpecs.CPU}}
+                    <div class="metric-card">
+                        <h4>CPU</h4>
+                        <div class="metric-value" style="font-size: 1.2em;">{{.HardwareSpecs.CPU}}</div>
+                    </div>
+                    {{end}}
+                    {{if .HardwareSpecs.Memory}}
+                    <div class="metric-card">
+                        <h4>Memory</h4>
+                        <div class="metric-value">{{.HardwareSpecs.Memory}}</div>
+                    </div>
+                    {{end}}
+                    {{if .HardwareSpecs.GPU}}
+                    <div class="metric-card">
+                        <h4>GPU</h4>
+                        <div class="metric-value" style="font-size: 1.2em;">{{.HardwareSpecs.GPU}}</div>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+            
+            {{if .ResourceUsage}}
+            <!-- Resource Usage -->
+            <div class="section">
+                <h2>📊 Resource Usage</h2>
+                <div class="metrics-grid">
+                    {{if .ResourceUsage.Idle}}
+                    <div class="metric-card" style="border-left-color: #667eea;">
+                        <h4>MLOS Core (Idle)</h4>
+                        <div class="metric-value" style="font-size: 1.2em;">
+                            CPU: {{printf "%.1f" .ResourceUsage.Idle.CPU}}% | Memory: {{printf "%.1f" .ResourceUsage.Idle.Memory}} MB
+                        </div>
+                    </div>
+                    {{end}}
+                    {{if .ResourceUsage.UnderLoad}}
+                    <div class="metric-card" style="border-left-color: #f5576c;">
+                        <h4>MLOS Core (Under Load)</h4>
+                        <div class="metric-value" style="font-size: 1.2em;">
+                            CPU: {{printf "%.1f" .ResourceUsage.UnderLoad.CPU}}%
+                        </div>
+                        <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                            Memory: {{printf "%.1f" .ResourceUsage.UnderLoad.Memory}} MB
+                        </div>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+            
+            <!-- Installation Metrics -->
+            <div class="section">
+                <h2>⏱️ Installation & Setup Times</h2>
+                <div class="chart-container">
+                    <canvas id="installationChart"></canvas>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h4>Axon Download Time</h4>
+                        <div class="metric-value">{{.AxonDownloadTime}} ms</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Core Download Time</h4>
+                        <div class="metric-value">{{.CoreDownloadTime}} ms</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Core Startup Time</h4>
+                        <div class="metric-value">{{.CoreStartupTime}} ms</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Inference Performance -->
+            <div class="section">
+                <h2>🚀 Inference Performance</h2>
+                <div class="chart-container">
+                    <canvas id="inferenceChart"></canvas>
+                </div>
+                <div class="metrics-grid" id="inferenceMetricsGrid">
+                    {{.InferenceMetricsHTML}}
+                </div>
+            </div>
+            
+            <!-- Model Categories -->
+            <div class="section">
+                <h2>🤖 Model Support by Category</h2>
+                <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                    <div class="metric-card" style="border-left: 4px solid #56EF7D;">
+                        <h3 style="margin-top: 0;">😊 NLP Models</h3>
+                        <ul style="list-style: none; padding: 0; text-align: left;">
+                            <li style="margin: 8px 0;">✅ GPT-2 (DistilGPT-2)</li>
+                            <li style="margin: 8px 0;">✅ BERT (base-uncased)</li>
+                            <li style="margin: 8px 0;">✅ RoBERTa</li>
+                            <li style="margin: 8px 0;">✅ T5</li>
+                        </ul>
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                            <strong>Status:</strong> <span class="status-badge {{.CategoryStatuses.NLPClass}}">{{.CategoryStatuses.NLPStatus}}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card" style="border-left: 4px solid #FF6B6B;">
+                        <h3 style="margin-top: 0;">🔥 Vision Models</h3>
+                        <ul style="list-style: none; padding: 0; text-align: left;">
+                            <li style="margin: 8px 0;">✅ ResNet (50, 101, 152)</li>
+                            <li style="margin: 8px 0;">✅ VGG (16, 19)</li>
+                            <li style="margin: 8px 0;">✅ AlexNet</li>
+                        </ul>
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                            <strong>Status:</strong> <span class="status-badge {{.CategoryStatuses.VisionClass}}">{{.CategoryStatuses.VisionStatus}}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card" style="border-left: 4px solid #FFD93D;">
+                        <h3 style="margin-top: 0;">🎨 Multi-Modal</h3>
+                        <ul style="list-style: none; padding: 0; text-align: left;">
+                            <li style="margin: 8px 0;">✅ CLIP (text + image)</li>
+                            <li style="margin: 8px 0;">✅ Wav2Vec2 (audio)</li>
+                        </ul>
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                            <strong>Status:</strong> <span class="status-badge {{.CategoryStatuses.MultimodalClass}}">{{.CategoryStatuses.MultimodalStatus}}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Performance Breakdown -->
+            <div class="section">
+                <h2>📈 Performance Breakdown</h2>
+                <div class="chart-container">
+                    <canvas id="breakdownChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>MLOS Foundation</strong> - Signal. Propagate. Myelinate. 🧠</p>
+            <p>Generated: {{.Timestamp}}</p>
+        </div>
+    </div>
+    
+    <script>
+        // Installation Times Chart
+        const installationCtx = document.getElementById('installationChart').getContext('2d');
+        new Chart(installationCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Axon Download', 'Core Download', 'Core Startup'],
+                datasets: [{
+                    label: 'Time (ms)',
+                    data: [{{.AxonDownloadTime}}, {{.CoreDownloadTime}}, {{.CoreStartupTime}}],
+                    backgroundColor: [
+                        'rgba(102, 126, 234, 0.8)',
+                        'rgba(118, 75, 162, 0.8)',
+                        'rgba(17, 153, 142, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgb(102, 126, 234)',
+                        'rgb(118, 75, 162)',
+                        'rgb(17, 153, 142)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'Installation & Setup Times',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Time (milliseconds)'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Inference Performance Chart
+        const inferenceCtx = document.getElementById('inferenceChart').getContext('2d');
+        const inferenceLabels = {{.InferenceLabelsJSON}};
+        const inferenceData = {{.InferenceDataJSON}};
+        const inferenceColors = {{.InferenceColorsJSON}};
+        new Chart(inferenceCtx, {
+            type: 'bar',
+            data: {
+                labels: inferenceLabels,
+                datasets: [{
+                    label: 'Inference Time (ms)',
+                    data: inferenceData,
+                    backgroundColor: inferenceColors,
+                    borderColor: inferenceColors.map(c => c.replace('0.8', '1')),
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'Inference Performance by Model',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Time (milliseconds)'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Performance Breakdown Chart (Doughnut)
+        const breakdownCtx = document.getElementById('breakdownChart').getContext('2d');
+        new Chart(breakdownCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Axon Download', 'Core Download', 'Model Registration', 'Inference Tests'],
+                datasets: [{
+                    data: [
+                        {{.AxonDownloadTime}},
+                        {{.CoreDownloadTime}},
+                        {{.TotalRegisterTime}},
+                        {{.TotalInferenceTime}}
+                    ],
+                    backgroundColor: [
+                        'rgba(102, 126, 234, 0.8)',
+                        'rgba(118, 75, 162, 0.8)',
+                        'rgba(56, 239, 125, 0.8)',
+                        'rgba(240, 147, 251, 0.8)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Time Distribution Across Test Phases',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+

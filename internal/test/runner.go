@@ -259,7 +259,12 @@ func (r *Runner) monitorResources(results *Results, process *monitor.Process, un
 	if underLoad {
 		key = "under_load"
 	}
-	results.ResourceUsage[key] = usage
+	// Store as map for JSON serialization
+	results.ResourceUsage[key] = map[string]interface{}{
+		"CPUPercent":    usage.CPUPercent,
+		"MemoryMB":      usage.MemoryMB,
+		"MemoryPercent": usage.MemoryPercent,
+	}
 	return nil
 }
 

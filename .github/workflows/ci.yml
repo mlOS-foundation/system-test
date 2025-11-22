@@ -36,6 +36,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
+          args: --timeout=5m
   
   e2e-test:
     name: E2E Test

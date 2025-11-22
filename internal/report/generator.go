@@ -1,10 +1,12 @@
 package report
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/mlOS-foundation/system-test/internal/config"
 	"github.com/mlOS-foundation/system-test/internal/test"
@@ -23,9 +25,9 @@ func NewGenerator(cfg *config.Config) *Generator {
 // Generate generates an HTML report from test results
 func (g *Generator) Generate(results *test.Results) (string, error) {
 	// Load HTML template
-	tmpl, err := loadTemplate()
+	tmpl, err := template.New("report").Parse(reportTemplate)
 	if err != nil {
-		return "", fmt.Errorf("failed to load template: %w", err)
+		return "", fmt.Errorf("failed to parse template: %w", err)
 	}
 
 	// Prepare template data
@@ -122,27 +124,87 @@ func prepareTemplateData(results *test.Results, cfg *config.Config) map[string]i
 	// Calculate category statuses
 	categoryStatuses := calculateCategoryStatuses(results, testModels)
 
+	// Format inference data as JSON for JavaScript
+	inferenceLabelsJSON, _ := json.Marshal(inferenceLabels)
+	inferenceDataJSON, _ := json.Marshal(inferenceData)
+	inferenceColorsJSON, _ := json.Marshal(inferenceColors)
+
+	// Determine summary card class
+	summaryCardClass := "success"
+	if results.SuccessRate < 100.0 {
+		summaryCardClass = "warning"
+	}
+
+	// Format hardware specs
+	hardwareSpecs := formatHardwareSpecs(results.HardwareSpecs)
+	
+	// Format resource usage
+	resourceUsage := formatResourceUsage(results.ResourceUsage)
+
 	return map[string]interface{}{
 		"SuccessRate":           results.SuccessRate,
-		"TotalDuration":        results.Duration.Seconds(),
-		"SuccessfulInferences": results.Metrics.SuccessfulInferences,
-		"TotalInferences":      results.Metrics.TotalInferences,
-		"ModelsInstalled":      results.Metrics.ModelsInstalled,
-		"AxonVersion":          results.AxonVersion,
-		"CoreVersion":          results.CoreVersion,
-		"AxonDownloadTime":     results.Metrics.AxonDownloadTimeMs,
-		"CoreDownloadTime":     results.Metrics.CoreDownloadTimeMs,
-		"CoreStartupTime":      results.Metrics.CoreStartupTimeMs,
-		"InferenceLabels":      inferenceLabels,
-		"InferenceData":        inferenceData,
-		"InferenceColors":      inferenceColors,
-		"InferenceMetricsHTML": template.HTML(metricsHTML),
-		"TotalInferenceTime":   totalInferenceTime,
-		"TotalRegisterTime":    totalRegisterTime,
-		"HardwareSpecs":        results.HardwareSpecs,
-		"ResourceUsage":        results.ResourceUsage,
-		"CategoryStatuses":    categoryStatuses,
+		"SummaryCardClass":      summaryCardClass,
+		"TotalDuration":         results.Duration.Seconds(),
+		"SuccessfulInferences":  results.Metrics.SuccessfulInferences,
+		"TotalInferences":       results.Metrics.TotalInferences,
+		"ModelsInstalled":       results.Metrics.ModelsInstalled,
+		"AxonVersion":           results.AxonVersion,
+		"CoreVersion":           results.CoreVersion,
+		"AxonDownloadTime":      results.Metrics.AxonDownloadTimeMs,
+		"CoreDownloadTime":      results.Metrics.CoreDownloadTimeMs,
+		"CoreStartupTime":       results.Metrics.CoreStartupTimeMs,
+		"InferenceLabelsJSON":   string(inferenceLabelsJSON),
+		"InferenceDataJSON":     string(inferenceDataJSON),
+		"InferenceColorsJSON":   string(inferenceColorsJSON),
+		"InferenceMetricsHTML":  template.HTML(metricsHTML),
+		"TotalInferenceTime":    totalInferenceTime,
+		"TotalRegisterTime":     totalRegisterTime,
+		"HardwareSpecs":         hardwareSpecs,
+		"ResourceUsage":         resourceUsage,
+		"CategoryStatuses":      categoryStatuses,
+		"Timestamp":             time.Now().Format("2006-01-02 15:04:05"),
 	}
+}
+
+func formatHardwareSpecs(specs map[string]string) map[string]string {
+	if specs == nil {
+		return nil
+	}
+	return specs
+}
+
+func formatResourceUsage(usage map[string]interface{}) map[string]interface{} {
+	if usage == nil {
+		return nil
+	}
+	
+	formatted := make(map[string]interface{})
+	
+	// Handle idle resource usage
+	if idleRaw, ok := usage["idle"]; ok {
+		if idleMap, ok := idleRaw.(map[string]interface{}); ok {
+			cpu, _ := idleMap["CPUPercent"].(float64)
+			mem, _ := idleMap["MemoryMB"].(float64)
+			formatted["Idle"] = map[string]float64{
+				"CPU":    cpu,
+				"Memory": mem,
+			}
+		}
+	}
+	
+	// Handle under_load resource usage
+	if loadRaw, ok := usage["under_load"]; ok {
+		if loadMap, ok := loadRaw.(map[string]interface{}); ok {
+			cpu, _ := loadMap["CPUPercent"].(float64)
+			mem, _ := loadMap["MemoryMB"].(float64)
+			formatted["UnderLoad"] = map[string]float64{
+				"CPU":    cpu,
+				"Memory": mem,
+			}
+		}
+	}
+	
+	return formatted
 }
 
 func getDisplayName(modelName string) string {
@@ -161,8 +223,7 @@ func getDisplayName(modelName string) string {
 	return strings.ToUpper(modelName)
 }
 
-func calculateCategoryStatuses(results *test.Results, models []test.ModelSpec) map[string]string {
-	statuses := make(map[string]string)
+func calculateCategoryStatuses(results *test.Results, models []test.ModelSpec) map[string]interface{} {
 	categories := map[string]int{"nlp": 0, "vision": 0, "multimodal": 0}
 	categoryPassed := map[string]int{"nlp": 0, "vision": 0, "multimodal": 0}
 
@@ -174,13 +235,34 @@ func calculateCategoryStatuses(results *test.Results, models []test.ModelSpec) m
 		}
 	}
 
-	for cat, total := range categories {
+	statuses := make(map[string]interface{})
+	
+	for cat := range categories {
+		var status, statusClass string
+		total := categories[cat]
+		passed := categoryPassed[cat]
+		
 		if total == 0 {
-			statuses[cat] = "ready" // Ready but not tested
-		} else if categoryPassed[cat] == total {
-			statuses[cat] = "passing"
+			status = "✅ Ready (not tested)"
+			statusClass = "ready"
+		} else if passed == total {
+			status = "✅ Passing"
+			statusClass = "success"
 		} else {
-			statuses[cat] = "failed"
+			status = "❌ Failed"
+			statusClass = "failed"
+		}
+		
+		switch cat {
+		case "nlp":
+			statuses["NLPStatus"] = status
+			statuses["NLPClass"] = statusClass
+		case "vision":
+			statuses["VisionStatus"] = status
+			statuses["VisionClass"] = statusClass
+		case "multimodal":
+			statuses["MultimodalStatus"] = status
+			statuses["MultimodalClass"] = statusClass
 		}
 	}
 
@@ -204,32 +286,5 @@ func getTestModels(testAllModels bool) []test.ModelSpec {
 	}
 
 	return models
-}
-
-func loadTemplate() (*template.Template, error) {
-	// For now, return a simple template
-	// In production, this should load from an embedded file or external template
-	tmplStr := `<!DOCTYPE html>
-<html>
-<head>
-	<title>MLOS Release Validation Report</title>
-	<style>
-		body { font-family: Arial, sans-serif; margin: 20px; }
-		.metric-card { border: 1px solid #ddd; padding: 15px; margin: 10px; display: inline-block; }
-		.success { background-color: #d4edda; }
-		.failed { background-color: #f8d7da; }
-	</style>
-</head>
-<body>
-	<h1>MLOS Release Validation Report</h1>
-	<p>Success Rate: {{.SuccessRate}}%</p>
-	<p>Duration: {{.TotalDuration}}s</p>
-	<p>Axon: {{.AxonVersion}}</p>
-	<p>Core: {{.CoreVersion}}</p>
-	<div>{{.InferenceMetricsHTML}}</div>
-</body>
-</html>`
-
-	return template.New("report").Parse(tmplStr)
 }
 
