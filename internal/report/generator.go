@@ -1,12 +1,10 @@
 package report
 
 import (
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/mlOS-foundation/system-test/internal/config"
 	"github.com/mlOS-foundation/system-test/internal/test"
@@ -25,13 +23,20 @@ func NewGenerator(cfg *config.Config) *Generator {
 // Generate generates an HTML report from test results
 func (g *Generator) Generate(results *test.Results) (string, error) {
 	// Load HTML template
-	tmpl, err := template.New("report").Parse(reportTemplate)
+	tmpl, err := template.New("report").Funcs(template.FuncMap{
+		"htmlSafe": func(s string) template.HTML {
+			return template.HTML(s)
+		},
+		"hasMetrics": func(metrics []ModelMetric) bool {
+			return len(metrics) > 0
+		},
+	}).Parse(reportTemplate)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse template: %w", err)
 	}
 
-	// Prepare template data
-	data := prepareTemplateData(results, g.cfg)
+	// Prepare structured data
+	data := PrepareData(results, g.cfg)
 
 	// Generate report
 	reportPath := g.cfg.ReportPath
@@ -48,137 +53,34 @@ func (g *Generator) Generate(results *test.Results) (string, error) {
 	return reportPath, nil
 }
 
+// prepareTemplateData is deprecated - use PrepareData instead
+// This function is kept for backward compatibility but should not be used
 func prepareTemplateData(results *test.Results, cfg *config.Config) map[string]interface{} {
-	// Build inference data for charts
-	inferenceLabels := []string{}
-	inferenceData := []int64{}
-	inferenceColors := []string{}
-
-	metricsHTML := ""
-	totalInferenceTime := int64(0)
-	totalRegisterTime := int64(0)
-	registrationMetricsHTML := ""
-
-	// First, build registration metrics for ALL registered models (not just those with inference)
-	testModels := getTestModels(cfg.TestAllModels)
-	for _, spec := range testModels {
-		if spec.Category != "nlp" {
-			continue // Skip non-NLP for registration display
-		}
-		
-		// Registration time - show for all registered models
-		if regTime, ok := results.Metrics.ModelRegistrationTimes[spec.Name]; ok && regTime > 0 {
-			displayName := getDisplayName(spec.Name)
-			registrationMetricsHTML += fmt.Sprintf(`
-				<div class="metric-card">
-					<h4>%s Registration</h4>
-					<div class="metric-value">%d ms</div>
-				</div>`, displayName, regTime)
-			totalRegisterTime += regTime
-		}
-	}
-
-	// Then, process inference metrics for models with inference results
-	for _, spec := range testModels {
-		if spec.Category != "nlp" {
-			continue // Skip non-NLP for inference display
-		}
-
-		// Small inference
-		if time, ok := results.Metrics.ModelInferenceTimes[spec.Name]; ok && time > 0 {
-			displayName := getDisplayName(spec.Name)
-			inferenceLabels = append(inferenceLabels, fmt.Sprintf("%s (small)", displayName))
-			inferenceData = append(inferenceData, time)
-			inferenceColors = append(inferenceColors, "rgba(102, 126, 234, 0.8)")
-
-			status := results.Metrics.ModelInferenceStatus[spec.Name]
-			statusClass := "success"
-			statusText := "✅ Success"
-			if status != "success" {
-				statusClass = "failed"
-				statusText = "❌ Failed"
-			}
-
-			metricsHTML += fmt.Sprintf(`
-				<div class="metric-card %s">
-					<h4>%s (small)</h4>
-					<div class="metric-value">%d ms</div>
-					<span class="status-badge %s">%s</span>
-				</div>`, statusClass, displayName, time, statusClass, statusText)
-
-			totalInferenceTime += time
-		}
-
-		// Large inference
-		if time, ok := results.Metrics.ModelLargeInferenceTimes[spec.Name]; ok && time > 0 {
-			displayName := getDisplayName(spec.Name)
-			inferenceLabels = append(inferenceLabels, fmt.Sprintf("%s (large)", displayName))
-			inferenceData = append(inferenceData, time)
-			inferenceColors = append(inferenceColors, "rgba(118, 75, 162, 0.8)")
-
-			status := results.Metrics.ModelLargeInferenceStatus[spec.Name]
-			statusClass := "success"
-			statusText := "✅ Success"
-			if status != "success" {
-				statusClass = "failed"
-				statusText = "❌ Failed"
-			}
-
-			metricsHTML += fmt.Sprintf(`
-				<div class="metric-card %s">
-					<h4>%s (large)</h4>
-					<div class="metric-value">%d ms</div>
-					<span class="status-badge %s">%s</span>
-				</div>`, statusClass, displayName, time, statusClass, statusText)
-
-			totalInferenceTime += time
-		}
-	}
-
-	// Calculate category statuses
-	categoryStatuses := calculateCategoryStatuses(results, testModels)
-
-	// Format inference data as JSON for JavaScript
-	// Use template.JS to ensure proper escaping
-	inferenceLabelsJSON, _ := json.Marshal(inferenceLabels)
-	inferenceDataJSON, _ := json.Marshal(inferenceData)
-	inferenceColorsJSON, _ := json.Marshal(inferenceColors)
-
-	// Determine summary card class
-	summaryCardClass := "success"
-	if results.SuccessRate < 100.0 {
-		summaryCardClass = "warning"
-	}
-
-	// Format hardware specs
-	hardwareSpecs := formatHardwareSpecs(results.HardwareSpecs)
-	
-	// Format resource usage
-	resourceUsage := formatResourceUsage(results.ResourceUsage)
-
+	data := PrepareData(results, cfg)
+	// Convert ReportData to map for template compatibility
 	return map[string]interface{}{
-		"SuccessRate":           results.SuccessRate,
-		"SummaryCardClass":      summaryCardClass,
-		"TotalDuration":         results.Duration.Seconds(),
-		"SuccessfulInferences":  results.Metrics.SuccessfulInferences,
-		"TotalInferences":       results.Metrics.TotalInferences,
-		"ModelsInstalled":       results.Metrics.ModelsInstalled,
-		"AxonVersion":           results.AxonVersion,
-		"CoreVersion":           results.CoreVersion,
-		"AxonDownloadTime":      results.Metrics.AxonDownloadTimeMs,
-		"CoreDownloadTime":      results.Metrics.CoreDownloadTimeMs,
-		"CoreStartupTime":       results.Metrics.CoreStartupTimeMs,
-		"InferenceLabelsJSON":   template.JS(inferenceLabelsJSON),
-		"InferenceDataJSON":     template.JS(inferenceDataJSON),
-		"InferenceColorsJSON":    template.JS(inferenceColorsJSON),
-		"InferenceMetricsHTML":  template.HTML(metricsHTML),
-		"RegistrationMetricsHTML": template.HTML(registrationMetricsHTML),
-		"TotalInferenceTime":    totalInferenceTime,
-		"TotalRegisterTime":     totalRegisterTime,
-		"HardwareSpecs":         hardwareSpecs,
-		"ResourceUsage":         resourceUsage,
-		"CategoryStatuses":      categoryStatuses,
-		"Timestamp":             time.Now().Format("2006-01-02 15:04:05"),
+		"SuccessRate":          data.SuccessRate,
+		"SummaryCardClass":     data.SummaryCardClass,
+		"TotalDuration":        data.TotalDuration,
+		"SuccessfulInferences": data.SuccessfulInferences,
+		"TotalInferences":       data.TotalInferences,
+		"ModelsInstalled":       data.ModelsInstalled,
+		"AxonVersion":           data.AxonVersion,
+		"CoreVersion":           data.CoreVersion,
+		"AxonDownloadTime":      data.AxonDownloadTime,
+		"CoreDownloadTime":      data.CoreDownloadTime,
+		"CoreStartupTime":       data.CoreStartupTime,
+		"InferenceLabelsJSON":   data.InferenceLabelsJSON,
+		"InferenceDataJSON":     data.InferenceDataJSON,
+		"InferenceColorsJSON":   data.InferenceColorsJSON,
+		"RegistrationMetrics":   data.RegistrationMetrics,
+		"InferenceMetrics":      data.InferenceMetrics,
+		"TotalInferenceTime":    data.TotalInferenceTime,
+		"TotalRegisterTime":     data.TotalRegisterTime,
+		"HardwareSpecs":         data.HardwareSpecs,
+		"ResourceUsage":         data.ResourceUsage,
+		"CategoryStatuses":      data.CategoryStatuses,
+		"Timestamp":             data.Timestamp,
 	}
 }
 

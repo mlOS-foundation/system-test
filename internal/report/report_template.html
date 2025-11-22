@@ -353,14 +353,24 @@
             </div>
             
             <!-- Model Registration Times -->
-            {{if .RegistrationMetricsHTML}}
             <div class="section">
                 <h2>📝 Model Registration Times</h2>
+                {{if hasMetrics .RegistrationMetrics}}
                 <div class="metrics-grid">
-                    {{.RegistrationMetricsHTML}}
+                    {{range .RegistrationMetrics}}
+                    <div class="metric-card">
+                        <h4>{{.Name}} Registration</h4>
+                        <div class="metric-value">{{.Value}} ms</div>
+                        <span class="status-badge {{.Status}}">{{.StatusText}}</span>
+                    </div>
+                    {{end}}
                 </div>
+                {{else}}
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <p>No registration metrics available</p>
+                </div>
+                {{end}}
             </div>
-            {{end}}
             
             <!-- Inference Performance -->
             <div class="section">
@@ -375,7 +385,19 @@
                     </noscript>
                 </div>
                 <div class="metrics-grid" id="inferenceMetricsGrid">
-                    {{.InferenceMetricsHTML}}
+                    {{if hasMetrics .InferenceMetrics}}
+                    {{range .InferenceMetrics}}
+                    <div class="metric-card {{.Status}}">
+                        <h4>{{.Name}} {{if eq .Type "inference-small"}}(small){{else if eq .Type "inference-large"}}(large){{end}}</h4>
+                        <div class="metric-value">{{.Value}} ms</div>
+                        <span class="status-badge {{.Status}}">{{.StatusText}}</span>
+                    </div>
+                    {{end}}
+                    {{else}}
+                    <div style="text-align: center; padding: 40px; color: #666; grid-column: 1 / -1;">
+                        <p>No inference metrics available</p>
+                    </div>
+                    {{end}}
                 </div>
             </div>
             
