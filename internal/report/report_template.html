@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MLOS Release E2E Validation Report</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -414,11 +414,28 @@
     
     <script>
         // Wait for Chart.js to load
+        let chartInitAttempts = 0;
+        const maxAttempts = 50; // 5 seconds max wait
+        
         function initCharts() {
+            chartInitAttempts++;
             if (typeof Chart === 'undefined') {
-                setTimeout(initCharts, 100);
+                if (chartInitAttempts < maxAttempts) {
+                    setTimeout(initCharts, 100);
+                } else {
+                    console.error('Chart.js failed to load after 5 seconds');
+                    // Show error message in chart containers
+                    const containers = document.querySelectorAll('.chart-container');
+                    containers.forEach(container => {
+                        if (container.querySelector('canvas') && !container.querySelector('canvas').chart) {
+                            container.innerHTML = '<p style="text-align: center; color: #f00; padding: 40px;">Chart.js failed to load. Please check your internet connection.</p>';
+                        }
+                    });
+                }
                 return;
             }
+            
+            console.log('Chart.js loaded, initializing charts...');
             
             // Shared variables for all charts
             const axonTime = {{.AxonDownloadTime}} || 0;
@@ -430,7 +447,8 @@
             // Installation Times Chart
             const installationCtx = document.getElementById('installationChart');
         if (installationCtx) {
-            new Chart(installationCtx.getContext('2d'), {
+            try {
+                new Chart(installationCtx.getContext('2d'), {
             type: 'bar',
             data: {
                 labels: ['Axon Download', 'Core Download', 'Core Startup'],
@@ -476,6 +494,12 @@
                     }
                 }
             });
+            console.log('Installation chart initialized');
+            } catch (e) {
+                console.error('Error initializing installation chart:', e);
+            }
+        } else {
+            console.error('Installation chart canvas not found');
         }
         
         // Inference Performance Chart
@@ -526,15 +550,18 @@
                         }
                     }
                     });
+                    console.log('Inference chart initialized');
                 } else {
                     inferenceCtx.parentElement.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No inference data available</p>';
                 }
             } catch (e) {
                 console.error('Error rendering inference chart:', e);
                 if (inferenceCtx.parentElement) {
-                    inferenceCtx.parentElement.innerHTML = '<p style="text-align: center; color: #f00; padding: 40px;">Error loading inference chart</p>';
+                    inferenceCtx.parentElement.innerHTML = '<p style="text-align: center; color: #f00; padding: 40px;">Error loading inference chart: ' + e.message + '</p>';
                 }
             }
+        } else {
+            console.error('Inference chart canvas not found');
         }
         
         // Performance Breakdown Chart (Doughnut)
@@ -578,21 +605,34 @@
                     }
                 }
             });
+            console.log('Breakdown chart initialized');
             } catch (e) {
                 console.error('Error rendering breakdown chart:', e);
                 if (breakdownCtx.parentElement) {
-                    breakdownCtx.parentElement.innerHTML = '<p style="text-align: center; color: #f00; padding: 40px;">Error loading breakdown chart</p>';
+                    breakdownCtx.parentElement.innerHTML = '<p style="text-align: center; color: #f00; padding: 40px;">Error loading breakdown chart: ' + e.message + '</p>';
                 }
             }
-        }
+        } else {
+            console.error('Breakdown chart canvas not found');
         }
         
-        // Initialize charts when DOM is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initCharts);
-        } else {
-            initCharts();
+        console.log('Chart initialization complete');
         }
+        
+        // Initialize charts - wait for both DOM and Chart.js
+        function startInit() {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    initCharts();
+                });
+            } else {
+                // DOM is ready, but wait for Chart.js
+                initCharts();
+            }
+        }
+        
+        // Start initialization
+        startInit();
     </script>
 </body>
 </html>
