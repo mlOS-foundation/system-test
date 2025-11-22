@@ -174,6 +174,91 @@ func DownloadCore(version, outputDir string) error {
 	return nil
 }
 
+// SetupONNXRuntime downloads and sets up ONNX Runtime if needed
+func SetupONNXRuntime(extractDir string) error {
+	buildDir := filepath.Join(extractDir, "build")
+	
+	// Check if ONNX Runtime is already installed
+	libName := "libonnxruntime.1.18.0.dylib"
+	if runtime.GOOS == "linux" {
+		libName = "libonnxruntime.1.18.0.so"
+	}
+	onnxLibPath := filepath.Join(buildDir, "onnxruntime", "lib", libName)
+	
+	if _, err := os.Stat(onnxLibPath); err == nil {
+		return nil // Already installed
+	}
+	
+	// Determine architecture for ONNX Runtime
+	var onnxArch string
+	switch runtime.GOARCH {
+	case "amd64":
+		onnxArch = "x64"
+	case "arm64":
+		onnxArch = "arm64"
+	default:
+		return fmt.Errorf("unsupported architecture for ONNX Runtime: %s", runtime.GOARCH)
+	}
+	
+	// Download ONNX Runtime
+	var onnxURL string
+	if runtime.GOOS == "darwin" {
+		onnxURL = fmt.Sprintf("https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-osx-%s-1.18.0.tgz", onnxArch)
+	} else if runtime.GOOS == "linux" {
+		onnxURL = fmt.Sprintf("https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-linux-%s-1.18.0.tgz", onnxArch)
+	} else {
+		return fmt.Errorf("unsupported OS for ONNX Runtime: %s", runtime.GOOS)
+	}
+	
+	fmt.Printf("ONNX Runtime not found, downloading...\n")
+	fmt.Printf("Downloading ONNX Runtime from: %s\n", onnxURL)
+	
+	// Download
+	onnxArchive := filepath.Join(buildDir, "onnxruntime.tgz")
+	cmd := exec.Command("curl", "-L", "-f", "-o", onnxArchive, onnxURL)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to download ONNX Runtime: %w", err)
+	}
+	
+	// Extract
+	if err := os.MkdirAll(buildDir, 0755); err != nil {
+		return fmt.Errorf("failed to create build directory: %w", err)
+	}
+	
+	cmd = exec.Command("tar", "-xzf", onnxArchive, "-C", buildDir)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to extract ONNX Runtime: %w", err)
+	}
+	
+	// Rename to expected directory structure
+	// Archive extracts to: onnxruntime-osx-arm64-1.18.0 or onnxruntime-linux-x64-1.18.0
+	var extractedDirName string
+	if runtime.GOOS == "darwin" {
+		extractedDirName = fmt.Sprintf("onnxruntime-osx-%s-1.18.0", onnxArch)
+	} else {
+		extractedDirName = fmt.Sprintf("onnxruntime-linux-%s-1.18.0", onnxArch)
+	}
+	extractedDir := filepath.Join(buildDir, extractedDirName)
+	expectedDir := filepath.Join(buildDir, "onnxruntime")
+	
+	if _, err := os.Stat(extractedDir); err == nil {
+		if err := os.Rename(extractedDir, expectedDir); err != nil {
+			return fmt.Errorf("failed to rename ONNX Runtime directory: %w", err)
+		}
+	} else {
+		// Directory might already be named correctly, or extraction failed
+		return fmt.Errorf("ONNX Runtime extraction directory not found: %s", extractedDir)
+	}
+	
+	// Clean up archive
+	os.Remove(onnxArchive)
+	
+	fmt.Printf("✅ ONNX Runtime installed\n")
+	return nil
+}
+
 // StartCore starts the MLOS Core server on a non-privileged port
 func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	coreDir := filepath.Join(outputDir, "mlos-core")
@@ -195,6 +280,11 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 		if dirCount == 1 {
 			extractDir = filepath.Join(coreDir, nestedDir)
 		}
+	}
+	
+	// Setup ONNX Runtime if needed
+	if err := SetupONNXRuntime(extractDir); err != nil {
+		return nil, fmt.Errorf("failed to setup ONNX Runtime: %w", err)
 	}
 	
 	binaryPath := filepath.Join(extractDir, "build", "mlos-server")
