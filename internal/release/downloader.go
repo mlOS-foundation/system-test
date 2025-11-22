@@ -173,8 +173,8 @@ func DownloadCore(version, outputDir string) error {
 	return nil
 }
 
-// StartCore starts the MLOS Core server
-func StartCore(version, outputDir string) (*monitor.Process, error) {
+// StartCore starts the MLOS Core server on a non-privileged port
+func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	coreDir := filepath.Join(outputDir, "mlos-core")
 	
 	// Handle nested directory structure
@@ -198,9 +198,9 @@ func StartCore(version, outputDir string) (*monitor.Process, error) {
 	
 	binaryPath := filepath.Join(extractDir, "build", "mlos-server")
 
-	// Start server with sudo (required for binding to ports)
-	cmd := exec.Command("sudo", binaryPath)
-	cmd.Dir = coreDir
+	// Start server on non-privileged port (no sudo needed)
+	cmd := exec.Command(binaryPath, "--http-port", fmt.Sprintf("%d", port))
+	cmd.Dir = extractDir
 	
 	// Start process
 	if err := cmd.Start(); err != nil {
@@ -214,7 +214,7 @@ func StartCore(version, outputDir string) (*monitor.Process, error) {
 	}
 
 	// Wait for server to be ready
-	if err := waitForServer(); err != nil {
+	if err := waitForServer(port); err != nil {
 		monitor.StopProcess(process)
 		return nil, fmt.Errorf("server failed to start: %w", err)
 	}
@@ -245,12 +245,13 @@ func getPlatform() string {
 	return fmt.Sprintf("%s-%s", osName, arch)
 }
 
-func waitForServer() error {
+func waitForServer(port int) error {
 	// Wait for server to be ready by checking HTTP endpoint
 	maxRetries := 30
+	url := fmt.Sprintf("http://localhost:%d/health", port)
 	for i := 0; i < maxRetries; i++ {
 		// Try health endpoint - any response (even 404) means server is up
-		cmd := exec.Command("curl", "-s", "-o", "/dev/null", "http://localhost:8080/health")
+		cmd := exec.Command("curl", "-s", "-o", "/dev/null", url)
 		if err := cmd.Run(); err == nil {
 			// Server responded, it's ready
 			return nil
