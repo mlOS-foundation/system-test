@@ -370,7 +370,9 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 		if errOutput != "" {
 			fmt.Printf("Server stderr: %s\n", errOutput)
 		}
-		monitor.StopProcess(process)
+		if stopErr := monitor.StopProcess(process); stopErr != nil {
+			fmt.Printf("WARN: Failed to stop process: %v\n", stopErr)
+		}
 		return nil, fmt.Errorf("server failed to start: %w", err)
 	}
 

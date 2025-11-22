@@ -51,7 +51,9 @@ func (r *Runner) Run() (*Results, error) {
 	defer func() {
 		if coreProcess != nil {
 			log.Printf("WARN: Cleaning up...")
-			monitor.StopProcess(coreProcess)
+			if err := monitor.StopProcess(coreProcess); err != nil {
+				log.Printf("WARN: Failed to stop Core process: %v", err)
+			}
 		}
 	}()
 
