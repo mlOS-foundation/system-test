@@ -71,16 +71,12 @@ func GetPath(modelSpec string) (string, error) {
 }
 
 // GetModelPath returns the expected path for a model
+// Matches bash script: ~/.axon/cache/models/${model_id%@*}/${model_id##*@}/model.onnx
+// For "hf/distilgpt2@latest": ~/.axon/cache/models/hf/distilgpt2/latest/model.onnx
 func GetModelPath(repoModel, version string) string {
 	homeDir, _ := os.UserHomeDir()
-	// Format: ~/.axon/cache/models/{repo}/{model}/{version}/model.onnx
-	// Example: hf/distilgpt2 -> hf/distilgpt2/latest/model.onnx
-	parts := strings.Split(repoModel, "/")
-	if len(parts) >= 2 {
-		modelName := parts[len(parts)-1]
-		repo := strings.Join(parts[:len(parts)-1], "/")
-		return filepath.Join(homeDir, ".axon", "cache", "models", repo, modelName, version, "model.onnx")
-	}
+	// Format: ~/.axon/cache/models/{repoModel}/{version}/model.onnx
+	// Example: hf/distilgpt2 + latest -> ~/.axon/cache/models/hf/distilgpt2/latest/model.onnx
 	return filepath.Join(homeDir, ".axon", "cache", "models", repoModel, version, "model.onnx")
 }
 
