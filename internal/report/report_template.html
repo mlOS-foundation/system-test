@@ -634,13 +634,26 @@
                     setTimeout(initCharts, 100);
                 } else {
                     console.error('Chart.js failed to load after 5 seconds');
-                    // Show error message in chart containers
-                    const containers = document.querySelectorAll('.chart-container');
-                    containers.forEach(container => {
-                        if (container.querySelector('canvas') && !container.querySelector('canvas').chart) {
-                            container.innerHTML = '<p style="text-align: center; color: #f00; padding: 40px;">Chart.js failed to load. Please check your internet connection.</p>';
-                        }
-                    });
+                    // Show fallback displays instead of error messages
+                    const installationFallback = document.getElementById('installationChartFallback');
+                    const inferenceFallback = document.getElementById('inferenceChartFallback');
+                    const breakdownFallback = document.getElementById('breakdownChartFallback');
+                    
+                    if (installationFallback) {
+                        const canvas = document.getElementById('installationChart');
+                        if (canvas) canvas.style.display = 'none';
+                        installationFallback.style.display = 'block';
+                    }
+                    if (inferenceFallback) {
+                        const canvas = document.getElementById('inferenceChart');
+                        if (canvas) canvas.style.display = 'none';
+                        inferenceFallback.style.display = 'block';
+                    }
+                    if (breakdownFallback) {
+                        const canvas = document.getElementById('breakdownChart');
+                        if (canvas) canvas.style.display = 'none';
+                        breakdownFallback.style.display = 'block';
+                    }
                 }
                 return;
             }
