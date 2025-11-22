@@ -408,15 +408,22 @@
     </div>
     
     <script>
-        // Shared variables for all charts
-        const axonTime = {{.AxonDownloadTime}} || 0;
-        const coreDownloadTime = {{.CoreDownloadTime}} || 0;
-        const coreStartupTime = {{.CoreStartupTime}} || 0;
-        const totalRegisterTime = {{.TotalRegisterTime}} || 0;
-        const totalInferenceTime = {{.TotalInferenceTime}} || 0;
-        
-        // Installation Times Chart
-        const installationCtx = document.getElementById('installationChart');
+        // Wait for Chart.js to load
+        function initCharts() {
+            if (typeof Chart === 'undefined') {
+                setTimeout(initCharts, 100);
+                return;
+            }
+            
+            // Shared variables for all charts
+            const axonTime = {{.AxonDownloadTime}} || 0;
+            const coreDownloadTime = {{.CoreDownloadTime}} || 0;
+            const coreStartupTime = {{.CoreStartupTime}} || 0;
+            const totalRegisterTime = {{.TotalRegisterTime}} || 0;
+            const totalInferenceTime = {{.TotalInferenceTime}} || 0;
+            
+            // Installation Times Chart
+            const installationCtx = document.getElementById('installationChart');
         if (installationCtx) {
             new Chart(installationCtx.getContext('2d'), {
             type: 'bar',
@@ -572,6 +579,14 @@
                     breakdownCtx.parentElement.innerHTML = '<p style="text-align: center; color: #f00; padding: 40px;">Error loading breakdown chart</p>';
                 }
             }
+        }
+        }
+        
+        // Initialize charts when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initCharts);
+        } else {
+            initCharts();
         }
     </script>
 </body>
