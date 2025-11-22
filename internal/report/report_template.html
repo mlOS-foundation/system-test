@@ -327,6 +327,14 @@
                 <h2>⏱️ Installation & Setup Times</h2>
                 <div class="chart-container">
                     <canvas id="installationChart"></canvas>
+                    <noscript>
+                        <div style="text-align: center; padding: 40px; color: #666;">
+                            <p><strong>Installation Times:</strong></p>
+                            <p>Axon Download: {{.AxonDownloadTime}} ms</p>
+                            <p>Core Download: {{.CoreDownloadTime}} ms</p>
+                            <p>Core Startup: {{.CoreStartupTime}} ms</p>
+                        </div>
+                    </noscript>
                 </div>
                 <div class="metrics-grid">
                     <div class="metric-card">
@@ -359,6 +367,12 @@
                 <h2>🚀 Inference Performance</h2>
                 <div class="chart-container">
                     <canvas id="inferenceChart"></canvas>
+                    <noscript>
+                        <div style="text-align: center; padding: 40px; color: #666;">
+                            <p><strong>Inference Performance Data:</strong></p>
+                            <p>See metric cards below for detailed per-model performance.</p>
+                        </div>
+                    </noscript>
                 </div>
                 <div class="metrics-grid" id="inferenceMetricsGrid">
                     {{.InferenceMetricsHTML}}
@@ -412,6 +426,25 @@
                 <h2>📈 Performance Breakdown</h2>
                 <div class="chart-container">
                     <canvas id="breakdownChart"></canvas>
+                    <noscript>
+                        <div style="text-align: center; padding: 40px; color: #666;">
+                            <p><strong>Time Distribution:</strong></p>
+                            <p>Axon Download: {{.AxonDownloadTime}} ms</p>
+                            <p>Core Download: {{.CoreDownloadTime}} ms</p>
+                            <p>Model Registration: {{.TotalRegisterTime}} ms</p>
+                            <p>Inference Tests: {{.TotalInferenceTime}} ms</p>
+                        </div>
+                    </noscript>
+                </div>
+                <div class="metrics-grid" style="margin-top: 20px;">
+                    <div class="metric-card">
+                        <h4>Total Registration Time</h4>
+                        <div class="metric-value">{{.TotalRegisterTime}} ms</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Total Inference Time</h4>
+                        <div class="metric-value">{{.TotalInferenceTime}} ms</div>
+                    </div>
                 </div>
             </div>
         </div>
