@@ -151,14 +151,21 @@ EOF
             echo "✅ Placeholder page created"
           fi
       
-      - name: Publish report to GitHub Pages
+      - name: Setup Pages
         if: github.ref == 'refs/heads/main' && always()
-        uses: peaceiris/actions-gh-pages@v3
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        if: github.ref == 'refs/heads/main' && always()
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./_site
-          destination_dir: ./
-          keep_files: false
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
+          path: ./_site
+      
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main' && always()
+        id: deployment
+        uses: actions/deploy-pages@v4
+        environment:
+          name: github-pages
+          url: ${{ steps.deployment.outputs.page_url }}
 
