@@ -46,9 +46,11 @@ jobs:
     environment:
       name: github-pages
     permissions:
+      contents: read
       contents: write
       pages: write
       id-token: write
+      packages: read
     runs-on: ubuntu-latest
     needs: [vet, lint]
     steps:
