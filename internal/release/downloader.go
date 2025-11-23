@@ -114,7 +114,7 @@ func DownloadCore(version, outputDir string) error {
 
 	// Extract archive (extract to coreDir, then handle nested structure)
 	extractCmd := exec.Command("tar", "-xzf", archivePath, "-C", coreDir)
-	if err := cmd.Run(); err != nil {
+	if err := extractCmd.Run(); err != nil {
 		return fmt.Errorf("failed to extract Core archive: %w", err)
 	}
 
