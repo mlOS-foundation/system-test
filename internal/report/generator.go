@@ -60,7 +60,11 @@ func (g *Generator) Generate(results *test.Results) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create report file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			// Ignore close errors on file
+		}
+	}()
 
 	// Execute template with the structured data
 	if err := tmpl.Execute(file, data); err != nil {

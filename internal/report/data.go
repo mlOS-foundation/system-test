@@ -188,9 +188,18 @@ func buildChartData(metrics []ModelMetric) (template.JS, template.JS, template.J
 		}
 	}
 
-	labelsJSON, _ := json.Marshal(labels)
-	dataJSON, _ := json.Marshal(data)
-	colorsJSON, _ := json.Marshal(colors)
+	labelsJSON, err := json.Marshal(labels)
+	if err != nil {
+		labelsJSON = []byte("[]")
+	}
+	dataJSON, err := json.Marshal(data)
+	if err != nil {
+		dataJSON = []byte("[]")
+	}
+	colorsJSON, err := json.Marshal(colors)
+	if err != nil {
+		colorsJSON = []byte("[]")
+	}
 
 	return template.JS(labelsJSON), template.JS(dataJSON), template.JS(colorsJSON)
 }
