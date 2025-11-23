@@ -84,10 +84,8 @@ jobs:
             echo "✅ Successfully accessed mlOS-foundation/core repository"
           else
             echo "❌ Failed to access mlOS-foundation/core repository"
-            echo "This may indicate:"
-            echo "  1. Enterprise setting hasn't propagated yet (wait a few minutes)"
-            echo "  2. Repository-level permissions need to be checked"
-            echo "  3. GITHUB_TOKEN doesn't have sufficient permissions"
+            echo "Checking token permissions..."
+            gh auth status
             exit 1
           fi
       
