@@ -59,8 +59,10 @@ func DownloadCore(version, outputDir string) error {
 		return fmt.Errorf("failed to create core directory: %w", err)
 	}
 
-	archiveName := fmt.Sprintf("mlos-core_%s_%s.tar.gz", version, platform)
-	archivePath := filepath.Join(coreDir, archiveName)
+	// Use wildcard pattern that matches the release format: mlos-core_v2.3.0-alpha_*
+	// This pattern works reliably as tested locally
+	pattern := fmt.Sprintf("mlos-core_%s_*", version)
+	archivePath := ""
 
 	// Get GITHUB_TOKEN from environment (set by GitHub Actions)
 	// Also try to get it from gh CLI if not in env (for local testing)
@@ -77,50 +79,39 @@ func DownloadCore(version, outputDir string) error {
 		}
 	}
 
-	// Try GitHub API first (more reliable with GITHUB_TOKEN)
-	if githubToken != "" {
-		if err := downloadViaAPI(version, archiveName, archivePath, githubToken); err == nil {
-			// Success, proceed to extraction
-		} else {
-			fmt.Printf("GitHub API download failed: %v, trying gh CLI fallback...\n", err)
-			// Fall through to gh CLI as fallback
-		}
+	// Use gh CLI with wildcard pattern (proven to work locally)
+	// This is more reliable than exact pattern matching
+	cmd := exec.Command("gh", "release", "download", version,
+		"--repo", "mlOS-foundation/core",
+		"--pattern", pattern,
+		"--dir", coreDir)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to download Core release: %w", err)
 	}
 
-	// Fallback to gh CLI if API failed or no token
-	if _, err := os.Stat(archivePath); os.IsNotExist(err) {
-		cmd := exec.Command("gh", "release", "download", version,
-			"--repo", "mlOS-foundation/core",
-			"--pattern", archiveName,
-			"--dir", coreDir)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-
-		if err := cmd.Run(); err != nil {
-			// Try pattern matching
-			fmt.Printf("Pattern download failed, trying alternative approach...\n")
-			cmd = exec.Command("gh", "release", "download", version,
-				"--repo", "mlOS-foundation/core",
-				"--pattern", "*.tar.gz",
-				"--dir", coreDir)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("failed to download Core release: %w", err)
+	// Find the downloaded file (could be any platform variant)
+	matches, err := filepath.Glob(filepath.Join(coreDir, fmt.Sprintf("mlos-core_%s_*.tar.gz", version)))
+	if err != nil || len(matches) == 0 {
+		// Try alternative patterns
+		altPatterns := []string{
+			filepath.Join(coreDir, fmt.Sprintf("mlos-core-%s-*.tar.gz", version)),
+			filepath.Join(coreDir, "mlos-core_*.tar.gz"),
+			filepath.Join(coreDir, "*.tar.gz"),
+		}
+		for _, altPattern := range altPatterns {
+			matches, err = filepath.Glob(altPattern)
+			if err == nil && len(matches) > 0 {
+				break
 			}
-			// Find the downloaded file
-			matches, err := filepath.Glob(filepath.Join(coreDir, archiveName))
-			if err != nil || len(matches) == 0 {
-				// Try with underscore instead of hyphen in platform
-				altArchiveName := strings.Replace(archiveName, "_", "-", 1)
-				matches, err = filepath.Glob(filepath.Join(coreDir, altArchiveName))
-			}
-			if err != nil || len(matches) == 0 {
-				return fmt.Errorf("Core binary archive not found after download (expected: %s)", archiveName)
-			}
-			archivePath = matches[0]
 		}
 	}
+	if err != nil || len(matches) == 0 {
+		return fmt.Errorf("Core binary archive not found after download (pattern: %s)", pattern)
+	}
+	archivePath = matches[0]
 
 	// Extract archive (extract to coreDir, then handle nested structure)
 	cmd := exec.Command("tar", "-xzf", archivePath, "-C", coreDir)
