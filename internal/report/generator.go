@@ -70,36 +70,6 @@ func (g *Generator) Generate(results *test.Results) (string, error) {
 	return reportPath, nil
 }
 
-// prepareTemplateData is deprecated - use PrepareData instead
-// This function is kept for backward compatibility but should not be used
-func prepareTemplateData(results *test.Results, cfg *config.Config) map[string]interface{} {
-	data := PrepareData(results, cfg)
-	// Convert ReportData to map for template compatibility
-	return map[string]interface{}{
-		"SuccessRate":          data.SuccessRate,
-		"SummaryCardClass":     data.SummaryCardClass,
-		"TotalDuration":        data.TotalDuration,
-		"SuccessfulInferences": data.SuccessfulInferences,
-		"TotalInferences":       data.TotalInferences,
-		"ModelsInstalled":       data.ModelsInstalled,
-		"AxonVersion":           data.AxonVersion,
-		"CoreVersion":           data.CoreVersion,
-		"AxonDownloadTime":      data.AxonDownloadTime,
-		"CoreDownloadTime":      data.CoreDownloadTime,
-		"CoreStartupTime":       data.CoreStartupTime,
-		"InferenceLabelsJSON":   data.InferenceLabelsJSON,
-		"InferenceDataJSON":     data.InferenceDataJSON,
-		"InferenceColorsJSON":   data.InferenceColorsJSON,
-		"RegistrationMetrics":   data.RegistrationMetrics,
-		"InferenceMetrics":      data.InferenceMetrics,
-		"TotalInferenceTime":    data.TotalInferenceTime,
-		"TotalRegisterTime":     data.TotalRegisterTime,
-		"HardwareSpecs":         data.HardwareSpecs,
-		"ResourceUsage":         data.ResourceUsage,
-		"CategoryStatuses":      data.CategoryStatuses,
-		"Timestamp":             data.Timestamp,
-	}
-}
 
 func formatHardwareSpecs(specs map[string]string) map[string]string {
 	if specs == nil {
