@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLOS Release E2E Validation Report</title>
+    
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js" onerror="console.error('Failed to load React'); window.reactLoadError = true;"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" onerror="console.error('Failed to load ReactDOM'); window.reactDOMLoadError = true;"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://unpkg.com/chart.js@4.4.0/dist/chart.umd.min.js" onerror="console.error('Failed to load Chart.js'); window.chartLoadError = true;"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .summary-card.success {
+            border-left: 5px solid #10b981;
+        }
+        
+        .summary-card.warning {
+            border-left: 5px solid #f59e0b;
+        }
+        
+        .summary-card h3 {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .summary-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .section {
+            padding: 30px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .section:last-child {
+            border-bottom: none;
+        }
+        
+        .section h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .metric-folder {
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        
+        .metric-folder:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .metric-folder-header {
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            user-select: none;
+        }
+        
+        .metric-folder-header:hover {
+            background: #f0f0f0;
+        }
+        
+        .metric-folder-header h3 {
+            font-size: 1.2em;
+            color: #333;
+            margin: 0;
+        }
+        
+        .metric-folder-header .icon {
+            font-size: 1.2em;
+            transition: transform 0.3s ease;
+        }
+        
+        .metric-folder-header.expanded .icon {
+            transform: rotate(90deg);
+        }
+        
+        .metric-folder-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .metric-folder-content.expanded {
+            max-height: 5000px;
+        }
+        
+        .metric-folder-body {
+            padding: 20px;
+            background: white;
+        }
+        
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .metric-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .metric-item.success {
+            border-left-color: #10b981;
+        }
+        
+        .metric-item.failed {
+            border-left-color: #ef4444;
+        }
+        
+        .metric-item.ready {
+            border-left-color: #6b7280;
+        }
+        
+        .metric-item-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .metric-item-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .metric-item-status {
+            font-size: 0.85em;
+            margin-top: 5px;
+            color: #666;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-top: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .hardware-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .hardware-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .hardware-item-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .hardware-item-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .badge.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge.failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .badge.ready {
+            background: #e5e7eb;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <!-- Report data from Go template -->
+    <script>
+        window.reportData = {
+            successRate: [[.SuccessRate]],
+            totalDuration: [[.TotalDuration]],
+            successfulInferences: [[.SuccessfulInferences]],
+            totalInferences: [[.TotalInferences]],
+            modelsInstalled: [[.ModelsInstalled]],
+            axonVersion: "[[.AxonVersion]]",
+            coreVersion: "[[.CoreVersion]]",
+            axonDownloadTime: [[.AxonDownloadTime]],
+            coreDownloadTime: [[.CoreDownloadTime]],
+            coreStartupTime: [[.CoreStartupTime]],
+            totalRegisterTime: [[.TotalRegisterTime]],
+            totalInferenceTime: [[.TotalInferenceTime]],
+            registrationMetrics: [[.RegistrationMetrics | json]],
+            inferenceMetrics: [[.InferenceMetrics | json]],
+            inferenceLabels: [[.InferenceLabelsJSON]],
+            inferenceData: [[.InferenceDataJSON]],
+            inferenceColors: [[.InferenceColorsJSON]],
+            hardwareSpecs: [[.HardwareSpecs | json]],
+            resourceUsage: [[.ResourceUsage | json]],
+            categoryStatuses: [[.CategoryStatuses | json]],
+            timestamp: "[[.Timestamp]]"
+        };
+    </script>
+    
+    <!-- React Application -->
+    <script src="report_app.js"></script>
+    
+    <!-- Fallback if React doesn't load -->
+    <script>
+        setTimeout(function() {
+            const root = document.getElementById('root');
+            if (root && root.children.length === 0) {
+                // React didn't render, show error
+                root.innerHTML = '<div style="padding: 40px; text-align: center; color: white; max-width: 600px; margin: 100px auto;">' +
+                    '<h2 style="font-size: 2em; margin-bottom: 20px;">⚠️ Report Loading Issue</h2>' +
+                    '<p style="font-size: 1.2em; margin-bottom: 20px;">The report requires internet connection to load React and Chart.js libraries.</p>' +
+                    '<p style="margin-bottom: 20px;">Please ensure you have an active internet connection and refresh the page.</p>' +
+                    '<p style="font-size: 0.9em; opacity: 0.8;">Alternatively, you can view the report data in the browser console (F12).</p>' +
+                    '</div>';
+                console.error('React app failed to load. Check if React and ReactDOM are loaded:', {
+                    React: typeof React,
+                    ReactDOM: typeof ReactDOM,
+                    reportData: typeof window.reportData !== 'undefined' ? 'loaded' : 'missing'
+                });
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

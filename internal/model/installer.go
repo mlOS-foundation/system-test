@@ -27,9 +27,9 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 
 	// Skip vision and multimodal models unless testAllModels is true
 	if !testAllModels {
-		if strings.Contains(repoModel, "resnet") || 
-		   strings.Contains(repoModel, "vgg") || 
-		   strings.Contains(repoModel, "clip") {
+		if strings.Contains(repoModel, "resnet") ||
+			strings.Contains(repoModel, "vgg") ||
+			strings.Contains(repoModel, "clip") {
 			return false, nil // Skip
 		}
 	}
@@ -44,7 +44,7 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 	cmd := exec.Command(axonBin, "install", modelSpec)
 	cmd.Stdout = os.Stderr // Suppress verbose output
 	cmd.Stderr = os.Stderr
-	
+
 	if err := cmd.Run(); err != nil {
 		return false, fmt.Errorf("axon install failed: %w", err)
 	}
@@ -74,7 +74,11 @@ func GetPath(modelSpec string) (string, error) {
 // Matches bash script: ~/.axon/cache/models/${model_id%@*}/${model_id##*@}/model.onnx
 // For "hf/distilgpt2@latest": ~/.axon/cache/models/hf/distilgpt2/latest/model.onnx
 func GetModelPath(repoModel, version string) string {
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		// Fallback to current directory if home directory cannot be determined
+		homeDir = "."
+	}
 	// Format: ~/.axon/cache/models/{repoModel}/{version}/model.onnx
 	// Example: hf/distilgpt2 + latest -> ~/.axon/cache/models/hf/distilgpt2/latest/model.onnx
 	return filepath.Join(homeDir, ".axon", "cache", "models", repoModel, version, "model.onnx")
@@ -83,14 +87,14 @@ func GetModelPath(repoModel, version string) string {
 // Register registers a model with MLOS Core
 func Register(modelID, modelPath string, port int) error {
 	// Register via HTTP API
-	jsonPayload := fmt.Sprintf(`{"model_id":"%s","path":"%s"}`, modelID, modelPath)
+	jsonPayload := fmt.Sprintf(`{"model_id":%q,"path":%q}`, modelID, modelPath)
 	url := fmt.Sprintf("http://localhost:%d/models/register", port)
-	
-	cmd := exec.Command("curl", "-X", "POST", 
+
+	cmd := exec.Command("curl", "-X", "POST",
 		url,
 		"-H", "Content-Type: application/json",
 		"-d", jsonPayload)
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("registration failed: %w, output: %s", err, string(output))
@@ -103,4 +107,3 @@ func Register(modelID, modelPath string, port int) error {
 
 	return nil
 }
-

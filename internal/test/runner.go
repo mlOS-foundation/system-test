@@ -51,7 +51,9 @@ func (r *Runner) Run() (*Results, error) {
 	defer func() {
 		if coreProcess != nil {
 			log.Printf("WARN: Cleaning up...")
-			monitor.StopProcess(coreProcess)
+			if err := monitor.StopProcess(coreProcess); err != nil {
+				log.Printf("WARN: Failed to stop Core process: %v", err)
+			}
 		}
 	}()
 
@@ -195,14 +197,21 @@ func (r *Runner) runInferenceTests(results *Results) error {
 
 	testModels := r.getTestModels()
 	for _, spec := range testModels {
-		// Skip vision and multimodal for now (can be enabled later)
+		// Only test NLP models for now (vision and multimodal can be enabled later)
 		if spec.Category != "nlp" {
+			continue
+		}
+
+		// Check if model is available before testing
+		_, err := model.GetPath(spec.ID)
+		if err != nil {
+			log.Printf("WARN: Model %s not available, skipping: %v", spec.ID, err)
 			continue
 		}
 
 		// Small inference test
 		start := time.Now()
-		err := model.RunInference(spec.Name, spec.Type, false, r.cfg.CorePort)
+		err = model.RunInference(spec.Name, spec.Type, false, r.cfg.CorePort)
 		elapsed := time.Since(start).Milliseconds()
 		results.Metrics.TotalInferences++
 
@@ -235,7 +244,7 @@ func (r *Runner) runInferenceTests(results *Results) error {
 		}
 	}
 
-	log.Printf("✅ Completed %d/%d inference tests", 
+	log.Printf("✅ Completed %d/%d inference tests",
 		results.Metrics.SuccessfulInferences, results.Metrics.TotalInferences)
 	return nil
 }
@@ -259,7 +268,12 @@ func (r *Runner) monitorResources(results *Results, process *monitor.Process, un
 	if underLoad {
 		key = "under_load"
 	}
-	results.ResourceUsage[key] = usage
+	// Store as map for JSON serialization
+	results.ResourceUsage[key] = map[string]interface{}{
+		"CPUPercent":    usage.CPUPercent,
+		"MemoryMB":      usage.MemoryMB,
+		"MemoryPercent": usage.MemoryPercent,
+	}
 	return nil
 }
 
@@ -290,4 +304,3 @@ func (r *Runner) getTestModels() []ModelSpec {
 
 	return models
 }
-

@@ -7,8 +7,8 @@ import (
 	"os"
 
 	"github.com/mlOS-foundation/system-test/internal/config"
-	"github.com/mlOS-foundation/system-test/internal/test"
 	"github.com/mlOS-foundation/system-test/internal/report"
+	"github.com/mlOS-foundation/system-test/internal/test"
 )
 
 var (
@@ -19,13 +19,13 @@ var (
 
 func main() {
 	var (
-		axonVersion    = flag.String("axon-version", "v3.0.0", "Axon release version to test")
-		coreVersion    = flag.String("core-version", "v2.3.0-alpha", "MLOS Core release version to test")
-		outputDir      = flag.String("output", "", "Output directory for reports (default: ./e2e-results-<timestamp>)")
-		testAllModels  = flag.Bool("all-models", false, "Test all models including vision and multimodal")
-		skipInstall    = flag.Bool("skip-install", false, "Skip downloading and installing releases")
-		showVersion    = flag.Bool("version", false, "Show version information")
-		verbose        = flag.Bool("verbose", false, "Enable verbose logging")
+		axonVersion   = flag.String("axon-version", "v3.0.0", "Axon release version to test")
+		coreVersion   = flag.String("core-version", "v2.3.0-alpha", "MLOS Core release version to test")
+		outputDir     = flag.String("output", "", "Output directory for reports (default: ./e2e-results-<timestamp>)")
+		testAllModels = flag.Bool("all-models", false, "Test all models including vision and multimodal")
+		skipInstall   = flag.Bool("skip-install", false, "Skip downloading and installing releases")
+		showVersion   = flag.Bool("version", false, "Show version information")
+		verbose       = flag.Bool("verbose", false, "Enable verbose logging")
 	)
 	flag.Parse()
 
@@ -103,4 +103,3 @@ func printSummary(results *test.Results, reportPath string) {
 	}
 	fmt.Println()
 }
-

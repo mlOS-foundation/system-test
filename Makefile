@@ -1,4 +1,4 @@
-.PHONY: build install test clean run
+.PHONY: build install test clean run check vet lint fmt ci
 
 # Build the E2E test tool
 build:
@@ -34,11 +34,38 @@ clean:
 
 # Format code
 fmt:
+	@echo "Formatting code..."
 	@go fmt ./...
+	@echo "✅ Code formatted"
+
+# Run go vet
+vet:
+	@echo "Running go vet..."
+	@go vet ./...
+	@echo "✅ go vet passed"
 
 # Lint code
 lint:
-	@golangci-lint run ./...
+	@echo "Running golangci-lint..."
+	@if ! command -v golangci-lint >/dev/null 2>&1; then \
+		echo "Installing golangci-lint v1.64.8..."; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.64.8; \
+	fi
+	@golangci-lint version | grep -q "1.64.8" || (echo "⚠️  Warning: golangci-lint version mismatch. CI uses v1.64.8" && exit 1)
+	@golangci-lint run --timeout=5m ./...
+	@echo "✅ golangci-lint passed"
+
+# Run all checks
+check: vet lint fmt build
+	@echo "✅ All checks passed!"
+
+# Run full CI checks (matches GitHub Actions CI)
+ci: vet lint fmt build
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "✅ All CI checks passed!"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo ""
+	@echo "Ready to push! Run 'git push' to update PR."
 
 # Show version
 version: build

@@ -1,5 +1,10 @@
 # MLOS System Test
 
+[![Build Status](https://github.com/mlOS-foundation/system-test/workflows/CI/badge.svg)](https://github.com/mlOS-foundation/system-test/actions)
+[![Latest Report](https://img.shields.io/badge/report-latest-blue)](https://mlOS-foundation.github.io/system-test/)
+
+**📊 View Latest Report:** [https://mlOS-foundation.github.io/system-test/](https://mlOS-foundation.github.io/system-test/)
+
 End-to-end integration testing framework for MLOS Foundation releases (Axon + Core).
 
 ## Overview
@@ -98,8 +103,10 @@ This framework is designed to be integrated with GitHub Actions to automatically
 - Go 1.21+
 - `gh` CLI (for downloading releases)
 - `curl` (for HTTP requests)
-- `sudo` access (for starting MLOS Core server)
+- `tar` (for extracting archives)
 - Network access to download releases and models
+
+**Note:** No sudo/administrator access required. The framework uses non-privileged ports (18080) for MLOS Core.
 
 ## Development
 

@@ -1,26 +1,53 @@
-name: Test Release E2E
+name: CI
 
 permissions:
   contents: read
-  pages: write
 
 on:
-  release:
-    types: [published]
-  workflow_dispatch:
-    inputs:
-      axon_version:
-        description: 'Axon version to test'
-        required: true
-        default: 'v3.0.0'
-      core_version:
-        description: 'MLOS Core version to test'
-        required: true
-        default: 'v2.3.0-alpha'
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  test:
+  vet:
+    name: Go Vet
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Run go vet
+        run: go vet ./...
+  
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.64.8
+          args: --timeout=5m
+  
+  e2e-test:
+    name: E2E Test
+    permissions:
+      contents: read
+      pages: write
+    runs-on: ubuntu-latest
+    needs: [vet, lint]
     steps:
       - uses: actions/checkout@v4
       
@@ -32,7 +59,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl
+          sudo apt-get install -y curl tar
       
       - name: Install gh CLI
         run: |
@@ -54,16 +81,15 @@ jobs:
       - name: Run E2E tests
         run: |
           ./bin/e2e-test \
-            -axon-version ${{ github.event.inputs.axon_version || 'v3.0.0' }} \
-            -core-version ${{ github.event.inputs.core_version || 'v2.3.0-alpha' }} \
-            -all-models
+            -axon-version v3.0.0 \
+            -core-version v2.3.0-alpha
         continue-on-error: true
       
       - name: Upload HTML report as artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-report-${{ github.run_number }}
+          name: e2e-report
           path: e2e-results-*/release-validation-report.html
           retention-days: 90
       
@@ -71,31 +97,35 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-logs-${{ github.run_number }}
+          name: e2e-logs
           path: e2e-results-*/test.log
           retention-days: 30
       
       - name: Prepare report for publishing
-        if: always()
+        if: github.ref == 'refs/heads/main' && always()
         run: |
+          mkdir -p _site
           REPORT_DIR=$(find . -type d -name "e2e-results-*" | head -1)
-          if [ -n "$REPORT_DIR" ]; then
-            mkdir -p _publish
-            cp "$REPORT_DIR/release-validation-report.html" _publish/index.html
+          if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
+            cp "$REPORT_DIR/release-validation-report.html" _site/index.html
             if [ -f "$REPORT_DIR/report_app.js" ]; then
-              cp "$REPORT_DIR/report_app.js" _publish/report_app.js
+              cp "$REPORT_DIR/report_app.js" _site/report_app.js
             fi
-            echo "Report prepared in _publish/"
+            echo "Report prepared: $REPORT_DIR/release-validation-report.html"
+            echo "JS file prepared: $REPORT_DIR/report_app.js"
+          else
+            echo "No report found"
+            exit 1
           fi
       
       - name: Publish report to GitHub Pages
-        if: always()
+        if: github.ref == 'refs/heads/main' && always()
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./_publish
-          destination_dir: ./reports/${{ github.run_number }}
-          keep_files: true
+          publish_dir: ./_site
+          destination_dir: ./
+          keep_files: false
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
 
