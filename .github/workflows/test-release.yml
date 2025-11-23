@@ -6,12 +6,16 @@ permissions:
 
 on:
   # Note: release events only trigger for releases in THIS repository
-  # For releases in core-releases, we use repository_dispatch from core workflow
+  # For releases in core-releases, we can't use repository_dispatch (GITHUB_TOKEN limitation)
+  # Options: manual trigger, webhook, or scheduled check
   release:
     types: [published]
   repository_dispatch:
     types: [core-release-published]
   workflow_dispatch:
+  schedule:
+    # Check for new releases every hour
+    - cron: '0 * * * *'
     inputs:
       axon_version:
         description: 'Axon version to test'
@@ -68,6 +72,18 @@ jobs:
             VERSION="${{ github.event.client_payload.version }}"
             echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "Using dispatch version: $VERSION"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            # For scheduled runs, check for latest release in core-releases
+            echo "Checking for latest release in core-releases..."
+            LATEST_RELEASE=$(gh release list --repo mlOS-foundation/core-releases --limit 1 --json tagName --jq '.[0].tagName' || echo "")
+            if [ -n "$LATEST_RELEASE" ] && [ "$LATEST_RELEASE" != "null" ]; then
+              VERSION="$LATEST_RELEASE"
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
+              echo "Found latest release: $VERSION"
+            else
+              echo "No releases found in core-releases, skipping"
+              echo "version=" >> $GITHUB_OUTPUT
+            fi
           else
             # Use input or default
             VERSION="${{ github.event.inputs.core_version || 'v2.3.0-alpha' }}"
@@ -75,7 +91,14 @@ jobs:
             echo "Using input/default version: $VERSION"
           fi
       
+      - name: Skip if no version
+        if: steps.core_version.outputs.version == ''
+        run: |
+          echo "No version determined, skipping E2E tests"
+          exit 0
+      
       - name: Run E2E tests
+        if: steps.core_version.outputs.version != ''
         run: |
           ./bin/e2e-test \
             -axon-version ${{ github.event.inputs.axon_version || 'v3.0.0' }} \
