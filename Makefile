@@ -59,9 +59,13 @@ lint:
 check: vet lint fmt build
 	@echo "✅ All checks passed!"
 
-# Run full CI checks
-ci: check
-	@echo "✅ CI checks complete!"
+# Run full CI checks (matches GitHub Actions CI)
+ci: vet lint fmt build
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "✅ All CI checks passed!"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo ""
+	@echo "Ready to push! Run 'git push' to update PR."
 
 # Show version
 version: build
