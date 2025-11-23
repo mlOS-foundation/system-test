@@ -100,7 +100,15 @@ jobs:
       - name: Run E2E tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Verify gh CLI is authenticated
+          echo "Verifying gh CLI authentication..."
+          gh auth status
+          echo ""
+          echo "Testing access to core repo..."
+          gh repo view mlOS-foundation/core --json name,isPrivate || echo "⚠️  Warning: Cannot view repo, but download might still work"
+          echo ""
           ./bin/e2e-test \
             -axon-version v3.0.0 \
             -core-version v2.3.0-alpha
