@@ -47,6 +47,11 @@ vet:
 # Lint code
 lint:
 	@echo "Running golangci-lint..."
+	@if ! command -v golangci-lint >/dev/null 2>&1; then \
+		echo "Installing golangci-lint v1.64.8..."; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.64.8; \
+	fi
+	@golangci-lint version | grep -q "1.64.8" || (echo "⚠️  Warning: golangci-lint version mismatch. CI uses v1.64.8" && exit 1)
 	@golangci-lint run --timeout=5m ./...
 	@echo "✅ golangci-lint passed"
 

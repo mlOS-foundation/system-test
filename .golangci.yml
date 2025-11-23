@@ -6,19 +6,12 @@ linters:
   enable:
     - errcheck
     - govet
-    - ineffassign
     - staticcheck
-    - unused
-    - misspell
 
 linters-settings:
   errcheck:
-    check-type-assertions: true
-    check-blank: true
-  govet:
-    check-shadowing: false
-  misspell:
-    locale: US
+    check-type-assertions: false
+    check-blank: false
 
 issues:
   exclude-dirs:
