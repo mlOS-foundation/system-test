@@ -63,10 +63,18 @@ func DownloadCore(version, outputDir string) error {
 	archivePath := filepath.Join(coreDir, archiveName)
 
 	// Get GITHUB_TOKEN from environment (set by GitHub Actions)
+	// Also try to get it from gh CLI if not in env (for local testing)
 	githubToken := os.Getenv("GITHUB_TOKEN")
 	if githubToken == "" {
 		// Try alternative env var names
 		githubToken = os.Getenv("GH_TOKEN")
+	}
+	// If still empty, try to get token from gh CLI (for local testing)
+	if githubToken == "" {
+		cmd := exec.Command("gh", "auth", "token")
+		if output, err := cmd.Output(); err == nil {
+			githubToken = strings.TrimSpace(string(output))
+		}
 	}
 
 	// Try GitHub API first (more reliable with GITHUB_TOKEN)
@@ -484,8 +492,12 @@ func downloadViaAPI(version, assetName, outputPath, token string) error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// GitHub Actions tokens (ghs_*) work with "token" prefix
+	// Personal tokens work with either "token" or "Bearer"
+	// Use "token" for compatibility
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "mlOS-system-test/1.0")
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)

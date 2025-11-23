@@ -98,6 +98,8 @@ jobs:
           go build -o bin/e2e-test ./cmd/e2e-test
       
       - name: Run E2E tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ./bin/e2e-test \
             -axon-version v3.0.0 \
