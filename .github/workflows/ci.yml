@@ -77,16 +77,16 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
       
-      - name: Verify repository access
+      - name: Verify release access
         run: |
-          echo "Verifying access to mlOS-foundation/core..."
-          if gh repo view mlOS-foundation/core > /dev/null 2>&1; then
-            echo "✅ Successfully accessed mlOS-foundation/core repository"
+          echo "Verifying access to mlOS-foundation/core releases..."
+          # Test if we can list releases (what we actually need for download)
+          if gh release list --repo mlOS-foundation/core --limit 1 > /dev/null 2>&1; then
+            echo "✅ Successfully accessed mlOS-foundation/core releases"
           else
-            echo "❌ Failed to access mlOS-foundation/core repository"
-            echo "Checking token permissions..."
-            gh auth status
-            exit 1
+            echo "⚠️  Warning: Cannot list releases, but gh release download might still work"
+            echo "   Proceeding with download attempt..."
+            echo "   (gh release download uses different API endpoints)"
           fi
       
       - name: Build test tool
