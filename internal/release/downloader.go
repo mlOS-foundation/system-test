@@ -253,9 +253,7 @@ func SetupONNXRuntime(extractDir string) error {
 	}
 
 	// Clean up archive
-	if err := os.Remove(onnxArchive); err != nil {
-		// Ignore cleanup errors
-	}
+	_ = os.Remove(onnxArchive) // Ignore cleanup errors
 
 	fmt.Printf("✅ ONNX Runtime installed\n")
 	return nil

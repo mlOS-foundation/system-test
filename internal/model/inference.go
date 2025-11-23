@@ -40,9 +40,7 @@ func RunInference(modelID, modelType string, large bool, port int) error {
 		return fmt.Errorf("request failed: %w", err)
 	}
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			// Ignore close errors on response body
-		}
+		_ = resp.Body.Close() // Ignore close errors on response body
 	}()
 
 	if resp.StatusCode != http.StatusOK {

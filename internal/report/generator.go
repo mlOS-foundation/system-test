@@ -61,9 +61,7 @@ func (g *Generator) Generate(results *test.Results) (string, error) {
 		return "", fmt.Errorf("failed to create report file: %w", err)
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			// Ignore close errors on file
-		}
+		_ = file.Close() // Ignore close errors on file
 	}()
 
 	// Execute template with the structured data
