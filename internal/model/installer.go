@@ -76,7 +76,8 @@ func GetPath(modelSpec string) (string, error) {
 func GetModelPath(repoModel, version string) string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
+		// Fallback to current directory if home directory cannot be determined
+		homeDir = "."
 	}
 	// Format: ~/.axon/cache/models/{repoModel}/{version}/model.onnx
 	// Example: hf/distilgpt2 + latest -> ~/.axon/cache/models/hf/distilgpt2/latest/model.onnx
