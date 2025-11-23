@@ -171,7 +171,7 @@ func buildInferenceMetrics(results *test.Results, models []test.ModelSpec) []Mod
 	return metrics
 }
 
-func buildChartData(metrics []ModelMetric) (labels, data, colors template.JS) {
+func buildChartData(metrics []ModelMetric) (template.JS, template.JS, template.JS) {
 	labels := []string{}
 	data := []int64{}
 	colors := []string{}
