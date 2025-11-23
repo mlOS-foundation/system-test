@@ -43,6 +43,8 @@ jobs:
   
   e2e-test:
     name: E2E Test
+    environment:
+      name: github-pages
     permissions:
       contents: write
       pages: write
@@ -164,7 +166,4 @@ jobs:
         if: github.ref == 'refs/heads/main' && always()
         id: deployment
         uses: actions/deploy-pages@v4
-        environment:
-          name: github-pages
-          url: ${{ steps.deployment.outputs.page_url }}
 
