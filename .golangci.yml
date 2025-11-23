@@ -11,7 +11,6 @@ run:
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
@@ -24,13 +23,6 @@ linters-settings:
     check-blank: true
   govet:
     check-shadowing: true
-  gocyclo:
-    min-complexity: 15
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 2
   misspell:
     locale: US
 
@@ -39,7 +31,5 @@ issues:
     - path: _test\.go
       linters:
         - errcheck
-        - gocyclo
-        - dupl
   max-issues-per-linter: 0
   max-same-issues: 0
