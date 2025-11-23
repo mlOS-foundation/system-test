@@ -61,6 +61,7 @@ func DownloadCore(version, outputDir string) error {
 	archivePath := filepath.Join(coreDir, archiveName)
 
 	// Download using gh CLI
+	// Try with explicit repo first, fallback to pattern matching
 	cmd := exec.Command("gh", "release", "download", version,
 		"--repo", "mlOS-foundation/core",
 		"--pattern", archiveName,
@@ -69,7 +70,28 @@ func DownloadCore(version, outputDir string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to download Core release: %w", err)
+		// If pattern download fails, try downloading all assets and finding the right one
+		fmt.Printf("Pattern download failed, trying alternative approach...\n")
+		cmd = exec.Command("gh", "release", "download", version,
+			"--repo", "mlOS-foundation/core",
+			"--pattern", "*.tar.gz",
+			"--dir", coreDir)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to download Core release: %w", err)
+		}
+		// Find the downloaded file
+		matches, err := filepath.Glob(filepath.Join(coreDir, archiveName))
+		if err != nil || len(matches) == 0 {
+			// Try with underscore instead of hyphen in platform
+			altArchiveName := strings.Replace(archiveName, "_", "-", 1)
+			matches, err = filepath.Glob(filepath.Join(coreDir, altArchiveName))
+		}
+		if err != nil || len(matches) == 0 {
+			return fmt.Errorf("Core binary archive not found after download (expected: %s)", archiveName)
+		}
+		archivePath = matches[0]
 	}
 
 	// Extract archive (extract to coreDir, then handle nested structure)
