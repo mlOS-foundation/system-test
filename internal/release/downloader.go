@@ -71,12 +71,14 @@ func DownloadCore(version, outputDir string) error {
 		githubToken = os.Getenv("GH_TOKEN")
 	}
 	// If still empty, try to get token from gh CLI (for local testing)
+	// Note: githubToken is not used after this point, but we keep the logic
+	// for potential future use or debugging
 	if githubToken == "" {
 		cmd := exec.Command("gh", "auth", "token")
 		output, err := cmd.Output()
 		if err == nil {
 			if token := strings.TrimSpace(string(output)); token != "" {
-				githubToken = token
+				_ = token // Token retrieved but not used (gh CLI handles auth)
 			}
 		}
 		_ = err // Ignore error, will fall back to gh CLI auth
