@@ -52,7 +52,6 @@ func DownloadAxon(version, outputDir string) error {
 
 // DownloadCore downloads the specified MLOS Core release version
 func DownloadCore(version, outputDir string) error {
-	platform := getPlatform()
 	coreDir := filepath.Join(outputDir, "mlos-core")
 
 	if err := os.MkdirAll(coreDir, 0755); err != nil {
@@ -114,7 +113,7 @@ func DownloadCore(version, outputDir string) error {
 	archivePath = matches[0]
 
 	// Extract archive (extract to coreDir, then handle nested structure)
-	cmd := exec.Command("tar", "-xzf", archivePath, "-C", coreDir)
+	extractCmd := exec.Command("tar", "-xzf", archivePath, "-C", coreDir)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to extract Core archive: %w", err)
 	}
