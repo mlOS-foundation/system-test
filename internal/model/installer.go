@@ -74,7 +74,10 @@ func GetPath(modelSpec string) (string, error) {
 // Matches bash script: ~/.axon/cache/models/${model_id%@*}/${model_id##*@}/model.onnx
 // For "hf/distilgpt2@latest": ~/.axon/cache/models/hf/distilgpt2/latest/model.onnx
 func GetModelPath(repoModel, version string) string {
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
 	// Format: ~/.axon/cache/models/{repoModel}/{version}/model.onnx
 	// Example: hf/distilgpt2 + latest -> ~/.axon/cache/models/hf/distilgpt2/latest/model.onnx
 	return filepath.Join(homeDir, ".axon", "cache", "models", repoModel, version, "model.onnx")
