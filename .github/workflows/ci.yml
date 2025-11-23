@@ -44,7 +44,7 @@ jobs:
   e2e-test:
     name: E2E Test
     permissions:
-      contents: read
+      contents: write
       pages: write
       id-token: write
     runs-on: ubuntu-latest
