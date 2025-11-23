@@ -83,16 +83,38 @@ jobs:
         run: |
           echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
       
-      - name: Verify release access
+      - name: Verify authentication and access
         run: |
-          echo "Verifying access to mlOS-foundation/core releases..."
-          # Test if we can list releases (what we actually need for download)
-          if gh release list --repo mlOS-foundation/core --limit 1 > /dev/null 2>&1; then
-            echo "✅ Successfully accessed mlOS-foundation/core releases"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔍 Authentication Status:"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          gh auth status || echo "⚠️  gh auth status failed"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔍 Testing Repository Access:"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Testing: gh repo view mlOS-foundation/core"
+          if gh repo view mlOS-foundation/core --json name,isPrivate 2>&1; then
+            echo "✅ Successfully accessed mlOS-foundation/core repository"
           else
-            echo "⚠️  Warning: Cannot list releases, but gh release download might still work"
-            echo "   Proceeding with download attempt..."
-            echo "   (gh release download uses different API endpoints)"
+            echo "❌ Failed to access mlOS-foundation/core repository"
+            echo ""
+            echo "⚠️  GITHUB_TOKEN cannot access private repos in same org."
+            echo "This is a known GitHub limitation."
+            echo ""
+            echo "Solutions:"
+            echo "  1. Use a Personal Access Token (PAT) as CORE_ACCESS_TOKEN secret"
+            echo "  2. Use a GitHub App with repo permissions"
+            echo "  3. Check Enterprise settings for cross-repo access"
+            echo ""
+            echo "Proceeding with download attempt anyway..."
+          fi
+          echo ""
+          echo "Testing: gh release list mlOS-foundation/core"
+          if gh release list --repo mlOS-foundation/core --limit 1 2>&1; then
+            echo "✅ Can list releases"
+          else
+            echo "⚠️  Cannot list releases, but download might still work"
           fi
       
       - name: Build test tool
