@@ -56,13 +56,3 @@ func New(axonVersion, coreVersion, outputDir string, testAllModels, skipInstall,
 	return cfg, nil
 }
 
-// Validate checks if the configuration is valid
-func (c *Config) Validate() error {
-	if c.AxonVersion == "" {
-		return fmt.Errorf("axon version is required")
-	}
-	if c.CoreVersion == "" {
-		return fmt.Errorf("core version is required")
-	}
-	return nil
-}
