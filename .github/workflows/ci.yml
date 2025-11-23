@@ -73,7 +73,9 @@ jobs:
       
       - name: Authenticate gh CLI
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          # Use PAT if available, otherwise fallback to GITHUB_TOKEN
+          TOKEN="${{ secrets.CORE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}"
+          echo "$TOKEN" | gh auth login --with-token
       
       - name: Build test tool
         run: |
