@@ -86,8 +86,9 @@ func DownloadCore(version, outputDir string) error {
 
 	// Use gh CLI with wildcard pattern (proven to work locally)
 	// This is more reliable than exact pattern matching
+	// Download from public core-releases repo (GITHUB_TOKEN can access public repos)
 	cmd := exec.Command("gh", "release", "download", version,
-		"--repo", "mlOS-foundation/core",
+		"--repo", "mlOS-foundation/core-releases",
 		"--pattern", pattern,
 		"--dir", coreDir)
 	cmd.Stdout = os.Stdout
@@ -463,7 +464,8 @@ func waitForServer(port int) error {
 //nolint:unused // Kept for potential future use
 func downloadViaAPI(version, assetName, outputPath, token string) error {
 	// Get release info
-	apiURL := fmt.Sprintf("https://api.github.com/repos/mlOS-foundation/core/releases/tags/%s", version)
+	// Use public core-releases repo (GITHUB_TOKEN can access public repos)
+	apiURL := fmt.Sprintf("https://api.github.com/repos/mlOS-foundation/core-releases/releases/tags/%s", version)
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)

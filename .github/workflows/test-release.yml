@@ -5,8 +5,12 @@ permissions:
   pages: write
 
 on:
+  # Note: release events only trigger for releases in THIS repository
+  # For releases in core-releases, we use repository_dispatch from core workflow
   release:
     types: [published]
+  repository_dispatch:
+    types: [core-release-published]
   workflow_dispatch:
     inputs:
       axon_version:
@@ -51,11 +55,31 @@ jobs:
         run: |
           go build -o bin/e2e-test ./cmd/e2e-test
       
+      - name: Determine Core Version
+        id: core_version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            # Extract version from release tag (remove 'v' prefix if present)
+            VERSION="${{ github.event.release.tag_name }}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Using release version: $VERSION"
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            # Get version from repository_dispatch payload
+            VERSION="${{ github.event.client_payload.version }}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Using dispatch version: $VERSION"
+          else
+            # Use input or default
+            VERSION="${{ github.event.inputs.core_version || 'v2.3.0-alpha' }}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Using input/default version: $VERSION"
+          fi
+      
       - name: Run E2E tests
         run: |
           ./bin/e2e-test \
             -axon-version ${{ github.event.inputs.axon_version || 'v3.0.0' }} \
-            -core-version ${{ github.event.inputs.core_version || 'v2.3.0-alpha' }} \
+            -core-version ${{ steps.core_version.outputs.version }} \
             -all-models
         continue-on-error: true
       
