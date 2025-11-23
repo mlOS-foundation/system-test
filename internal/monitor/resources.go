@@ -193,4 +193,3 @@ func getTotalMemory() (float64, error) {
 		return 0, fmt.Errorf("unsupported OS")
 	}
 }
-

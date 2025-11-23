@@ -9,4 +9,3 @@ var reportTemplate string
 
 //go:embed report_app.js
 var reportAppJS []byte
-

@@ -58,9 +58,9 @@ type ReportData struct {
 type ModelMetric struct {
 	Name       string `json:"name"`
 	Value      int64  `json:"value"`
-	Status     string `json:"status"`      // "success", "failed", "ready"
+	Status     string `json:"status"` // "success", "failed", "ready"
 	StatusText string `json:"statusText"`
-	Type       string `json:"type"`        // "registration", "inference-small", "inference-large"
+	Type       string `json:"type"` // "registration", "inference-small", "inference-large"
 }
 
 // PrepareData creates a ReportData structure from test results
@@ -73,8 +73,8 @@ func PrepareData(results *test.Results, cfg *config.Config) *ReportData {
 		ModelsInstalled:      results.Metrics.ModelsInstalled,
 		AxonVersion:          results.AxonVersion,
 		CoreVersion:          results.CoreVersion,
-		AxonDownloadTime:    results.Metrics.AxonDownloadTimeMs,
-		CoreDownloadTime:    results.Metrics.CoreDownloadTimeMs,
+		AxonDownloadTime:     results.Metrics.AxonDownloadTimeMs,
+		CoreDownloadTime:     results.Metrics.CoreDownloadTimeMs,
 		CoreStartupTime:      results.Metrics.CoreStartupTimeMs,
 		HardwareSpecs:        formatHardwareSpecs(results.HardwareSpecs),
 		ResourceUsage:        formatResourceUsage(results.ResourceUsage),
@@ -194,4 +194,3 @@ func buildChartData(metrics []ModelMetric) (template.JS, template.JS, template.J
 
 	return template.JS(labelsJSON), template.JS(dataJSON), template.JS(colorsJSON)
 }
-

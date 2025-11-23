@@ -49,13 +49,13 @@ func (g *Generator) Generate(results *test.Results) (string, error) {
 	// Generate report
 	reportPath := g.cfg.ReportPath
 	reportDir := reportPath[:len(reportPath)-len("release-validation-report.html")]
-	
+
 	// Copy JavaScript file to report directory
 	jsPath := reportDir + "report_app.js"
 	if err := os.WriteFile(jsPath, reportAppJS, 0644); err != nil {
 		return "", fmt.Errorf("failed to write JavaScript file: %w", err)
 	}
-	
+
 	file, err := os.Create(reportPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create report file: %w", err)
@@ -69,7 +69,6 @@ func (g *Generator) Generate(results *test.Results) (string, error) {
 
 	return reportPath, nil
 }
-
 
 func formatHardwareSpecs(specs map[string]string) map[string]string {
 	if specs == nil {
@@ -119,9 +118,9 @@ func formatResourceUsage(usage map[string]interface{}) map[string]interface{} {
 	if usage == nil {
 		return nil
 	}
-	
+
 	formatted := make(map[string]interface{})
-	
+
 	// Handle idle resource usage
 	if idleRaw, ok := usage["idle"]; ok {
 		if idleMap, ok := idleRaw.(map[string]interface{}); ok {
@@ -133,7 +132,7 @@ func formatResourceUsage(usage map[string]interface{}) map[string]interface{} {
 			}
 		}
 	}
-	
+
 	// Handle under_load resource usage
 	if loadRaw, ok := usage["under_load"]; ok {
 		if loadMap, ok := loadRaw.(map[string]interface{}); ok {
@@ -145,7 +144,7 @@ func formatResourceUsage(usage map[string]interface{}) map[string]interface{} {
 			}
 		}
 	}
-	
+
 	return formatted
 }
 
@@ -184,13 +183,13 @@ func calculateCategoryStatuses(results *test.Results, models []test.ModelSpec) m
 	}
 
 	statuses := make(map[string]interface{})
-	
+
 	for cat := range categories {
 		var status, statusClass string
 		total := categories[cat]
 		tested := categoryTested[cat]
 		passed := categoryPassed[cat]
-		
+
 		if tested == 0 {
 			// No models in this category were tested
 			status = "⏸️ Not Tested"
@@ -208,7 +207,7 @@ func calculateCategoryStatuses(results *test.Results, models []test.ModelSpec) m
 			status = fmt.Sprintf("❌ Failed (%d/%d passed)", passed, tested)
 			statusClass = "failed"
 		}
-		
+
 		switch cat {
 		case "nlp":
 			statuses["NLPStatus"] = status
@@ -243,4 +242,3 @@ func getTestModels(testAllModels bool) []test.ModelSpec {
 
 	return models
 }
-

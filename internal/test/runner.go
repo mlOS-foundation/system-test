@@ -201,7 +201,7 @@ func (r *Runner) runInferenceTests(results *Results) error {
 		if spec.Category != "nlp" {
 			continue
 		}
-		
+
 		// Check if model is available before testing
 		_, err := model.GetPath(spec.ID)
 		if err != nil {
@@ -244,7 +244,7 @@ func (r *Runner) runInferenceTests(results *Results) error {
 		}
 	}
 
-	log.Printf("✅ Completed %d/%d inference tests", 
+	log.Printf("✅ Completed %d/%d inference tests",
 		results.Metrics.SuccessfulInferences, results.Metrics.TotalInferences)
 	return nil
 }
@@ -304,4 +304,3 @@ func (r *Runner) getTestModels() []ModelSpec {
 
 	return models
 }
-

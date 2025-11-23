@@ -15,22 +15,22 @@ type ModelSpec struct {
 // Metrics holds all collected metrics
 type Metrics struct {
 	// Installation metrics
-	AxonDownloadTimeMs  int64
-	CoreDownloadTimeMs  int64
-	CoreStartupTimeMs   int64
-	ModelsInstalled     int
+	AxonDownloadTimeMs int64
+	CoreDownloadTimeMs int64
+	CoreStartupTimeMs  int64
+	ModelsInstalled    int
 
 	// Inference metrics
-	TotalInferences     int
+	TotalInferences      int
 	SuccessfulInferences int
-	FailedInferences    int
+	FailedInferences     int
 
 	// Per-model inference metrics
-	ModelInferenceTimes map[string]int64 // model_name -> time_ms
+	ModelInferenceTimes  map[string]int64  // model_name -> time_ms
 	ModelInferenceStatus map[string]string // model_name -> "success" or "failed"
-	
+
 	// Large inference metrics
-	ModelLargeInferenceTimes map[string]int64
+	ModelLargeInferenceTimes  map[string]int64
 	ModelLargeInferenceStatus map[string]string
 
 	// Registration metrics
@@ -39,25 +39,25 @@ type Metrics struct {
 
 // Results holds the complete test results
 type Results struct {
-	AxonVersion    string
-	CoreVersion    string
-	Duration       time.Duration
-	SuccessRate    float64
-	Metrics        *Metrics
-	HardwareSpecs  map[string]string
-	ResourceUsage  map[string]interface{}
-	StartTime      time.Time
-	EndTime        time.Time
+	AxonVersion   string
+	CoreVersion   string
+	Duration      time.Duration
+	SuccessRate   float64
+	Metrics       *Metrics
+	HardwareSpecs map[string]string
+	ResourceUsage map[string]interface{}
+	StartTime     time.Time
+	EndTime       time.Time
 }
 
 // NewMetrics creates a new Metrics instance
 func NewMetrics() *Metrics {
 	return &Metrics{
-		ModelInferenceTimes:        make(map[string]int64),
-		ModelInferenceStatus:       make(map[string]string),
-		ModelLargeInferenceTimes:   make(map[string]int64),
-		ModelLargeInferenceStatus:  make(map[string]string),
-		ModelRegistrationTimes:     make(map[string]int64),
+		ModelInferenceTimes:       make(map[string]int64),
+		ModelInferenceStatus:      make(map[string]string),
+		ModelLargeInferenceTimes:  make(map[string]int64),
+		ModelLargeInferenceStatus: make(map[string]string),
+		ModelRegistrationTimes:    make(map[string]int64),
 	}
 }
 
@@ -71,4 +71,3 @@ func NewResults(axonVersion, coreVersion string) *Results {
 		ResourceUsage: make(map[string]interface{}),
 	}
 }
-

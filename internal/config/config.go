@@ -16,12 +16,12 @@ type Config struct {
 	SkipInstall   bool
 	Verbose       bool
 	CorePort      int // HTTP port for MLOS Core (default: 18080, non-privileged)
-	
+
 	// Derived paths
-	TestDir       string
-	ReportPath    string
-	LogPath       string
-	MetricsPath   string
+	TestDir     string
+	ReportPath  string
+	LogPath     string
+	MetricsPath string
 }
 
 // New creates a new configuration
@@ -66,4 +66,3 @@ func (c *Config) Validate() error {
 	}
 	return nil
 }
-
