@@ -46,6 +46,7 @@ jobs:
     permissions:
       contents: read
       pages: write
+      id-token: write
     runs-on: ubuntu-latest
     needs: [vet, lint]
     steps:
@@ -111,11 +112,14 @@ jobs:
             if [ -f "$REPORT_DIR/report_app.js" ]; then
               cp "$REPORT_DIR/report_app.js" _site/report_app.js
             fi
-            echo "Report prepared: $REPORT_DIR/release-validation-report.html"
-            echo "JS file prepared: $REPORT_DIR/report_app.js"
+            echo "✅ Report prepared: $REPORT_DIR/release-validation-report.html"
+            echo "✅ JS file prepared: $REPORT_DIR/report_app.js"
+            ls -la _site/
           else
-            echo "No report found"
-            exit 1
+            echo "⚠️ No report found - E2E test may have failed or not run"
+            echo "Creating placeholder page..."
+            echo "<!DOCTYPE html><html><head><title>MLOS E2E Test Report</title></head><body><h1>No report available</h1><p>The E2E test did not generate a report. Check the workflow logs for details.</p><p><a href='https://github.com/mlOS-foundation/system-test/actions'>View CI runs</a></p></body></html>" > _site/index.html
+            echo "✅ Placeholder page created"
           fi
       
       - name: Publish report to GitHub Pages
