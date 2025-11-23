@@ -1,5 +1,9 @@
 name: Test Release E2E
 
+permissions:
+  contents: read
+  pages: write
+
 on:
   release:
     types: [published]
