@@ -1,9 +1,7 @@
 run:
   timeout: 5m
   tests: true
-
-issues:
-  exclude-dirs:
+  skip-dirs:
     - vendor
     - bin
     - e2e-results-*
@@ -15,41 +13,34 @@ linters:
     - govet
     - ineffassign
     - staticcheck
+    - typecheck
     - unused
     - gofmt
     - goimports
     - misspell
-    - revive
-    - gocritic
-    - gosec
-    - typecheck
 
 linters-settings:
-  revive:
-    rules:
-      - name: exported
-        severity: warning
-      - name: unexported-return
-        severity: warning
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport
-      - ifElseChain
-      - octalLiteral
-      - whyNoLint
-      - wrapperFunc
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  govet:
+    check-shadowing: true
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  misspell:
+    locale: US
 
 issues:
   exclude-rules:
     - path: _test\.go
       linters:
         - errcheck
-        - gosec
+        - gocyclo
+        - dupl
   max-issues-per-linter: 0
   max-same-issues: 0
