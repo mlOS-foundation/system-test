@@ -474,3 +474,107 @@ func waitForServer(port int) error {
 	}
 	return fmt.Errorf("server did not become ready after %d attempts (checked %s)", maxRetries, url)
 }
+
+// downloadViaAPI downloads a release asset using GitHub API
+func downloadViaAPI(version, assetName, outputPath, token string) error {
+	// Get release info
+	apiURL := fmt.Sprintf("https://api.github.com/repos/mlOS-foundation/core/releases/tags/%s", version)
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to fetch release info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to get release info: status %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	var release struct {
+		Assets []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return fmt.Errorf("failed to decode release info: %w", err)
+	}
+
+	// Find matching asset
+	var downloadURL string
+	for _, asset := range release.Assets {
+		if asset.Name == assetName {
+			downloadURL = asset.BrowserDownloadURL
+			break
+		}
+	}
+
+	// Try variations if exact match not found
+	if downloadURL == "" {
+		// Try with underscore/hyphen variations
+		variations := []string{
+			strings.Replace(assetName, "_", "-", 1),
+			strings.Replace(assetName, "-", "_", 1),
+		}
+		for _, asset := range release.Assets {
+			for _, variant := range variations {
+				if strings.Contains(asset.Name, variant) || strings.Contains(asset.Name, strings.TrimSuffix(assetName, ".tar.gz")) {
+					downloadURL = asset.BrowserDownloadURL
+					break
+				}
+			}
+			if downloadURL != "" {
+				break
+			}
+		}
+	}
+
+	if downloadURL == "" {
+		return fmt.Errorf("asset %s not found in release", assetName)
+	}
+
+	// Download the asset
+	fmt.Printf("Downloading %s from GitHub API...\n", assetName)
+	req, err = http.NewRequest("GET", downloadURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create download request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+	req.Header.Set("Accept", "application/octet-stream")
+
+	resp, err = client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to download asset: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to download asset: status %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	// Save to file
+	outFile, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer outFile.Close()
+
+	if _, err := io.Copy(outFile, resp.Body); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	fmt.Printf("✅ Downloaded %s\n", assetName)
+	return nil
+}
