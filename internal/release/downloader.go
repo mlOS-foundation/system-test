@@ -74,7 +74,10 @@ func DownloadCore(version, outputDir string) error {
 	if githubToken == "" {
 		cmd := exec.Command("gh", "auth", "token")
 		if output, err := cmd.Output(); err == nil {
-			githubToken = strings.TrimSpace(string(output))
+			token := strings.TrimSpace(string(output))
+			if token != "" {
+				githubToken = token
+			}
 		}
 	}
 
@@ -474,6 +477,8 @@ func waitForServer(port int) error {
 }
 
 // downloadViaAPI downloads a release asset using GitHub API
+// Currently unused - using gh CLI directly instead
+// Keeping for potential future use
 func downloadViaAPI(version, assetName, outputPath, token string) error {
 	// Get release info
 	apiURL := fmt.Sprintf("https://api.github.com/repos/mlOS-foundation/core/releases/tags/%s", version)
