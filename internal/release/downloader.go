@@ -73,12 +73,13 @@ func DownloadCore(version, outputDir string) error {
 	// If still empty, try to get token from gh CLI (for local testing)
 	if githubToken == "" {
 		cmd := exec.Command("gh", "auth", "token")
-		if output, err := cmd.Output(); err == nil {
-			token := strings.TrimSpace(string(output))
-			if token != "" {
+		output, err := cmd.Output()
+		if err == nil {
+			if token := strings.TrimSpace(string(output)); token != "" {
 				githubToken = token
 			}
 		}
+		_ = err // Ignore error, will fall back to gh CLI auth
 	}
 
 	// Use gh CLI with wildcard pattern (proven to work locally)
@@ -422,29 +423,6 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	return process, nil
 }
 
-func getPlatform() string {
-	osName := runtime.GOOS
-	arch := runtime.GOARCH
-
-	// Map Go arch to release arch names (archives use amd64, not x86_64)
-	if arch == "amd64" {
-		arch = "amd64" // Keep as amd64 for archive names
-	} else if arch == "arm64" {
-		arch = "arm64"
-	}
-
-	// Map Go OS to release OS names
-	if osName == "darwin" {
-		osName = "darwin"
-	} else if osName == "linux" {
-		osName = "linux"
-	} else if osName == "windows" {
-		osName = "windows"
-	}
-
-	return fmt.Sprintf("%s-%s", osName, arch)
-}
-
 func waitForServer(port int) error {
 	// Wait for server to be ready by checking HTTP endpoint
 	maxRetries := 30
@@ -479,6 +457,8 @@ func waitForServer(port int) error {
 // downloadViaAPI downloads a release asset using GitHub API
 // Currently unused - using gh CLI directly instead
 // Keeping for potential future use
+//
+//nolint:unused // Kept for potential future use
 func downloadViaAPI(version, assetName, outputPath, token string) error {
 	// Get release info
 	apiURL := fmt.Sprintf("https://api.github.com/repos/mlOS-foundation/core/releases/tags/%s", version)
