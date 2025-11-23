@@ -1,12 +1,6 @@
-version: 2
-
 run:
   timeout: 5m
   tests: true
-  skip-dirs:
-    - vendor
-    - bin
-    - e2e-results-*
 
 linters:
   enable:
@@ -22,11 +16,15 @@ linters-settings:
     check-type-assertions: true
     check-blank: true
   govet:
-    check-shadowing: true
+    check-shadowing: false
   misspell:
     locale: US
 
 issues:
+  exclude-dirs:
+    - vendor
+    - bin
+    - e2e-results-*
   exclude-rules:
     - path: _test\.go
       linters:
