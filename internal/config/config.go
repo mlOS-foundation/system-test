@@ -55,4 +55,3 @@ func New(axonVersion, coreVersion, outputDir string, testAllModels, skipInstall,
 
 	return cfg, nil
 }
-

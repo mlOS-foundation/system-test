@@ -1,4 +1,4 @@
-.PHONY: build install test clean run
+.PHONY: build install test clean run check vet lint fmt ci
 
 # Build the E2E test tool
 build:
@@ -34,11 +34,29 @@ clean:
 
 # Format code
 fmt:
+	@echo "Formatting code..."
 	@go fmt ./...
+	@echo "✅ Code formatted"
+
+# Run go vet
+vet:
+	@echo "Running go vet..."
+	@go vet ./...
+	@echo "✅ go vet passed"
 
 # Lint code
 lint:
-	@golangci-lint run ./...
+	@echo "Running golangci-lint..."
+	@golangci-lint run --timeout=5m ./...
+	@echo "✅ golangci-lint passed"
+
+# Run all checks
+check: vet lint fmt build
+	@echo "✅ All checks passed!"
+
+# Run full CI checks
+ci: check
+	@echo "✅ CI checks complete!"
 
 # Show version
 version: build

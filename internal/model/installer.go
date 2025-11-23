@@ -83,7 +83,7 @@ func GetModelPath(repoModel, version string) string {
 // Register registers a model with MLOS Core
 func Register(modelID, modelPath string, port int) error {
 	// Register via HTTP API
-	jsonPayload := fmt.Sprintf(`{"model_id":"%s","path":"%s"}`, modelID, modelPath)
+	jsonPayload := fmt.Sprintf(`{"model_id":%q,"path":%q}`, modelID, modelPath)
 	url := fmt.Sprintf("http://localhost:%d/models/register", port)
 
 	cmd := exec.Command("curl", "-X", "POST",

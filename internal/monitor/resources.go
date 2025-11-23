@@ -83,7 +83,7 @@ func StopProcess(process *Process) error {
 	return nil
 }
 
-func getProcessStats(pid int) (cpuPercent float64, memoryMB float64, err error) {
+func getProcessStats(pid int) (cpuPercent, memoryMB float64, err error) {
 	switch runtime.GOOS {
 	case "darwin":
 		return getProcessStatsDarwin(pid)
@@ -94,7 +94,7 @@ func getProcessStats(pid int) (cpuPercent float64, memoryMB float64, err error) 
 	}
 }
 
-func getProcessStatsDarwin(pid int) (float64, float64, error) {
+func getProcessStatsDarwin(pid int) (cpuPercent, memoryMB float64, err error) {
 	// Use ps command
 	cmd := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "pcpu,rss")
 	output, err := cmd.Output()
