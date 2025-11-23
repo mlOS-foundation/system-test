@@ -77,6 +77,20 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
       
+      - name: Verify repository access
+        run: |
+          echo "Verifying access to mlOS-foundation/core..."
+          if gh repo view mlOS-foundation/core > /dev/null 2>&1; then
+            echo "✅ Successfully accessed mlOS-foundation/core repository"
+          else
+            echo "❌ Failed to access mlOS-foundation/core repository"
+            echo "This may indicate:"
+            echo "  1. Enterprise setting hasn't propagated yet (wait a few minutes)"
+            echo "  2. Repository-level permissions need to be checked"
+            echo "  3. GITHUB_TOKEN doesn't have sufficient permissions"
+            exit 1
+          fi
+      
       - name: Build test tool
         run: |
           go build -o bin/e2e-test ./cmd/e2e-test
