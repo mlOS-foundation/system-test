@@ -71,12 +71,25 @@ jobs:
           path: e2e-results-*/test.log
           retention-days: 30
       
+      - name: Prepare report for publishing
+        if: always()
+        run: |
+          REPORT_DIR=$(find . -type d -name "e2e-results-*" | head -1)
+          if [ -n "$REPORT_DIR" ]; then
+            mkdir -p _publish
+            cp "$REPORT_DIR/release-validation-report.html" _publish/index.html
+            if [ -f "$REPORT_DIR/report_app.js" ]; then
+              cp "$REPORT_DIR/report_app.js" _publish/report_app.js
+            fi
+            echo "Report prepared in _publish/"
+          fi
+      
       - name: Publish report to GitHub Pages
         if: always()
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./e2e-results-*
+          publish_dir: ./_publish
           destination_dir: ./reports/${{ github.run_number }}
           keep_files: true
           user_name: 'github-actions[bot]'

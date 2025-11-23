@@ -102,7 +102,11 @@ jobs:
           REPORT_DIR=$(find . -type d -name "e2e-results-*" | head -1)
           if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
             cp "$REPORT_DIR/release-validation-report.html" _site/index.html
+            if [ -f "$REPORT_DIR/report_app.js" ]; then
+              cp "$REPORT_DIR/report_app.js" _site/report_app.js
+            fi
             echo "Report prepared: $REPORT_DIR/release-validation-report.html"
+            echo "JS file prepared: $REPORT_DIR/report_app.js"
           else
             echo "No report found"
             exit 1

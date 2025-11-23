@@ -3,6 +3,8 @@
 [![Build Status](https://github.com/mlOS-foundation/system-test/workflows/CI/badge.svg)](https://github.com/mlOS-foundation/system-test/actions)
 [![Latest Report](https://img.shields.io/badge/report-latest-blue)](https://mlOS-foundation.github.io/system-test/)
 
+**📊 View Latest Report:** [https://mlOS-foundation.github.io/system-test/](https://mlOS-foundation.github.io/system-test/)
+
 End-to-end integration testing framework for MLOS Foundation releases (Axon + Core).
 
 ## Overview

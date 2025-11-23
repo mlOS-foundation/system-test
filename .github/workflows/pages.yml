@@ -1,0 +1,87 @@
+name: GitHub Pages
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run daily at midnight UTC
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl tar
+      
+      - name: Install gh CLI
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt-get update \
+          && sudo apt-get install gh -y
+      
+      - name: Authenticate gh CLI
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+      
+      - name: Build test tool
+        run: go build -o bin/e2e-test ./cmd/e2e-test
+      
+      - name: Run E2E tests
+        run: |
+          ./bin/e2e-test \
+            -axon-version v3.0.0 \
+            -core-version v2.3.0-alpha \
+            -all-models
+        continue-on-error: true
+      
+      - name: Prepare GitHub Pages site
+        if: always()
+        run: |
+          mkdir -p _site
+          REPORT_DIR=$(find . -type d -name "e2e-results-*" | head -1)
+          if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
+            cp "$REPORT_DIR/release-validation-report.html" _site/index.html
+            if [ -f "$REPORT_DIR/report_app.js" ]; then
+              cp "$REPORT_DIR/report_app.js" _site/report_app.js
+            fi
+            echo "✅ Report prepared for GitHub Pages"
+            ls -la _site/
+          else
+            echo "⚠️ No report found, creating placeholder"
+            echo "<!DOCTYPE html><html><head><title>MLOS E2E Test Report</title></head><body><h1>No report available</h1><p>Run the E2E tests to generate a report.</p></body></html>" > _site/index.html
+          fi
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

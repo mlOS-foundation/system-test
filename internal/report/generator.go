@@ -1,6 +1,7 @@
 package report
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"os"
@@ -22,13 +23,20 @@ func NewGenerator(cfg *config.Config) *Generator {
 
 // Generate generates an HTML report from test results
 func (g *Generator) Generate(results *test.Results) (string, error) {
-	// Load HTML template
-	tmpl, err := template.New("report").Funcs(template.FuncMap{
+	// Load HTML template with custom delimiters to avoid JSX conflicts
+	tmpl, err := template.New("report").Delims("[[", "]]").Funcs(template.FuncMap{
 		"htmlSafe": func(s string) template.HTML {
 			return template.HTML(s)
 		},
 		"hasMetrics": func(metrics []ModelMetric) bool {
 			return len(metrics) > 0
+		},
+		"json": func(v interface{}) (template.JS, error) {
+			b, err := json.Marshal(v)
+			if err != nil {
+				return "", err
+			}
+			return template.JS(b), nil
 		},
 	}).Parse(reportTemplate)
 	if err != nil {
@@ -40,6 +48,14 @@ func (g *Generator) Generate(results *test.Results) (string, error) {
 
 	// Generate report
 	reportPath := g.cfg.ReportPath
+	reportDir := reportPath[:len(reportPath)-len("release-validation-report.html")]
+	
+	// Copy JavaScript file to report directory
+	jsPath := reportDir + "report_app.js"
+	if err := os.WriteFile(jsPath, reportAppJS, 0644); err != nil {
+		return "", fmt.Errorf("failed to write JavaScript file: %w", err)
+	}
+	
 	file, err := os.Create(reportPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create report file: %w", err)

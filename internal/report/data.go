@@ -56,11 +56,11 @@ type ReportData struct {
 
 // ModelMetric represents a single model metric
 type ModelMetric struct {
-	Name      string
-	Value     int64
-	Status    string // "success", "failed", "ready"
-	StatusText string
-	Type      string // "registration", "inference-small", "inference-large"
+	Name       string `json:"name"`
+	Value      int64  `json:"value"`
+	Status     string `json:"status"`      // "success", "failed", "ready"
+	StatusText string `json:"statusText"`
+	Type       string `json:"type"`        // "registration", "inference-small", "inference-large"
 }
 
 // PrepareData creates a ReportData structure from test results
