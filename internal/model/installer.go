@@ -71,9 +71,9 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 		fmt.Printf("✅ Converter image loaded successfully\n")
 	}
 	
-	// Try to force ONNX format if Axon supports it
-	// Note: Check Axon CLI help to see if --format flag exists
-	cmd := exec.Command(axonBin, "install", modelSpec, "--format", "onnx")
+	// Install model (no --format flag as Axon doesn't support it)
+	// With converter image loaded, Axon will automatically convert to ONNX
+	cmd := exec.Command(axonBin, "install", modelSpec)
 	
 	// Capture output to check for errors, but don't display verbose progress
 	var stdout, stderr strings.Builder
@@ -119,44 +119,25 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 					fmt.Printf("Axon stderr: %s\n", stderrStr)
 				}
 				
-				// If it failed due to unknown flag, try without --format
-				retrySuccess := false
-				if strings.Contains(stderrStr, "unknown flag") || strings.Contains(stderrStr, "--format") {
-					fmt.Printf("⚠️  --format flag not supported, retrying without it...\n")
-					cmd2 := exec.Command(axonBin, "install", modelSpec)
-					stdout.Reset()
-					stderr.Reset()
-					cmd2.Stdout = &stdout
-					cmd2.Stderr = &stderr
-					if err2 := cmd2.Run(); err2 == nil {
-						fmt.Printf("✅ Succeeded without --format flag\n")
-						retrySuccess = true
+				// List cache directory to help debug
+				homeDirDebug, _ := os.UserHomeDir()
+				cacheDirDebug := filepath.Join(homeDirDebug, ".axon", "cache", "models")
+				fmt.Printf("\n📁 Checking axon cache: %s\n", cacheDirDebug)
+				
+				if entries, readErr := os.ReadDir(cacheDirDebug); readErr == nil {
+					fmt.Printf("   Cache contains %d entries:\n", len(entries))
+					for i, entry := range entries {
+						if i >= 10 {
+							fmt.Printf("   ... and %d more\n", len(entries)-10)
+							break
+						}
+						fmt.Printf("   - %s (dir: %v)\n", entry.Name(), entry.IsDir())
 					}
+				} else {
+					fmt.Printf("   ⚠️  Cannot read cache directory: %v\n", readErr)
 				}
 				
-				if !retrySuccess {
-					// List cache directory to help debug
-					listCacheDir := func() {
-						homeDirDebug, _ := os.UserHomeDir()
-						cacheDirDebug := filepath.Join(homeDirDebug, ".axon", "cache", "models")
-						fmt.Printf("\n📁 Checking axon cache: %s\n", cacheDirDebug)
-						
-						if entries, readErr := os.ReadDir(cacheDirDebug); readErr == nil {
-							fmt.Printf("   Cache contains %d entries:\n", len(entries))
-							for i, entry := range entries {
-								if i >= 10 {
-									fmt.Printf("   ... and %d more\n", len(entries)-10)
-									break
-								}
-								fmt.Printf("   - %s (dir: %v)\n", entry.Name(), entry.IsDir())
-							}
-						} else {
-							fmt.Printf("   ⚠️  Cannot read cache directory: %v\n", readErr)
-						}
-					}
-					listCacheDir()
-					return false, fmt.Errorf("axon install failed: %w", err)
-				}
+				return false, fmt.Errorf("axon install failed: %w", err)
 			}
 			
 			// Check for errors in output even if exit code is 0
