@@ -341,6 +341,15 @@ func loadConverterImage(axonVersion string) error {
 		fmt.Printf("   %s\n", strings.TrimSpace(string(output)))
 	}
 	
+	// Tag as :latest (Axon looks for this tag)
+	fmt.Printf("   Tagging as :latest for Axon compatibility...\n")
+	versionTag := fmt.Sprintf("ghcr.io/mlos-foundation/axon-converter:%s", strings.TrimPrefix(axonVersion, "v"))
+	latestTag := "ghcr.io/mlos-foundation/axon-converter:latest"
+	tagCmd := exec.Command("docker", "tag", versionTag, latestTag)
+	if err := tagCmd.Run(); err != nil {
+		return fmt.Errorf("failed to tag image: %w", err)
+	}
+	
 	return nil
 }
 
