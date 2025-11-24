@@ -43,9 +43,11 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 
 	axonBin := filepath.Join(homeDir, ".local", "bin", "axon")
 	cmd := exec.Command(axonBin, "install", modelSpec)
-	// Suppress verbose download progress
-	cmd.Stdout = nil
-	cmd.Stderr = nil // Suppress stderr too to avoid verbose progress
+	
+	// Capture output to check for errors, but don't display verbose progress
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 
 	// Run with progress indicator
 	if err := cmd.Start(); err != nil {
@@ -65,8 +67,33 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 		select {
 		case err := <-done:
 			if err != nil {
+				// Log captured output on error
+				if stderr.Len() > 0 {
+					fmt.Printf("\nAxon stderr: %s\n", stderr.String())
+				}
 				return false, fmt.Errorf("axon install failed: %w", err)
 			}
+			
+			// Check for errors in output even if exit code is 0
+			stderrStr := stderr.String()
+			if strings.Contains(stderrStr, "error") || strings.Contains(stderrStr, "failed") {
+				fmt.Printf("\nAxon reported errors:\n%s\n", stderrStr)
+				return false, fmt.Errorf("axon install reported errors: %s", stderrStr)
+			}
+			
+			// Verify model was actually installed
+			modelPath, verifyErr := GetPath(modelSpec)
+			if verifyErr != nil {
+				// Log output to help debug
+				fmt.Printf("\n⚠️  Model path verification failed\n")
+				fmt.Printf("   Stdout: %s\n", stdout.String())
+				fmt.Printf("   Stderr: %s\n", stderrStr)
+				return false, fmt.Errorf("installation succeeded but model not found at expected path: %w", verifyErr)
+			}
+			
+			// Log successful path for debugging
+			fmt.Printf("\n✅ Model installed at: %s\n", modelPath)
+			
 			return true, nil
 		case <-ticker.C:
 			fmt.Print(".")
@@ -86,10 +113,57 @@ func GetPath(modelSpec string) (string, error) {
 
 	modelPath := GetModelPath(repoModel, version)
 	if _, err := os.Stat(modelPath); err != nil {
-		return "", fmt.Errorf("model not found: %s", modelPath)
+		// Try alternative path - Axon might use the full model spec as directory name
+		// e.g., ~/.axon/cache/models/hf-distilgpt2-latest/model.onnx
+		homeDir, _ := os.UserHomeDir()
+		altPath := filepath.Join(homeDir, ".axon", "cache", "models", 
+			strings.ReplaceAll(strings.ReplaceAll(modelSpec, "/", "-"), "@", "-"), "model.onnx")
+		if _, err2 := os.Stat(altPath); err2 == nil {
+			return altPath, nil
+		}
+		
+		// Try using axon CLI to get the path
+		axonPath, err3 := getPathFromAxon(modelSpec)
+		if err3 == nil && axonPath != "" {
+			return axonPath, nil
+		}
+		
+		return "", fmt.Errorf("model not found: tried %s, %s (error: %v)", modelPath, altPath, err)
 	}
 
 	return modelPath, nil
+}
+
+// getPathFromAxon queries Axon CLI for the model path
+func getPathFromAxon(modelSpec string) (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	axonBin := filepath.Join(homeDir, ".local", "bin", "axon")
+	cmd := exec.Command(axonBin, "list")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to run axon list: %w", err)
+	}
+
+	// Parse output to find the model path
+	// Expected format: hf/distilgpt2@latest -> /path/to/model.onnx
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, modelSpec) {
+			// Try to extract path - format varies, try common patterns
+			parts := strings.Fields(line)
+			for _, part := range parts {
+				if strings.HasSuffix(part, ".onnx") && strings.HasPrefix(part, "/") {
+					return part, nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("model %s not found in axon list", modelSpec)
 }
 
 // GetModelPath returns the expected path for a model
