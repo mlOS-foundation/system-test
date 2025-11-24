@@ -22,8 +22,8 @@ func RunInference(modelID, modelType string, large bool, port int) error {
 		return fmt.Errorf("failed to marshal input: %w", err)
 	}
 
-	// Make HTTP request
-	url := fmt.Sprintf("http://localhost:%d/models/%s/inference", port, modelID)
+	// Make HTTP request (use explicit IPv4 to avoid IPv6 resolution issues in CI)
+	url := fmt.Sprintf("http://127.0.0.1:%d/models/%s/inference", port, modelID)
 	req, err := http.NewRequest("POST", url, strings.NewReader(string(payload)))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
@@ -37,8 +37,8 @@ func RunInference(modelID, modelType string, large bool, port int) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		// Check if Core server is still running
-		healthURL := fmt.Sprintf("http://localhost:%d/health", port)
+		// Check if Core server is still running (use explicit IPv4)
+		healthURL := fmt.Sprintf("http://127.0.0.1:%d/health", port)
 		healthReq, _ := http.NewRequest("GET", healthURL, nil)
 		healthResp, healthErr := client.Do(healthReq)
 		if healthErr != nil {

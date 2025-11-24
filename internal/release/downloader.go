@@ -420,9 +420,9 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 }
 
 func waitForServer(port int) error {
-	// Wait for server to be ready by checking HTTP endpoint
+	// Wait for server to be ready by checking HTTP endpoint (use explicit IPv4)
 	maxRetries := 30
-	url := fmt.Sprintf("http://localhost:%d/health", port)
+	url := fmt.Sprintf("http://127.0.0.1:%d/health", port)
 	for i := 0; i < maxRetries; i++ {
 		// Try health endpoint - check for any HTTP response (even 404 means server is up)
 		cmd := exec.Command("curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", url)
@@ -434,8 +434,8 @@ func waitForServer(port int) error {
 				return nil
 			}
 		}
-		// Also try root endpoint as fallback
-		rootURL := fmt.Sprintf("http://localhost:%d/", port)
+		// Also try root endpoint as fallback (use explicit IPv4)
+		rootURL := fmt.Sprintf("http://127.0.0.1:%d/", port)
 		cmd2 := exec.Command("curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", rootURL)
 		output2, err2 := cmd2.Output()
 		if err2 == nil {
