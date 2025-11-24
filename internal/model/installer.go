@@ -65,28 +65,62 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 	for {
 		select {
 		case err := <-done:
-			if err != nil {
-				// Log captured output on error
-				if stderr.Len() > 0 {
-					fmt.Printf("\nAxon stderr: %s\n", stderr.String())
+			// Always show last few lines of output for debugging
+			stdoutStr := stdout.String()
+			stderrStr := stderr.String()
+			
+			// Show last 10 lines of stdout if it's lengthy
+			if len(stdoutStr) > 500 {
+				lines := strings.Split(stdoutStr, "\n")
+				if len(lines) > 10 {
+					fmt.Printf("\nAxon stdout (last 10 lines):\n%s\n", strings.Join(lines[len(lines)-10:], "\n"))
+				} else {
+					fmt.Printf("\nAxon stdout:\n%s\n", stdoutStr)
 				}
+			} else if len(stdoutStr) > 0 {
+				fmt.Printf("\nAxon stdout: %s\n", stdoutStr)
+			}
+			
+			if err != nil {
+				// Log captured stderr on error
+				if len(stderrStr) > 0 {
+					fmt.Printf("Axon stderr: %s\n", stderrStr)
+				}
+				
+				// List cache directory to help debug
+				homeDir, _ := os.UserHomeDir()
+				cacheDir := filepath.Join(homeDir, ".axon", "cache", "models")
+				fmt.Printf("\n📁 Checking axon cache: %s\n", cacheDir)
+				
+				if entries, readErr := os.ReadDir(cacheDir); readErr == nil {
+					fmt.Printf("   Cache contains %d entries:\n", len(entries))
+					for i, entry := range entries {
+						if i >= 10 {
+							fmt.Printf("   ... and %d more\n", len(entries)-10)
+							break
+						}
+						fmt.Printf("   - %s (dir: %v)\n", entry.Name(), entry.IsDir())
+					}
+				} else {
+					fmt.Printf("   ⚠️  Cannot read cache directory: %v\n", readErr)
+				}
+				
 				return false, fmt.Errorf("axon install failed: %w", err)
 			}
 			
 			// Check for errors in output even if exit code is 0
-			stderrStr := stderr.String()
 			if strings.Contains(stderrStr, "error") || strings.Contains(stderrStr, "failed") {
-				fmt.Printf("\nAxon reported errors:\n%s\n", stderrStr)
+				fmt.Printf("\nAxon stderr (contains errors):\n%s\n", stderrStr)
 				return false, fmt.Errorf("axon install reported errors: %s", stderrStr)
 			}
+			
+			fmt.Printf("\n✅ Axon install completed (exit code 0)\n")
 			
 			// Verify model was actually installed
 			modelPath, verifyErr := GetPath(modelSpec)
 			if verifyErr != nil {
 				// Log output to help debug
-				fmt.Printf("\n⚠️  Model path verification failed: %v\n", verifyErr)
-				fmt.Printf("   Axon stdout: %s\n", stdout.String())
-				fmt.Printf("   Axon stderr: %s\n", stderrStr)
+				fmt.Printf("⚠️  Model path verification failed: %v\n", verifyErr)
 				
 				// List actual contents of axon cache to help debug
 				homeDir, _ := os.UserHomeDir()
@@ -129,6 +163,8 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 			return true, nil
 		case <-ticker.C:
 			fmt.Print(".")
+			// Flush output to ensure dots appear immediately
+			os.Stdout.Sync()
 		}
 	}
 }

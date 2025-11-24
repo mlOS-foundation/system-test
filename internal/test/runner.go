@@ -128,18 +128,25 @@ func (r *Runner) installModels(results *Results) error {
 		installed, err := model.Install(spec.ID, r.cfg.TestAllModels)
 		if err != nil {
 			log.Printf("WARN: Failed to install %s: %v", spec.ID, err)
+			log.Printf("   Installation returned error, skipping this model")
 			continue
 		}
+		
 		// Count model if it was just installed OR if it was already installed
 		// (Install returns false if already installed, but we still want to count it)
 		if installed {
 			results.Metrics.ModelsInstalled++
 			log.Printf("✅ Installed %s", spec.ID)
 		} else {
+			log.Printf("   Install returned false (model already exists or skipped)")
 			// Check if model exists (was already installed)
-			if _, err := model.GetPath(spec.ID); err == nil {
+			modelPath, pathErr := model.GetPath(spec.ID)
+			if pathErr == nil {
 				results.Metrics.ModelsInstalled++
-				log.Printf("✅ Model already cached: %s", spec.ID)
+				log.Printf("✅ Model already cached: %s at %s", spec.ID, modelPath)
+			} else {
+				log.Printf("WARN: Model not found after installation: %v", pathErr)
+				log.Printf("   This model will not be available for testing")
 			}
 		}
 	}
