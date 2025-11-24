@@ -147,27 +147,20 @@ jobs:
           path: e2e-results-*/test.log
           retention-days: 30
       
-      - name: Prepare report for publishing
+      - name: Test Summary
         if: always()
         run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 E2E Test Complete"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           REPORT_DIR=$(find . -type d -name "e2e-results-*" | head -1)
-          if [ -n "$REPORT_DIR" ]; then
-            mkdir -p _publish
-            cp "$REPORT_DIR/release-validation-report.html" _publish/index.html
-            if [ -f "$REPORT_DIR/report_app.js" ]; then
-              cp "$REPORT_DIR/report_app.js" _publish/report_app.js
-            fi
-            echo "Report prepared in _publish/"
+          if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
+            echo "✅ Report generated"
+            echo "📄 Download artifacts to view the full report"
+          else
+            echo "⚠️  Report not generated (test may have failed)"
           fi
-      
-      - name: Publish report to GitHub Pages
-        if: always()
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./_publish
-          destination_dir: ./reports/${{ github.run_number }}
-          keep_files: true
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
+          echo ""
+          echo "Note: GitHub Pages publishing is only done from main branch CI runs."
+          echo "Download the 'e2e-report' artifact to view this report locally."
 

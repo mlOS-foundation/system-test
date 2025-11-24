@@ -28,14 +28,37 @@ func DownloadAxon(version, outputDir string) error {
 
 	// Check if Axon is already installed
 	if _, err := os.Stat(axonBin); os.IsNotExist(err) {
-		fmt.Printf("📥 Installing Axon CLI...\n")
-		// Install Axon using the install script
-		// Suppress verbose output in CI by redirecting to null
-		cmd := exec.Command("bash", "-c", "curl -fsSL https://raw.githubusercontent.com/mlOS-foundation/axon/main/install.sh | bash > /dev/null 2>&1")
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to install Axon: %w", err)
+		fmt.Printf("📥 Installing Axon CLI (~50MB)...\n")
+		
+		// Install Axon using the install script in background
+		cmd := exec.Command("bash", "-c", "curl -fsSL https://raw.githubusercontent.com/mlOS-foundation/axon/main/install.sh | bash > /tmp/axon-install.log 2>&1")
+		
+		// Start the command
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("failed to start Axon install: %w", err)
 		}
-		fmt.Printf("✅ Axon CLI installed\n")
+		
+		// Show progress while waiting
+		done := make(chan error)
+		go func() {
+			done <- cmd.Wait()
+		}()
+		
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		
+		for {
+			select {
+			case err := <-done:
+				if err != nil {
+					return fmt.Errorf("failed to install Axon: %w", err)
+				}
+				fmt.Printf("✅ Axon CLI installed\n")
+				return nil
+			case <-ticker.C:
+				fmt.Printf("   ... still installing ...\n")
+			}
+		}
 	}
 
 	// Verify installation
@@ -260,9 +283,10 @@ func SetupONNXRuntime(extractDir string) error {
 
 	fmt.Printf("📥 Downloading ONNX Runtime (~8MB)...\n")
 
-	// Download (suppress curl progress output)
+	// Download with progress indicator
 	onnxArchive := filepath.Join(buildDir, "onnxruntime.tgz")
-	cmd := exec.Command("curl", "-L", "-f", "-s", "-S", "-o", onnxArchive, onnxURL)
+	cmd := exec.Command("curl", "-L", "-f", "-#", "-o", onnxArchive, onnxURL)
+	cmd.Stderr = os.Stderr // Show curl's progress bar
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to download ONNX Runtime: %w", err)
 	}

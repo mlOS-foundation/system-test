@@ -121,7 +121,10 @@ func (r *Runner) installModels(results *Results) error {
 
 	testModels := r.getTestModels()
 
-	for _, spec := range testModels {
+	for i, spec := range testModels {
+		// Show progress indicator
+		log.Printf("📦 [%d/%d] Installing %s...", i+1, len(testModels), spec.ID)
+		
 		installed, err := model.Install(spec.ID, r.cfg.TestAllModels)
 		if err != nil {
 			log.Printf("WARN: Failed to install %s: %v", spec.ID, err)
@@ -136,7 +139,7 @@ func (r *Runner) installModels(results *Results) error {
 			// Check if model exists (was already installed)
 			if modelPath, err := model.GetPath(spec.ID); err == nil {
 				results.Metrics.ModelsInstalled++
-				log.Printf("✅ Model already installed: %s at %s", spec.ID, modelPath)
+				log.Printf("✅ Model already cached: %s", spec.ID)
 			}
 		}
 	}

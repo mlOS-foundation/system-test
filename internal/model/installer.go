@@ -6,9 +6,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
-// Install installs a model using Axon
+// Install installs a model using Axon with progress indicator
 func Install(modelSpec string, testAllModels bool) (bool, error) {
 	// Parse model spec: "repo/model@version"
 	parts := strings.Split(modelSpec, "@")
@@ -42,15 +43,35 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 
 	axonBin := filepath.Join(homeDir, ".local", "bin", "axon")
 	cmd := exec.Command(axonBin, "install", modelSpec)
-	// Suppress verbose download progress - only show errors
-	cmd.Stdout = nil // Discard stdout (progress bars)
-	cmd.Stderr = os.Stderr // Keep stderr for errors
+	// Suppress verbose download progress
+	cmd.Stdout = nil
+	cmd.Stderr = nil // Suppress stderr too to avoid verbose progress
 
-	if err := cmd.Run(); err != nil {
-		return false, fmt.Errorf("axon install failed: %w", err)
+	// Run with progress indicator
+	if err := cmd.Start(); err != nil {
+		return false, fmt.Errorf("failed to start axon install: %w", err)
 	}
 
-	return true, nil
+	// Show progress dots while installing
+	done := make(chan error)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case err := <-done:
+			if err != nil {
+				return false, fmt.Errorf("axon install failed: %w", err)
+			}
+			return true, nil
+		case <-ticker.C:
+			fmt.Print(".")
+		}
+	}
 }
 
 // GetPath returns the path to an installed model
