@@ -150,7 +150,8 @@ jobs:
           echo ""
           ./bin/e2e-test \
             -axon-version v3.0.0 \
-            -core-version v2.3.0-alpha
+            -core-version v2.3.0-alpha \
+            -minimal
         continue-on-error: true
       
       - name: Upload HTML report as artifact
@@ -183,38 +184,9 @@ jobs:
             echo "✅ JS file prepared: $REPORT_DIR/report_app.js"
             ls -la _site/
           else
-            echo "⚠️ No report found - E2E test may have failed or not run"
-            echo "Creating placeholder page..."
-            printf '%s\n' \
-              '<!DOCTYPE html>' \
-              '<html lang="en">' \
-              '<head>' \
-              '    <meta charset="UTF-8">' \
-              '    <meta name="viewport" content="width=device-width, initial-scale=1.0">' \
-              '    <title>MLOS E2E Test Report</title>' \
-              '    <style>' \
-              '        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }' \
-              '        h1 { color: #333; }' \
-              '        .info { background: #f0f0f0; padding: 15px; border-radius: 5px; margin: 20px 0; }' \
-              '        a { color: #0366d6; text-decoration: none; }' \
-              '        a:hover { text-decoration: underline; }' \
-              '    </style>' \
-              '</head>' \
-              '<body>' \
-              '    <h1>📊 MLOS E2E Test Report</h1>' \
-              '    <div class="info">' \
-              '        <p><strong>No report available</strong></p>' \
-              '        <p>The E2E test did not generate a report. This could be because:</p>' \
-              '        <ul>' \
-              '            <li>The E2E test failed before generating a report</li>' \
-              '            <li>There was an issue downloading releases</li>' \
-              '            <li>The test is still running</li>' \
-              '        </ul>' \
-              '        <p><a href="https://github.com/mlOS-foundation/system-test/actions">View CI runs</a> to see detailed logs.</p>' \
-              '    </div>' \
-              '</body>' \
-              '</html>' > _site/index.html
-            echo "✅ Placeholder page created"
+            echo "⚠️ No report found - using fallback report"
+            cp .github/fallback-report.html _site/index.html
+            echo "✅ Fallback report copied"
           fi
       
       - name: Setup Pages

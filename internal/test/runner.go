@@ -285,7 +285,14 @@ func (r *Runner) calculateSuccessRate(results *Results) float64 {
 }
 
 func (r *Runner) getTestModels() []ModelSpec {
-	// Essential NLP models (always tested)
+	// Minimal test: only one small model for smoke testing
+	if r.cfg.MinimalTest {
+		return []ModelSpec{
+			{ID: "hf/distilgpt2@latest", Name: "gpt2", Type: "single", Category: "nlp"},
+		}
+	}
+
+	// Essential NLP models (default)
 	models := []ModelSpec{
 		{ID: "hf/distilgpt2@latest", Name: "gpt2", Type: "single", Category: "nlp"},
 		{ID: "hf/bert-base-uncased@latest", Name: "bert", Type: "multi", Category: "nlp"},

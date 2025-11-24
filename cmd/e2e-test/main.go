@@ -23,6 +23,7 @@ func main() {
 		coreVersion   = flag.String("core-version", "v2.3.0-alpha", "MLOS Core release version to test")
 		outputDir     = flag.String("output", "", "Output directory for reports (default: ./e2e-results-<timestamp>)")
 		testAllModels = flag.Bool("all-models", false, "Test all models including vision and multimodal")
+		minimalTest   = flag.Bool("minimal", false, "Minimal test: only one small model (for CI smoke tests)")
 		skipInstall   = flag.Bool("skip-install", false, "Skip downloading and installing releases")
 		showVersion   = flag.Bool("version", false, "Show version information")
 		verbose       = flag.Bool("verbose", false, "Enable verbose logging")
@@ -37,7 +38,7 @@ func main() {
 	}
 
 	// Initialize configuration
-	cfg, err := config.New(*axonVersion, *coreVersion, *outputDir, *testAllModels, *skipInstall, *verbose)
+	cfg, err := config.New(*axonVersion, *coreVersion, *outputDir, *testAllModels, *minimalTest, *skipInstall, *verbose)
 	if err != nil {
 		log.Fatalf("Failed to initialize configuration: %v", err)
 	}

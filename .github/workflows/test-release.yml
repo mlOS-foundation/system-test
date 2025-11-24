@@ -123,11 +123,12 @@ jobs:
       - name: Run E2E tests
         if: steps.core_version.outputs.version != ''
         run: |
-          # Run E2E tests with basic models only (no -all-models flag)
-          # This avoids downloading large vision/multimodal models that fill up disk
+          # Run E2E tests in minimal mode (one small model only)
+          # This avoids disk space issues on GitHub runners
           ./bin/e2e-test \
             -axon-version ${{ github.event.inputs.axon_version || 'v3.0.0' }} \
-            -core-version ${{ steps.core_version.outputs.version }}
+            -core-version ${{ steps.core_version.outputs.version }} \
+            -minimal
         continue-on-error: true
       
       - name: Upload HTML report as artifact

@@ -13,6 +13,7 @@ type Config struct {
 	CoreVersion   string
 	OutputDir     string
 	TestAllModels bool
+	MinimalTest   bool // Only test one small model (distilgpt2) for smoke testing
 	SkipInstall   bool
 	Verbose       bool
 	CorePort      int // HTTP port for MLOS Core (default: 18080, non-privileged)
@@ -25,11 +26,12 @@ type Config struct {
 }
 
 // New creates a new configuration
-func New(axonVersion, coreVersion, outputDir string, testAllModels, skipInstall, verbose bool) (*Config, error) {
+func New(axonVersion, coreVersion, outputDir string, testAllModels, minimalTest, skipInstall, verbose bool) (*Config, error) {
 	cfg := &Config{
 		AxonVersion:   axonVersion,
 		CoreVersion:   coreVersion,
 		TestAllModels: testAllModels,
+		MinimalTest:   minimalTest,
 		SkipInstall:   skipInstall,
 		Verbose:       verbose,
 		CorePort:      18080, // Use non-privileged port to avoid sudo requirement
