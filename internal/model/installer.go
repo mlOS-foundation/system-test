@@ -43,10 +43,20 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 	// Check if Docker is available (Axon needs it for ONNX conversion)
 	dockerCmd := exec.Command("docker", "--version")
 	if dockerOut, dockerErr := dockerCmd.CombinedOutput(); dockerErr != nil {
-		fmt.Printf("⚠️  Docker not available: %v\n", dockerErr)
+		fmt.Printf("⚠️  Docker CLI not available: %v\n", dockerErr)
 		fmt.Printf("   Axon may fallback to native format (non-ONNX)\n")
 	} else {
-		fmt.Printf("   Docker: %s\n", strings.TrimSpace(string(dockerOut)))
+		fmt.Printf("   Docker CLI: %s\n", strings.TrimSpace(string(dockerOut)))
+	}
+	
+	// Check if Docker daemon is actually running (can we run containers?)
+	dockerPsCmd := exec.Command("docker", "ps")
+	if dockerPsOut, dockerPsErr := dockerPsCmd.CombinedOutput(); dockerPsErr != nil {
+		fmt.Printf("⚠️  Docker daemon not accessible: %v\n", dockerPsErr)
+		fmt.Printf("   Output: %s\n", strings.TrimSpace(string(dockerPsOut)))
+		fmt.Printf("   Axon WILL fallback to native Python (which will fail without torch)\n")
+	} else {
+		fmt.Printf("   Docker daemon: Running ✓\n")
 	}
 
 	axonBin := filepath.Join(homeDir, ".local", "bin", "axon")

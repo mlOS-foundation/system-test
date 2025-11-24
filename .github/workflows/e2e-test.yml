@@ -94,6 +94,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl tar
       
+      - name: Ensure Docker is accessible
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🐳 Docker Setup Check"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          docker --version || echo "⚠️  Docker CLI not found"
+          docker ps 2>&1 || {
+            echo "⚠️  Docker daemon not accessible"
+            echo "   This may cause Axon to skip ONNX conversion"
+          }
+          echo "Current user: $(whoami)"
+          echo "User groups: $(groups)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      
       - name: Install gh CLI
         run: |
           type -p curl >/dev/null || (apt-get update && apt-get install curl -y)
