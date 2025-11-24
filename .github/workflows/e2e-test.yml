@@ -1,0 +1,254 @@
+name: E2E Test & Report
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      axon_version:
+        description: 'Axon version to test'
+        required: false
+        default: 'v3.0.0'
+      core_version:
+        description: 'Core version to test'
+        required: false
+        default: '3.0.0-alpha'
+  repository_dispatch:
+    types: [core-release-published]
+  schedule:
+    # Check for new releases every hour
+    - cron: '0 * * * *'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  packages: read
+
+jobs:
+  vet:
+    name: Go Vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Run go vet
+        run: go vet ./...
+  
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.64.8
+          args: --timeout=5m
+  
+  e2e-test:
+    name: E2E Test
+    environment:
+      name: github-pages
+    runs-on: ubuntu-latest
+    needs: [vet, lint]
+    steps:
+      - name: Free up disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          
+          # Remove unnecessary software to free up space (~10GB)
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo apt-get clean
+          
+          echo "Disk space after cleanup:"
+          df -h
+      
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl tar
+      
+      - name: Install gh CLI
+        run: |
+          type -p curl >/dev/null || (apt-get update && apt-get install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt-get update \
+          && sudo apt-get install gh -y
+      
+      - name: Authenticate gh CLI
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+      
+      - name: Verify access to public releases
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔍 Verifying Public Release Access:"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Testing: gh release list mlOS-foundation/core-releases"
+          if gh release list --repo mlOS-foundation/core-releases --limit 3; then
+            echo ""
+            echo "✅ Can access public core-releases"
+          else
+            echo "❌ Failed to access public core-releases"
+            exit 1
+          fi
+      
+      - name: Determine Core Version
+        id: core_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger: use input or default
+            VERSION="${{ github.event.inputs.core_version || '3.0.0-alpha' }}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Using workflow_dispatch version: $VERSION"
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            # Triggered by core-releases: use payload version
+            VERSION="${{ github.event.client_payload.version }}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Using dispatch version: $VERSION"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            # Scheduled: check for latest release in core-releases
+            echo "Checking for latest release in core-releases..."
+            LATEST_RELEASE=$(gh release list --repo mlOS-foundation/core-releases --limit 1 --json tagName --jq '.[0].tagName' || echo "")
+            if [ -n "$LATEST_RELEASE" ] && [ "$LATEST_RELEASE" != "null" ]; then
+              VERSION="$LATEST_RELEASE"
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
+              echo "Found latest release: $VERSION"
+            else
+              echo "No releases found in core-releases, skipping"
+              echo "version=" >> $GITHUB_OUTPUT
+            fi
+          else
+            # Push/PR: use hardcoded version
+            VERSION="3.0.0-alpha"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Using default version for push/PR: $VERSION"
+          fi
+      
+      - name: Skip if no version
+        if: steps.core_version.outputs.version == ''
+        run: |
+          echo "No version determined, skipping E2E tests"
+          exit 0
+      
+      - name: Build test tool
+        run: |
+          go build -o bin/e2e-test ./cmd/e2e-test
+      
+      - name: Check disk space before tests
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Disk Space Status:"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          df -h
+      
+      - name: Run E2E tests
+        if: steps.core_version.outputs.version != ''
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧪 Running E2E Tests (Minimal Mode)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Axon: ${{ github.event.inputs.axon_version || 'v3.0.0' }}"
+          echo "📦 Core: ${{ steps.core_version.outputs.version }} (from public core-releases)"
+          echo ""
+          ./bin/e2e-test \
+            -axon-version ${{ github.event.inputs.axon_version || 'v3.0.0' }} \
+            -core-version ${{ steps.core_version.outputs.version }} \
+            -minimal
+        continue-on-error: true
+      
+      - name: Upload HTML report as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report-${{ github.run_number }}
+          path: e2e-results-*/release-validation-report.html
+          retention-days: 90
+      
+      - name: Upload logs as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-logs-${{ github.run_number }}
+          path: e2e-results-*/test.log
+          retention-days: 30
+      
+      - name: Prepare report for GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && always()
+        run: |
+          mkdir -p _site
+          REPORT_DIR=$(find . -type d -name "e2e-results-*" | head -1)
+          if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
+            cp "$REPORT_DIR/release-validation-report.html" _site/index.html
+            if [ -f "$REPORT_DIR/report_app.js" ]; then
+              cp "$REPORT_DIR/report_app.js" _site/report_app.js
+            fi
+            echo "✅ Report prepared for GitHub Pages"
+          else
+            echo "⚠️ No report found - using fallback report"
+            cp .github/fallback-report.html _site/index.html
+            echo "✅ Fallback report copied"
+          fi
+      
+      - name: Setup Pages
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && always()
+        uses: actions/configure-pages@v4
+      
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && always()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+      
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && always()
+        id: deployment
+        uses: actions/deploy-pages@v4
+      
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 E2E Test Complete"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          REPORT_DIR=$(find . -type d -name "e2e-results-*" | head -1)
+          if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
+            echo "✅ Report generated"
+            if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
+              echo "🌐 Report published to: https://mlos-foundation.github.io/system-test/"
+            else
+              echo "📦 Report available in artifacts (e2e-report-${{ github.run_number }})"
+            fi
+          else
+            echo "⚠️  Report not generated (test may have failed)"
+          fi
+
