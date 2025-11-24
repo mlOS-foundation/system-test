@@ -137,7 +137,7 @@ func (r *Runner) installModels(results *Results) error {
 			log.Printf("✅ Installed %s", spec.ID)
 		} else {
 			// Check if model exists (was already installed)
-			if modelPath, err := model.GetPath(spec.ID); err == nil {
+			if _, err := model.GetPath(spec.ID); err == nil {
 				results.Metrics.ModelsInstalled++
 				log.Printf("✅ Model already cached: %s", spec.ID)
 			}
