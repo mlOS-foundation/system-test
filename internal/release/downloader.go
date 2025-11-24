@@ -87,6 +87,16 @@ func DownloadCore(version, outputDir string) error {
 	osName := runtime.GOOS   // darwin, linux
 	archName := runtime.GOARCH // amd64, arm64
 	
+	// Allow overriding platform for testing (e.g., test Linux Core on Mac via Docker)
+	if forcePlatform := os.Getenv("FORCE_CORE_PLATFORM"); forcePlatform != "" {
+		parts := strings.Split(forcePlatform, "/")
+		if len(parts) == 2 {
+			osName = parts[0]
+			archName = parts[1]
+			fmt.Printf("🐧 Forcing platform: %s/%s (for Docker testing)\n", osName, archName)
+		}
+	}
+	
 	// Construct platform-specific pattern: mlos-core_VERSION_OS-ARCH.tar.gz
 	pattern := fmt.Sprintf("mlos-core_%s_%s-%s.tar.gz", version, osName, archName)
 	archivePath := ""
@@ -240,10 +250,21 @@ func DownloadCore(version, outputDir string) error {
 // SetupONNXRuntime downloads and sets up ONNX Runtime if needed
 func SetupONNXRuntime(extractDir string) error {
 	buildDir := filepath.Join(extractDir, "build")
+	
+	// Determine target OS (allow override for Docker testing)
+	targetOS := runtime.GOOS
+	targetArch := runtime.GOARCH
+	if forcePlatform := os.Getenv("FORCE_CORE_PLATFORM"); forcePlatform != "" {
+		parts := strings.Split(forcePlatform, "/")
+		if len(parts) == 2 {
+			targetOS = parts[0]
+			targetArch = parts[1]
+		}
+	}
 
 	// Check if ONNX Runtime is already installed
 	libName := "libonnxruntime.1.18.0.dylib"
-	if runtime.GOOS == "linux" {
+	if targetOS == "linux" {
 		libName = "libonnxruntime.1.18.0.so"
 	}
 	onnxLibPath := filepath.Join(buildDir, "onnxruntime", "lib", libName)
@@ -254,23 +275,23 @@ func SetupONNXRuntime(extractDir string) error {
 
 	// Determine architecture for ONNX Runtime
 	var onnxArch string
-	switch runtime.GOARCH {
+	switch targetArch {
 	case "amd64":
 		onnxArch = "x64"
 	case "arm64":
 		onnxArch = "arm64"
 	default:
-		return fmt.Errorf("unsupported architecture for ONNX Runtime: %s", runtime.GOARCH)
+		return fmt.Errorf("unsupported architecture for ONNX Runtime: %s", targetArch)
 	}
 
 	// Download ONNX Runtime
 	var onnxURL string
-	if runtime.GOOS == "darwin" {
+	if targetOS == "darwin" {
 		onnxURL = fmt.Sprintf("https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-osx-%s-1.18.0.tgz", onnxArch)
-	} else if runtime.GOOS == "linux" {
+	} else if targetOS == "linux" {
 		onnxURL = fmt.Sprintf("https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-linux-%s-1.18.0.tgz", onnxArch)
 	} else {
-		return fmt.Errorf("unsupported OS for ONNX Runtime: %s", runtime.GOOS)
+		return fmt.Errorf("unsupported OS for ONNX Runtime: %s", targetOS)
 	}
 
 	fmt.Printf("📥 Downloading ONNX Runtime (~8MB)...\n")
@@ -296,7 +317,7 @@ func SetupONNXRuntime(extractDir string) error {
 	// Rename to expected directory structure
 	// Archive extracts to: onnxruntime-osx-arm64-1.18.0 or onnxruntime-linux-x64-1.18.0
 	var extractedDirName string
-	if runtime.GOOS == "darwin" {
+	if targetOS == "darwin" {
 		extractedDirName = fmt.Sprintf("onnxruntime-osx-%s-1.18.0", onnxArch)
 	} else {
 		extractedDirName = fmt.Sprintf("onnxruntime-linux-%s-1.18.0", onnxArch)
@@ -321,6 +342,99 @@ func SetupONNXRuntime(extractDir string) error {
 }
 
 // StartCore starts the MLOS Core server on a non-privileged port
+// startCoreInDocker runs Core server in a Linux Docker container
+// This is used to test Linux Core behavior on Mac
+func startCoreInDocker(extractDir string, port int) (*monitor.Process, error) {
+	// Find the Core binary
+	binaryPath := ""
+	altPaths := []string{
+		filepath.Join(extractDir, "mlos_core"),
+		filepath.Join(extractDir, "build", "mlos_core"),
+		filepath.Join(extractDir, "bin", "mlos_core"),
+		filepath.Join(extractDir, "mlos-server"),
+		filepath.Join(extractDir, "build", "mlos-server"),
+		filepath.Join(extractDir, "bin", "mlos-server"),
+	}
+	for _, altPath := range altPaths {
+		if _, err := os.Stat(altPath); err == nil {
+			binaryPath = altPath
+			break
+		}
+	}
+	if binaryPath == "" {
+		return nil, fmt.Errorf("Core binary not found in %s", extractDir)
+	}
+	
+	// Get absolute paths for Docker volume mounting
+	absExtractDir, err := filepath.Abs(extractDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	
+	// Run Core in Ubuntu container with port mapping
+	// Mount the entire extract directory so ONNX Runtime is accessible
+	// Note: On Mac, --network host doesn't work (Docker runs in VM), so use -p instead
+	cmd := exec.Command("docker", "run", "--rm",
+		"--platform", "linux/amd64",
+		"-p", fmt.Sprintf("%d:%d", port, port),
+		"-v", fmt.Sprintf("%s:/core", absExtractDir),
+		"-w", "/core",
+		"ubuntu:22.04",
+		"/bin/bash", "-c",
+		fmt.Sprintf(`
+			# Install minimal dependencies
+			echo "📦 Installing dependencies..."
+			apt-get update -qq && apt-get install -y -qq curl ca-certificates > /dev/null 2>&1
+			
+			echo "🔍 Core binary: %s"
+			ls -lh %s
+			
+			# Set LD_LIBRARY_PATH for ONNX Runtime
+			export LD_LIBRARY_PATH=/core/build/onnxruntime/lib:$LD_LIBRARY_PATH
+			
+			# Check dependencies
+			echo "🔗 Checking binary dependencies:"
+			ldd %s | head -10 || echo "⚠️  ldd failed"
+			
+			# Run Core server
+			chmod +x %s
+			echo "🚀 Starting Core server on port %d..."
+			%s --http-port %d 2>&1
+		`, filepath.Base(binaryPath), filepath.Base(binaryPath), filepath.Base(binaryPath), filepath.Base(binaryPath), port, filepath.Base(binaryPath), port))
+	
+	// Show output in real-time for debugging
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	
+	// Start container
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start Core Docker container: %w", err)
+	}
+	
+	process := &monitor.Process{
+		PID:    cmd.Process.Pid,
+		Cmd:    cmd,
+		Binary: binaryPath,
+	}
+	
+	// Give server a moment to start inside Docker
+	// Docker needs more time to pull image, install deps, and start server
+	time.Sleep(5 * time.Second)
+	
+	// Wait for server to be ready (Docker startup takes longer)
+	fmt.Printf("⏳ Waiting for Core server to be ready (this may take ~30s for Docker setup)...\n")
+	if err := waitForServer(port); err != nil {
+		fmt.Printf("\n❌ Server failed to become ready\n")
+		if stopErr := monitor.StopProcess(process); stopErr != nil {
+			fmt.Printf("WARN: Failed to stop Docker container: %v\n", stopErr)
+		}
+		return nil, fmt.Errorf("Core server in Docker failed to start: %w", err)
+	}
+	
+	fmt.Printf("✅ Core running in Linux Docker container on port %d\n", port)
+	return process, nil
+}
+
 func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	coreDir := filepath.Join(outputDir, "mlos-core")
 
@@ -346,6 +460,12 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	// Setup ONNX Runtime if needed
 	if err := SetupONNXRuntime(extractDir); err != nil {
 		return nil, fmt.Errorf("failed to setup ONNX Runtime: %w", err)
+	}
+	
+	// Check if we should run Core in Docker (for testing Linux Core on Mac)
+	if os.Getenv("CORE_IN_DOCKER") == "true" {
+		fmt.Printf("🐳 Running Core in Linux Docker container\n")
+		return startCoreInDocker(extractDir, port)
 	}
 
 	binaryPath := filepath.Join(extractDir, "build", "mlos-server")
