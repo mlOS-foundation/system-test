@@ -17,22 +17,21 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 		return false, fmt.Errorf("invalid model spec format: %s", modelSpec)
 	}
 
-	repoModel := parts[0]
-	version := parts[1]
-
-	// Check if model is already installed
-	modelPath := GetModelPath(repoModel, version)
-	if _, err := os.Stat(modelPath); err == nil {
-		return false, nil // Already installed
-	}
-
 	// Skip vision and multimodal models unless testAllModels is true
+	repoModel := parts[0]
 	if !testAllModels {
 		if strings.Contains(repoModel, "resnet") ||
 			strings.Contains(repoModel, "vgg") ||
 			strings.Contains(repoModel, "clip") {
 			return false, nil // Skip
 		}
+	}
+
+	// Check if model is already installed using our path resolution
+	// This will try multiple path formats
+	if existingPath, err := GetPath(modelSpec); err == nil {
+		fmt.Printf("✅ Model already installed at: %s\n", existingPath)
+		return false, nil // Already installed
 	}
 
 	// Install using Axon
@@ -85,14 +84,47 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 			modelPath, verifyErr := GetPath(modelSpec)
 			if verifyErr != nil {
 				// Log output to help debug
-				fmt.Printf("\n⚠️  Model path verification failed\n")
-				fmt.Printf("   Stdout: %s\n", stdout.String())
-				fmt.Printf("   Stderr: %s\n", stderrStr)
+				fmt.Printf("\n⚠️  Model path verification failed: %v\n", verifyErr)
+				fmt.Printf("   Axon stdout: %s\n", stdout.String())
+				fmt.Printf("   Axon stderr: %s\n", stderrStr)
+				
+				// List actual contents of axon cache to help debug
+				homeDir, _ := os.UserHomeDir()
+				cacheDir := filepath.Join(homeDir, ".axon", "cache", "models")
+				fmt.Printf("   Listing axon cache directory: %s\n", cacheDir)
+				
+				if entries, err := os.ReadDir(cacheDir); err == nil {
+					fmt.Printf("   Cache contains %d entries:\n", len(entries))
+					for i, entry := range entries {
+						if i >= 10 {
+							fmt.Printf("   ... and %d more\n", len(entries)-10)
+							break
+						}
+						entryPath := filepath.Join(cacheDir, entry.Name())
+						if entry.IsDir() {
+							// Check if this directory contains model.onnx
+							modelFile := filepath.Join(entryPath, "model.onnx")
+							if _, err := os.Stat(modelFile); err == nil {
+								fmt.Printf("   ✅ %s/ (contains model.onnx)\n", entry.Name())
+							} else {
+								// Check subdirectories
+								if subEntries, err := os.ReadDir(entryPath); err == nil {
+									fmt.Printf("   📁 %s/ (%d subdirs)\n", entry.Name(), len(subEntries))
+								}
+							}
+						} else {
+							fmt.Printf("   📄 %s\n", entry.Name())
+						}
+					}
+				} else {
+					fmt.Printf("   ⚠️  Cannot read cache directory: %v\n", err)
+				}
+				
 				return false, fmt.Errorf("installation succeeded but model not found at expected path: %w", verifyErr)
 			}
 			
 			// Log successful path for debugging
-			fmt.Printf("\n✅ Model installed at: %s\n", modelPath)
+			fmt.Printf("✅ Model installed at: %s\n", modelPath)
 			
 			return true, nil
 		case <-ticker.C:
