@@ -60,6 +60,20 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 	}
 
 	axonBin := filepath.Join(homeDir, ".local", "bin", "axon")
+	
+	// Pre-pull Axon converter image to ensure Docker conversion works
+	fmt.Printf("   Pre-pulling Axon converter image...\n")
+	converterImage := "ghcr.io/mlos-foundation/axon-converter:latest"
+	pullCmd := exec.Command("docker", "pull", converterImage)
+	pullOutput, pullErr := pullCmd.CombinedOutput()
+	if pullErr != nil {
+		fmt.Printf("⚠️  Failed to pull converter image: %v\n", pullErr)
+		fmt.Printf("   Output: %s\n", strings.TrimSpace(string(pullOutput)))
+		fmt.Printf("   Axon may still try to pull it automatically\n")
+	} else {
+		fmt.Printf("✅ Converter image ready: %s\n", converterImage)
+	}
+	
 	// Try to force ONNX format if Axon supports it
 	// Note: Check Axon CLI help to see if --format flag exists
 	cmd := exec.Command(axonBin, "install", modelSpec, "--format", "onnx")
@@ -154,6 +168,18 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 				return false, fmt.Errorf("axon install reported errors: %s", stderrStr)
 			}
 			
+			// Check for Docker/ONNX conversion issues
+			outputStr := stdoutStr + "\n" + stderrStr
+			if strings.Contains(outputStr, "ONNX conversion failed") {
+				fmt.Printf("❌ ONNX conversion failed during installation\n")
+				if strings.Contains(outputStr, "ModuleNotFoundError") {
+					fmt.Printf("   Docker converter image may be broken or not pulled\n")
+				}
+				if strings.Contains(outputStr, "execution_format: pytorch") {
+					fmt.Printf("   ⚠️  Axon fell back to PyTorch format (MLOS Core won't support this)\n")
+				}
+			}
+			
 			fmt.Printf("\n✅ Axon install completed (exit code 0)\n")
 			
 			// Verify model was actually installed
@@ -241,13 +267,10 @@ func GetPath(modelSpec string) (string, error) {
 	repoModel := parts[0]
 	version := parts[1]
 
-	// Try ONNX format first (preferred)
+	// MLOS Core requires ONNX format - no fallback to PyTorch
 	modelPath := GetModelPath(repoModel, version)
-	firstErr := error(nil)
 	if _, err := os.Stat(modelPath); err == nil {
 		return modelPath, nil
-	} else {
-		firstErr = err
 	}
 	
 	// Try alternative path format
@@ -258,61 +281,36 @@ func GetPath(modelSpec string) (string, error) {
 		return altPath, nil
 	}
 	
-	// Try PyTorch format (if ONNX conversion failed)
+	// ONNX file not found - this is a hard error
+	// Check what files actually exist to help debug
 	baseDir := filepath.Join(homeDir, ".axon", "cache", "models", repoModel, version)
-	pytorchFormats := []string{
-		"pytorch_model.bin",
-		"model.safetensors",
-		"model.pt",
-	}
-	for _, format := range pytorchFormats {
-		pytorchPath := filepath.Join(baseDir, format)
-		if _, err := os.Stat(pytorchPath); err == nil {
-			fmt.Printf("⚠️  Found PyTorch model instead of ONNX: %s\n", format)
-			fmt.Printf("   MLOS Core may not support this format\n")
-			return pytorchPath, nil
+	if entries, readErr := os.ReadDir(baseDir); readErr == nil && len(entries) > 0 {
+		fmt.Printf("❌ ONNX model not found, but found these files:\n")
+		for i, entry := range entries {
+			if i >= 10 {
+				fmt.Printf("   ... and %d more\n", len(entries)-10)
+				break
+			}
+			fmt.Printf("   - %s\n", entry.Name())
+		}
+		if hasAnyFile(baseDir, "pytorch_model.bin", "model.safetensors", "model.pt") {
+			fmt.Printf("❌ PyTorch format found - Docker ONNX conversion FAILED\n")
+			fmt.Printf("   MLOS Core requires ONNX format\n")
+			fmt.Printf("   Check Docker logs during 'axon install' for conversion errors\n")
 		}
 	}
 	
-	// Try using axon CLI to get the path
-	axonPath, err3 := getPathFromAxon(modelSpec)
-	if err3 == nil && axonPath != "" {
-		return axonPath, nil
-	}
-	
-	return "", fmt.Errorf("model not found: tried %s, %s (error: %v)", modelPath, altPath, firstErr)
+	return "", fmt.Errorf("ONNX model not found (MLOS Core requires ONNX format): tried %s, %s", modelPath, altPath)
 }
 
-// getPathFromAxon queries Axon CLI for the model path
-func getPathFromAxon(modelSpec string) (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	axonBin := filepath.Join(homeDir, ".local", "bin", "axon")
-	cmd := exec.Command(axonBin, "list")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to run axon list: %w", err)
-	}
-
-	// Parse output to find the model path
-	// Expected format: hf/distilgpt2@latest -> /path/to/model.onnx
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, modelSpec) {
-			// Try to extract path - format varies, try common patterns
-			parts := strings.Fields(line)
-			for _, part := range parts {
-				if strings.HasSuffix(part, ".onnx") && strings.HasPrefix(part, "/") {
-					return part, nil
-				}
-			}
+// hasAnyFile checks if any of the given files exist in the directory
+func hasAnyFile(dir string, filenames ...string) bool {
+	for _, filename := range filenames {
+		if _, err := os.Stat(filepath.Join(dir, filename)); err == nil {
+			return true
 		}
 	}
-
-	return "", fmt.Errorf("model %s not found in axon list", modelSpec)
+	return false
 }
 
 // GetModelPath returns the expected path for a model
