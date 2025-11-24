@@ -13,18 +13,18 @@ on:
   repository_dispatch:
     types: [core-release-published]
   workflow_dispatch:
-  schedule:
-    # Check for new releases every hour
-    - cron: '0 * * * *'
     inputs:
       axon_version:
         description: 'Axon version to test'
-        required: true
+        required: false
         default: 'v3.0.0'
       core_version:
         description: 'MLOS Core version to test'
-        required: true
+        required: false
         default: 'v2.3.0-alpha'
+  schedule:
+    # Check for new releases every hour
+    - cron: '0 * * * *'
 
 jobs:
   test:
