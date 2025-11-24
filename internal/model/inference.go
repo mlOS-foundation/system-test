@@ -37,6 +37,17 @@ func RunInference(modelID, modelType string, large bool, port int) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
+		// Check if Core server is still running
+		healthURL := fmt.Sprintf("http://localhost:%d/health", port)
+		healthReq, _ := http.NewRequest("GET", healthURL, nil)
+		healthResp, healthErr := client.Do(healthReq)
+		if healthErr != nil {
+			fmt.Printf("   ERROR: Core server health check failed: %v\n", healthErr)
+			fmt.Printf("   Core server may have crashed during inference\n")
+		} else {
+			healthResp.Body.Close()
+			fmt.Printf("   Core server is still running (health check passed)\n")
+		}
 		return fmt.Errorf("request failed: %w", err)
 	}
 	defer func() {
