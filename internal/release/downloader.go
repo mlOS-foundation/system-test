@@ -28,13 +28,14 @@ func DownloadAxon(version, outputDir string) error {
 
 	// Check if Axon is already installed
 	if _, err := os.Stat(axonBin); os.IsNotExist(err) {
+		fmt.Printf("📥 Installing Axon CLI...\n")
 		// Install Axon using the install script
-		cmd := exec.Command("bash", "-c", "curl -fsSL https://raw.githubusercontent.com/mlOS-foundation/axon/main/install.sh | bash")
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		// Suppress verbose output in CI by redirecting to null
+		cmd := exec.Command("bash", "-c", "curl -fsSL https://raw.githubusercontent.com/mlOS-foundation/axon/main/install.sh | bash > /dev/null 2>&1")
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to install Axon: %w", err)
 		}
+		fmt.Printf("✅ Axon CLI installed\n")
 	}
 
 	// Verify installation
@@ -257,14 +258,11 @@ func SetupONNXRuntime(extractDir string) error {
 		return fmt.Errorf("unsupported OS for ONNX Runtime: %s", runtime.GOOS)
 	}
 
-	fmt.Printf("ONNX Runtime not found, downloading...\n")
-	fmt.Printf("Downloading ONNX Runtime from: %s\n", onnxURL)
+	fmt.Printf("📥 Downloading ONNX Runtime (~8MB)...\n")
 
-	// Download
+	// Download (suppress curl progress output)
 	onnxArchive := filepath.Join(buildDir, "onnxruntime.tgz")
-	cmd := exec.Command("curl", "-L", "-f", "-o", onnxArchive, onnxURL)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd := exec.Command("curl", "-L", "-f", "-s", "-S", "-o", onnxArchive, onnxURL)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to download ONNX Runtime: %w", err)
 	}

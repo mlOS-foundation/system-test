@@ -42,8 +42,9 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 
 	axonBin := filepath.Join(homeDir, ".local", "bin", "axon")
 	cmd := exec.Command(axonBin, "install", modelSpec)
-	cmd.Stdout = os.Stderr // Suppress verbose output
-	cmd.Stderr = os.Stderr
+	// Suppress verbose download progress - only show errors
+	cmd.Stdout = nil // Discard stdout (progress bars)
+	cmd.Stderr = os.Stderr // Keep stderr for errors
 
 	if err := cmd.Run(); err != nil {
 		return false, fmt.Errorf("axon install failed: %w", err)
