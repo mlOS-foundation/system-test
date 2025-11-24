@@ -40,8 +40,19 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 		return false, fmt.Errorf("failed to get home directory: %w", err)
 	}
 
+	// Check if Docker is available (Axon needs it for ONNX conversion)
+	dockerCmd := exec.Command("docker", "--version")
+	if dockerOut, dockerErr := dockerCmd.CombinedOutput(); dockerErr != nil {
+		fmt.Printf("⚠️  Docker not available: %v\n", dockerErr)
+		fmt.Printf("   Axon may fallback to native format (non-ONNX)\n")
+	} else {
+		fmt.Printf("   Docker: %s\n", strings.TrimSpace(string(dockerOut)))
+	}
+
 	axonBin := filepath.Join(homeDir, ".local", "bin", "axon")
-	cmd := exec.Command(axonBin, "install", modelSpec)
+	// Try to force ONNX format if Axon supports it
+	// Note: Check Axon CLI help to see if --format flag exists
+	cmd := exec.Command(axonBin, "install", modelSpec, "--format", "onnx")
 	
 	// Capture output to check for errors, but don't display verbose progress
 	var stdout, stderr strings.Builder
@@ -87,25 +98,44 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 					fmt.Printf("Axon stderr: %s\n", stderrStr)
 				}
 				
-				// List cache directory to help debug
-				homeDir, _ := os.UserHomeDir()
-				cacheDir := filepath.Join(homeDir, ".axon", "cache", "models")
-				fmt.Printf("\n📁 Checking axon cache: %s\n", cacheDir)
-				
-				if entries, readErr := os.ReadDir(cacheDir); readErr == nil {
-					fmt.Printf("   Cache contains %d entries:\n", len(entries))
-					for i, entry := range entries {
-						if i >= 10 {
-							fmt.Printf("   ... and %d more\n", len(entries)-10)
-							break
-						}
-						fmt.Printf("   - %s (dir: %v)\n", entry.Name(), entry.IsDir())
+				// If it failed due to unknown flag, try without --format
+				retrySuccess := false
+				if strings.Contains(stderrStr, "unknown flag") || strings.Contains(stderrStr, "--format") {
+					fmt.Printf("⚠️  --format flag not supported, retrying without it...\n")
+					cmd2 := exec.Command(axonBin, "install", modelSpec)
+					stdout.Reset()
+					stderr.Reset()
+					cmd2.Stdout = &stdout
+					cmd2.Stderr = &stderr
+					if err2 := cmd2.Run(); err2 == nil {
+						fmt.Printf("✅ Succeeded without --format flag\n")
+						retrySuccess = true
 					}
-				} else {
-					fmt.Printf("   ⚠️  Cannot read cache directory: %v\n", readErr)
 				}
 				
-				return false, fmt.Errorf("axon install failed: %w", err)
+				if !retrySuccess {
+					// List cache directory to help debug
+					listCacheDir := func() {
+						homeDirDebug, _ := os.UserHomeDir()
+						cacheDirDebug := filepath.Join(homeDirDebug, ".axon", "cache", "models")
+						fmt.Printf("\n📁 Checking axon cache: %s\n", cacheDirDebug)
+						
+						if entries, readErr := os.ReadDir(cacheDirDebug); readErr == nil {
+							fmt.Printf("   Cache contains %d entries:\n", len(entries))
+							for i, entry := range entries {
+								if i >= 10 {
+									fmt.Printf("   ... and %d more\n", len(entries)-10)
+									break
+								}
+								fmt.Printf("   - %s (dir: %v)\n", entry.Name(), entry.IsDir())
+							}
+						} else {
+							fmt.Printf("   ⚠️  Cannot read cache directory: %v\n", readErr)
+						}
+					}
+					listCacheDir()
+					return false, fmt.Errorf("axon install failed: %w", err)
+				}
 			}
 			
 			// Check for errors in output even if exit code is 0
@@ -127,31 +157,53 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 				cacheDir := filepath.Join(homeDir, ".axon", "cache", "models")
 				fmt.Printf("   Listing axon cache directory: %s\n", cacheDir)
 				
-				if entries, err := os.ReadDir(cacheDir); err == nil {
-					fmt.Printf("   Cache contains %d entries:\n", len(entries))
-					for i, entry := range entries {
-						if i >= 10 {
-							fmt.Printf("   ... and %d more\n", len(entries)-10)
+				// Walk the directory tree to find actual files
+				var foundFiles []string
+				walkErr := filepath.Walk(cacheDir, func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						return nil // Skip errors
+					}
+					if !info.IsDir() {
+						relPath, _ := filepath.Rel(cacheDir, path)
+						foundFiles = append(foundFiles, relPath)
+					}
+					return nil
+				})
+				if walkErr != nil {
+					fmt.Printf("   ⚠️  Error walking cache directory: %v\n", walkErr)
+				}
+				
+				if len(foundFiles) > 0 {
+					fmt.Printf("   Found %d files in cache:\n", len(foundFiles))
+					for i, file := range foundFiles {
+						if i >= 15 {
+							fmt.Printf("   ... and %d more files\n", len(foundFiles)-15)
 							break
 						}
-						entryPath := filepath.Join(cacheDir, entry.Name())
-						if entry.IsDir() {
-							// Check if this directory contains model.onnx
-							modelFile := filepath.Join(entryPath, "model.onnx")
-							if _, err := os.Stat(modelFile); err == nil {
-								fmt.Printf("   ✅ %s/ (contains model.onnx)\n", entry.Name())
-							} else {
-								// Check subdirectories
-								if subEntries, err := os.ReadDir(entryPath); err == nil {
-									fmt.Printf("   📁 %s/ (%d subdirs)\n", entry.Name(), len(subEntries))
-								}
+						fmt.Printf("   - %s\n", file)
+					}
+					
+					// Check specifically for the expected model path
+					expectedPath := filepath.Join(cacheDir, "hf", "distilgpt2", "latest", "model.onnx")
+					if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+						fmt.Printf("   ❌ Expected file missing: hf/distilgpt2/latest/model.onnx\n")
+						
+						// Look for any .onnx files
+						onnxFiles := []string{}
+						for _, f := range foundFiles {
+							if strings.HasSuffix(f, ".onnx") {
+								onnxFiles = append(onnxFiles, f)
 							}
+						}
+						if len(onnxFiles) > 0 {
+							fmt.Printf("   Found .onnx files: %v\n", onnxFiles)
 						} else {
-							fmt.Printf("   📄 %s\n", entry.Name())
+							fmt.Printf("   ⚠️  No .onnx files found in cache\n")
+							fmt.Printf("   Model may be in PyTorch format (check for .pt or .bin files)\n")
 						}
 					}
 				} else {
-					fmt.Printf("   ⚠️  Cannot read cache directory: %v\n", err)
+					fmt.Printf("   ⚠️  No files found in cache directory\n")
 				}
 				
 				return false, fmt.Errorf("installation succeeded but model not found at expected path: %w", verifyErr)
@@ -179,27 +231,46 @@ func GetPath(modelSpec string) (string, error) {
 	repoModel := parts[0]
 	version := parts[1]
 
+	// Try ONNX format first (preferred)
 	modelPath := GetModelPath(repoModel, version)
-	if _, err := os.Stat(modelPath); err != nil {
-		// Try alternative path - Axon might use the full model spec as directory name
-		// e.g., ~/.axon/cache/models/hf-distilgpt2-latest/model.onnx
-		homeDir, _ := os.UserHomeDir()
-		altPath := filepath.Join(homeDir, ".axon", "cache", "models", 
-			strings.ReplaceAll(strings.ReplaceAll(modelSpec, "/", "-"), "@", "-"), "model.onnx")
-		if _, err2 := os.Stat(altPath); err2 == nil {
-			return altPath, nil
-		}
-		
-		// Try using axon CLI to get the path
-		axonPath, err3 := getPathFromAxon(modelSpec)
-		if err3 == nil && axonPath != "" {
-			return axonPath, nil
-		}
-		
-		return "", fmt.Errorf("model not found: tried %s, %s (error: %v)", modelPath, altPath, err)
+	firstErr := error(nil)
+	if _, err := os.Stat(modelPath); err == nil {
+		return modelPath, nil
+	} else {
+		firstErr = err
 	}
-
-	return modelPath, nil
+	
+	// Try alternative path format
+	homeDir, _ := os.UserHomeDir()
+	altPath := filepath.Join(homeDir, ".axon", "cache", "models", 
+		strings.ReplaceAll(strings.ReplaceAll(modelSpec, "/", "-"), "@", "-"), "model.onnx")
+	if _, err2 := os.Stat(altPath); err2 == nil {
+		return altPath, nil
+	}
+	
+	// Try PyTorch format (if ONNX conversion failed)
+	baseDir := filepath.Join(homeDir, ".axon", "cache", "models", repoModel, version)
+	pytorchFormats := []string{
+		"pytorch_model.bin",
+		"model.safetensors",
+		"model.pt",
+	}
+	for _, format := range pytorchFormats {
+		pytorchPath := filepath.Join(baseDir, format)
+		if _, err := os.Stat(pytorchPath); err == nil {
+			fmt.Printf("⚠️  Found PyTorch model instead of ONNX: %s\n", format)
+			fmt.Printf("   MLOS Core may not support this format\n")
+			return pytorchPath, nil
+		}
+	}
+	
+	// Try using axon CLI to get the path
+	axonPath, err3 := getPathFromAxon(modelSpec)
+	if err3 == nil && axonPath != "" {
+		return axonPath, nil
+	}
+	
+	return "", fmt.Errorf("model not found: tried %s, %s (error: %v)", modelPath, altPath, firstErr)
 }
 
 // getPathFromAxon queries Axon CLI for the model path
