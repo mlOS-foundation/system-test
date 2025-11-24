@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -61,17 +62,13 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 
 	axonBin := filepath.Join(homeDir, ".local", "bin", "axon")
 	
-	// Pre-pull Axon converter image to ensure Docker conversion works
-	fmt.Printf("   Pre-pulling Axon converter image...\n")
-	converterImage := "ghcr.io/mlos-foundation/axon-converter:latest"
-	pullCmd := exec.Command("docker", "pull", converterImage)
-	pullOutput, pullErr := pullCmd.CombinedOutput()
-	if pullErr != nil {
-		fmt.Printf("⚠️  Failed to pull converter image: %v\n", pullErr)
-		fmt.Printf("   Output: %s\n", strings.TrimSpace(string(pullOutput)))
+	// Download and load Axon converter image from release artifacts
+	fmt.Printf("   Loading Axon converter image from release...\n")
+	if err := loadConverterImage("v3.0.0"); err != nil {
+		fmt.Printf("⚠️  Failed to load converter image: %v\n", err)
 		fmt.Printf("   Axon may still try to pull it automatically\n")
 	} else {
-		fmt.Printf("✅ Converter image ready: %s\n", converterImage)
+		fmt.Printf("✅ Converter image loaded successfully\n")
 	}
 	
 	// Try to force ONNX format if Axon supports it
@@ -311,6 +308,59 @@ func hasAnyFile(dir string, filenames ...string) bool {
 		}
 	}
 	return false
+}
+
+// loadConverterImage downloads and loads the Axon converter Docker image from release artifacts
+func loadConverterImage(axonVersion string) error {
+	// Check if image is already loaded
+	checkCmd := exec.Command("docker", "images", "-q", "ghcr.io/mlos-foundation/axon-converter")
+	if output, err := checkCmd.Output(); err == nil && len(strings.TrimSpace(string(output))) > 0 {
+		fmt.Printf("   Converter image already loaded\n")
+		return nil
+	}
+	
+	// Determine platform for artifact name
+	var platform string
+	if runtime.GOOS == "linux" {
+		if runtime.GOARCH == "amd64" {
+			platform = "linux-amd64"
+		} else if runtime.GOARCH == "arm64" {
+			platform = "linux-arm64"
+		} else {
+			return fmt.Errorf("unsupported architecture: %s", runtime.GOARCH)
+		}
+	} else if runtime.GOOS == "darwin" {
+		// On macOS, use linux-amd64 (Docker Desktop runs Linux VMs)
+		platform = "linux-amd64"
+	} else {
+		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+	}
+	
+	// Download converter image artifact from Axon release
+	converterArtifact := fmt.Sprintf("axon-converter-%s-%s.tar.gz", strings.TrimPrefix(axonVersion, "v"), platform)
+	converterPath := filepath.Join("/tmp", converterArtifact)
+	
+	fmt.Printf("   Downloading %s...\n", converterArtifact)
+	downloadCmd := exec.Command("gh", "release", "download", axonVersion,
+		"--repo", "mlOS-foundation/axon",
+		"--pattern", converterArtifact,
+		"--dir", "/tmp",
+		"--clobber") // Overwrite if exists
+	if output, err := downloadCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to download converter artifact: %w, output: %s", err, string(output))
+	}
+	defer os.Remove(converterPath) // Cleanup after loading
+	
+	// Load image into Docker
+	fmt.Printf("   Loading image into Docker...\n")
+	loadCmd := exec.Command("docker", "load", "-i", converterPath)
+	if output, err := loadCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to load image: %w, output: %s", err, string(output))
+	} else {
+		fmt.Printf("   %s\n", strings.TrimSpace(string(output)))
+	}
+	
+	return nil
 }
 
 // GetModelPath returns the expected path for a model
