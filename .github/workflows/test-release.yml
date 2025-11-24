@@ -30,6 +30,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: Free up disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          
+          # Remove unnecessary software to free up space
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo apt-get clean
+          
+          echo "Disk space after cleanup:"
+          df -h
+      
       - uses: actions/checkout@v4
       
       - name: Set up Go
@@ -97,13 +113,21 @@ jobs:
           echo "No version determined, skipping E2E tests"
           exit 0
       
+      - name: Check disk space before tests
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Disk Space Status:"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          df -h
+      
       - name: Run E2E tests
         if: steps.core_version.outputs.version != ''
         run: |
+          # Run E2E tests with basic models only (no -all-models flag)
+          # This avoids downloading large vision/multimodal models that fill up disk
           ./bin/e2e-test \
             -axon-version ${{ github.event.inputs.axon_version || 'v3.0.0' }} \
-            -core-version ${{ steps.core_version.outputs.version }} \
-            -all-models
+            -core-version ${{ steps.core_version.outputs.version }}
         continue-on-error: true
       
       - name: Upload HTML report as artifact
