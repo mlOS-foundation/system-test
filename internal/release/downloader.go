@@ -82,34 +82,18 @@ func DownloadCore(version, outputDir string) error {
 		return fmt.Errorf("failed to create core directory: %w", err)
 	}
 
-	// Use wildcard pattern that matches the release format: mlos-core_v2.3.0-alpha_*
-	// This pattern works reliably as tested locally
-	pattern := fmt.Sprintf("mlos-core_%s_*", version)
+	// Determine platform-specific pattern
+	// Map Go's GOOS/GOARCH to release naming
+	osName := runtime.GOOS   // darwin, linux
+	archName := runtime.GOARCH // amd64, arm64
+	
+	// Construct platform-specific pattern: mlos-core_VERSION_OS-ARCH.tar.gz
+	pattern := fmt.Sprintf("mlos-core_%s_%s-%s.tar.gz", version, osName, archName)
 	archivePath := ""
 
-	// Get GITHUB_TOKEN from environment (set by GitHub Actions)
-	// Also try to get it from gh CLI if not in env (for local testing)
-	githubToken := os.Getenv("GITHUB_TOKEN")
-	if githubToken == "" {
-		// Try alternative env var names
-		githubToken = os.Getenv("GH_TOKEN")
-	}
-	// If still empty, try to get token from gh CLI (for local testing)
-	// Note: githubToken is not used after this point, but we keep the logic
-	// for potential future use or debugging
-	if githubToken == "" {
-		cmd := exec.Command("gh", "auth", "token")
-		output, err := cmd.Output()
-		if err == nil {
-			if token := strings.TrimSpace(string(output)); token != "" {
-				_ = token // Token retrieved but not used (gh CLI handles auth)
-			}
-		}
-		_ = err // Ignore error, will fall back to gh CLI auth
-	}
+	fmt.Printf("📥 Downloading MLOS Core for %s/%s...\n", osName, archName)
 
-	// Use gh CLI with wildcard pattern (proven to work locally)
-	// This is more reliable than exact pattern matching
+	// Use gh CLI with platform-specific pattern
 	// Download from public core-releases repo (GITHUB_TOKEN can access public repos)
 	cmd := exec.Command("gh", "release", "download", version,
 		"--repo", "mlOS-foundation/core-releases",
@@ -119,29 +103,14 @@ func DownloadCore(version, outputDir string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to download Core release: %w", err)
+		return fmt.Errorf("failed to download Core release for %s/%s: %w", osName, archName, err)
 	}
 
-	// Find the downloaded file (could be any platform variant)
-	matches, err := filepath.Glob(filepath.Join(coreDir, fmt.Sprintf("mlos-core_%s_*.tar.gz", version)))
-	if err != nil || len(matches) == 0 {
-		// Try alternative patterns
-		altPatterns := []string{
-			filepath.Join(coreDir, fmt.Sprintf("mlos-core-%s-*.tar.gz", version)),
-			filepath.Join(coreDir, "mlos-core_*.tar.gz"),
-			filepath.Join(coreDir, "*.tar.gz"),
-		}
-		for _, altPattern := range altPatterns {
-			matches, err = filepath.Glob(altPattern)
-			if err == nil && len(matches) > 0 {
-				break
-			}
-		}
+	// Find the downloaded file - should match the exact pattern
+	archivePath = filepath.Join(coreDir, pattern)
+	if _, err := os.Stat(archivePath); os.IsNotExist(err) {
+		return fmt.Errorf("Core binary archive not found after download: %s", archivePath)
 	}
-	if err != nil || len(matches) == 0 {
-		return fmt.Errorf("Core binary archive not found after download (pattern: %s)", pattern)
-	}
-	archivePath = matches[0]
 
 	// Extract archive (extract to coreDir, then handle nested structure)
 	extractCmd := exec.Command("tar", "-xzf", archivePath, "-C", coreDir)
@@ -170,40 +139,42 @@ func DownloadCore(version, outputDir string) error {
 		}
 	}
 
-	// Search for binary recursively (can be named mlos_core or mlos-server)
+	// Search for binary (newer releases use mlos_core, older ones may use mlos-server)
 	binaryPath := ""
 
-	// Try common locations first
+	// Try common locations first - prioritize mlos_core as that's the current name
 	commonPaths := []string{
 		filepath.Join(extractDir, "mlos_core"),
-		filepath.Join(extractDir, "mlos-server"),
-		filepath.Join(extractDir, "bin", "mlos_core"),
-		filepath.Join(extractDir, "bin", "mlos-server"),
-		filepath.Join(extractDir, "build", "mlos-server"),
 		filepath.Join(extractDir, "build", "mlos_core"),
+		filepath.Join(extractDir, "bin", "mlos_core"),
+		filepath.Join(extractDir, "mlos-server"),
+		filepath.Join(extractDir, "build", "mlos-server"),
+		filepath.Join(extractDir, "bin", "mlos-server"),
 	}
 
 	for _, path := range commonPaths {
 		if _, err := os.Stat(path); err == nil {
 			binaryPath = path
+			fmt.Printf("✅ Found Core binary at: %s\n", path)
 			break
 		}
 	}
 
 	// If not found, search recursively
 	if binaryPath == "" {
-		cmd := exec.Command("find", extractDir, "-type", "f", "-name", "mlos_core", "-o", "-name", "mlos-server")
+		cmd := exec.Command("find", extractDir, "-type", "f", "(", "-name", "mlos_core", "-o", "-name", "mlos-server", ")")
 		output, err := cmd.Output()
 		if err == nil {
 			lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 			if len(lines) > 0 && lines[0] != "" {
 				binaryPath = lines[0]
+				fmt.Printf("✅ Found Core binary at: %s\n", binaryPath)
 			}
 		}
 	}
 
 	if binaryPath == "" {
-		return fmt.Errorf("Core binary not found in release archive (searched in %s)", extractDir)
+		return fmt.Errorf("Core binary (mlos_core or mlos-server) not found in release archive (searched in %s)", extractDir)
 	}
 
 	// Copy to build directory (normalize name to mlos-server)
@@ -360,12 +331,12 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 
 	// Verify binary exists
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-		// Try to find binary in alternative locations
+		// Try to find binary in alternative locations - prioritize mlos_core
 		altPaths := []string{
-			filepath.Join(extractDir, "mlos-server"),
 			filepath.Join(extractDir, "mlos_core"),
-			filepath.Join(extractDir, "bin", "mlos-server"),
 			filepath.Join(extractDir, "bin", "mlos_core"),
+			filepath.Join(extractDir, "mlos-server"),
+			filepath.Join(extractDir, "bin", "mlos-server"),
 		}
 		found := false
 		for _, altPath := range altPaths {
@@ -377,7 +348,7 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 		}
 		if !found {
 			// Try recursive search
-			cmd := exec.Command("find", extractDir, "-type", "f", "(", "-name", "mlos-server", "-o", "-name", "mlos_core", ")", "-print", "-quit")
+			cmd := exec.Command("find", extractDir, "-type", "f", "(", "-name", "mlos_core", "-o", "-name", "mlos-server", ")", "-print", "-quit")
 			output, err := cmd.Output()
 			if err == nil {
 				path := strings.TrimSpace(string(output))
@@ -388,7 +359,7 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 			}
 		}
 		if !found {
-			return nil, fmt.Errorf("Core binary not found in %s (expected at %s)", extractDir, filepath.Join(extractDir, "build", "mlos-server"))
+			return nil, fmt.Errorf("Core binary (mlos_core or mlos-server) not found in %s", extractDir)
 		}
 	}
 
