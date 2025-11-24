@@ -103,7 +103,28 @@ func DownloadCore(version, outputDir string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to download Core release for %s/%s: %w", osName, archName, err)
+		// If gh fails (e.g., not authenticated), try curl for public repo
+		fmt.Printf("gh download failed, trying curl for public release...\n")
+		
+		// Construct download URL for public repo
+		downloadURL := fmt.Sprintf("https://github.com/mlOS-foundation/core-releases/releases/download/%s/%s", 
+			version, pattern)
+		archivePathFull := filepath.Join(coreDir, pattern)
+		
+		curlCmd := exec.Command("curl", "-L", "-o", archivePathFull, downloadURL)
+		curlCmd.Stdout = os.Stdout
+		curlCmd.Stderr = os.Stderr
+		
+		if curlErr := curlCmd.Run(); curlErr != nil {
+			return fmt.Errorf("failed to download Core release for %s/%s (gh: %w, curl: %w)", osName, archName, err, curlErr)
+		}
+		
+		// Verify download succeeded
+		if _, statErr := os.Stat(archivePathFull); statErr != nil {
+			return fmt.Errorf("Core archive not found after curl download: %s", archivePathFull)
+		}
+		
+		fmt.Printf("✅ Downloaded via curl\n")
 	}
 
 	// Find the downloaded file - should match the exact pattern
