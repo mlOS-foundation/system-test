@@ -75,6 +75,12 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 	// With converter image loaded, Axon will automatically convert to ONNX
 	cmd := exec.Command(axonBin, "install", modelSpec)
 	
+	// Ensure environment is inherited (including PATH, DOCKER_HOST, etc.)
+	cmd.Env = os.Environ()
+	
+	// Set working directory to home (where .axon cache is)
+	cmd.Dir = homeDir
+	
 	// Capture output to check for errors, but don't display verbose progress
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
