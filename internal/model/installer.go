@@ -331,9 +331,10 @@ func loadConverterImage(axonVersion string) error {
 		// Fallback to curl for public repos (gh requires auth even for public repos)
 		fmt.Printf("   gh download failed, trying curl for public release...\n")
 		downloadURL := fmt.Sprintf("https://github.com/mlOS-foundation/axon/releases/download/%s/%s", axonVersion, converterArtifact)
-		curlCmd := exec.Command("curl", "-fL", "-o", converterPath, downloadURL)
-		if curlOutput, curlErr := curlCmd.CombinedOutput(); curlErr != nil {
-			return fmt.Errorf("failed to download converter artifact (gh: %v, curl: %v), output: %s", err, curlErr, string(curlOutput))
+		curlCmd := exec.Command("curl", "-L", "-f", "-#", "-o", converterPath, downloadURL)
+		curlCmd.Stderr = os.Stderr // Show curl's progress bar
+		if curlErr := curlCmd.Run(); curlErr != nil {
+			return fmt.Errorf("failed to download converter artifact (gh: %v, curl: %v)", err, curlErr)
 		}
 		fmt.Printf("   ✅ Downloaded via curl\n")
 	}
