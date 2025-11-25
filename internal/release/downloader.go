@@ -208,20 +208,25 @@ func DownloadCore(version, outputDir string) error {
 		return fmt.Errorf("Core binary (mlos_core or mlos-server) not found in release archive (searched in %s)", extractDir)
 	}
 
-	// Copy to build directory (normalize name to mlos-server)
+	// Copy to build directory (preserve original name - mlos_core)
 	buildDir := filepath.Join(extractDir, "build")
 	if err := os.MkdirAll(buildDir, 0755); err != nil {
 		return fmt.Errorf("failed to create build directory: %w", err)
 	}
 
-	finalBinaryPath := filepath.Join(buildDir, "mlos-server")
-	// Always copy (even if same path, to normalize the name)
-	data, err := os.ReadFile(binaryPath)
-	if err != nil {
-		return fmt.Errorf("failed to read Core binary: %w", err)
-	}
-	if err := os.WriteFile(finalBinaryPath, data, 0755); err != nil {
-		return fmt.Errorf("failed to write Core binary: %w", err)
+	// Preserve original binary name (mlos_core, not mlos-server)
+	binaryName := filepath.Base(binaryPath)
+	finalBinaryPath := filepath.Join(buildDir, binaryName)
+	
+	// Only copy if not already in the right place
+	if binaryPath != finalBinaryPath {
+		data, err := os.ReadFile(binaryPath)
+		if err != nil {
+			return fmt.Errorf("failed to read Core binary: %w", err)
+		}
+		if err := os.WriteFile(finalBinaryPath, data, 0755); err != nil {
+			return fmt.Errorf("failed to write Core binary: %w", err)
+		}
 	}
 
 	// Install to ~/.local/bin
@@ -235,7 +240,9 @@ func DownloadCore(version, outputDir string) error {
 		return fmt.Errorf("failed to create local bin directory: %w", err)
 	}
 
-	installPath := filepath.Join(localBin, "mlos-server")
+	// Use the same binary name (mlos_core)
+	binaryName := filepath.Base(finalBinaryPath)
+	installPath := filepath.Join(localBin, binaryName)
 	data2, err := os.ReadFile(finalBinaryPath)
 	if err != nil {
 		return fmt.Errorf("failed to read Core binary for installation: %w", err)
@@ -478,12 +485,14 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	// Direct execution path (used in CI and local native runs)
 	// LD_LIBRARY_PATH will be set below for Linux
 
-	binaryPath := filepath.Join(extractDir, "build", "mlos-server")
+	// Look for binary - prioritize mlos_core (current release format)
+	binaryPath := filepath.Join(extractDir, "build", "mlos_core")
 
 	// Verify binary exists
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		// Try to find binary in alternative locations - prioritize mlos_core
 		altPaths := []string{
+			filepath.Join(extractDir, "build", "mlos-server"), // Legacy name
 			filepath.Join(extractDir, "mlos_core"),
 			filepath.Join(extractDir, "bin", "mlos_core"),
 			filepath.Join(extractDir, "mlos-server"),
