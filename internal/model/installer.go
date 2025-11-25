@@ -1,7 +1,9 @@
 package model
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -81,28 +83,68 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 	// Set working directory to home (where .axon cache is)
 	cmd.Dir = homeDir
 	
-	// Capture output to check for errors, but don't display verbose progress
+	// Stream output in real-time and capture for error reporting
 	var stdout, stderr strings.Builder
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	var stdoutPipe, stderrPipe io.ReadCloser
+	stdoutPipe, err = cmd.StdoutPipe()
+	if err != nil {
+		return false, fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+	stderrPipe, err = cmd.StderrPipe()
+	if err != nil {
+		return false, fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
 
-	// Run with progress indicator
+	// Start command
 	if err := cmd.Start(); err != nil {
 		return false, fmt.Errorf("failed to start axon install: %w", err)
 	}
 
-	// Show progress dots while installing
-	done := make(chan error)
+	// Stream output with progress filtering
+	done := make(chan error, 1)
+	
+	// Stream stdout in a goroutine
+	go func() {
+		scanner := bufio.NewScanner(stdoutPipe)
+		for scanner.Scan() {
+			line := scanner.Text()
+			stdout.WriteString(line + "\n")
+			// Show meaningful progress messages
+			if isProgressMessage(line) {
+				fmt.Printf("   %s\n", line)
+			}
+		}
+	}()
+	
+	// Stream stderr in a goroutine
+	go func() {
+		scanner := bufio.NewScanner(stderrPipe)
+		for scanner.Scan() {
+			line := scanner.Text()
+			stderr.WriteString(line + "\n")
+			// Show errors/warnings immediately
+			lineLower := strings.ToLower(line)
+			if strings.Contains(lineLower, "error") || 
+			   strings.Contains(lineLower, "warning") ||
+			   strings.Contains(lineLower, "failed") {
+				fmt.Printf("   ⚠️  %s\n", line)
+			}
+		}
+	}()
+	
+	// Wait for command to complete
 	go func() {
 		done <- cmd.Wait()
 	}()
 
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-
+	// Wait for completion with timeout indicator (show progress every 30s if no output)
+	timeout := time.NewTicker(30 * time.Second)
+	defer timeout.Stop()
+	
 	for {
 		select {
 		case err := <-done:
+			// Command completed
 			// Always show last few lines of output for debugging
 			stdoutStr := stdout.String()
 			stderrStr := stderr.String()
@@ -233,12 +275,42 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 			fmt.Printf("✅ Model installed at: %s\n", modelPath)
 			
 			return true, nil
-		case <-ticker.C:
-			fmt.Print(".")
-			// Flush output to ensure dots appear immediately
-			os.Stdout.Sync()
+		case <-timeout.C:
+			// Show that we're still waiting (if no progress messages shown)
+			fmt.Printf("   ⏳ Still installing...\n")
+			// Continue waiting
 		}
 	}
+}
+
+// isProgressMessage checks if a line contains meaningful progress information
+func isProgressMessage(line string) bool {
+	lineLower := strings.ToLower(line)
+	progressKeywords := []string{
+		"downloading",
+		"downloaded",
+		"converting",
+		"converted",
+		"installing",
+		"installed",
+		"extracting",
+		"extracted",
+		"loading",
+		"loaded",
+		"processing",
+		"progress",
+		"%",
+		"complete",
+		"success",
+		"✓",
+		"✅",
+	}
+	for _, keyword := range progressKeywords {
+		if strings.Contains(lineLower, keyword) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetPath returns the path to an installed model
