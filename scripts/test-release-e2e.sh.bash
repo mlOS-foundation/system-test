@@ -667,6 +667,18 @@ install_models() {
     
     log "Installing models using Axon release binary..."
     
+    # Check Docker availability
+    if ! command -v docker &> /dev/null; then
+        log_error "Docker is not installed - Axon cannot convert to ONNX"
+        return 1
+    fi
+    
+    if ! docker ps >/dev/null 2>&1; then
+        log_error "Docker daemon is not running - Axon cannot convert to ONNX"
+        return 1
+    fi
+    log "✅ Docker available for ONNX conversion"
+    
     # Pre-load Axon converter image for ONNX conversion
     log "Loading Axon converter image from release..."
     local OS=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -718,15 +730,26 @@ install_models() {
         fi
         
         # Use the installed Axon release binary
-        # Suppress verbose download progress to save disk space
-        # Redirect to /dev/null for progress, capture errors only
-        if "$HOME/.local/bin/axon" install "$model_id" >/dev/null 2>&1; then
+        # Capture output to check for errors and ONNX conversion status
+        local axon_output=$(mktemp)
+        local axon_errors=$(mktemp)
+        
+        if "$HOME/.local/bin/axon" install "$model_id" > "$axon_output" 2> "$axon_errors"; then
             local install_exit_code=0
         else
             local install_exit_code=$?
-            # Only log errors, not verbose progress
             log_error "Axon install failed for $model_id (exit code: $install_exit_code)"
+            log_error "Axon stderr:"
+            cat "$axon_errors" | tee -a "$LOG_FILE"
         fi
+        
+        # Check for ONNX conversion issues in output
+        if grep -qi "onnx\|conversion\|docker" "$axon_output" "$axon_errors" 2>/dev/null; then
+            log_info "Axon output (relevant lines):"
+            grep -i "onnx\|conversion\|docker\|error\|failed" "$axon_output" "$axon_errors" 2>/dev/null | head -10 | tee -a "$LOG_FILE" || true
+        fi
+        
+        rm -f "$axon_output" "$axon_errors"
         
         if [ $install_exit_code -eq 0 ]; then
             local end_time=$(get_timestamp_ms)
@@ -988,13 +1011,18 @@ register_models() {
         return 1
     fi
     
+    # Ensure Core is running
+    if ! curl -s http://127.0.0.1:18080/health > /dev/null 2>&1; then
+        log_error "MLOS Core is not running - cannot register models"
+        return 1
+    fi
+    
     local model_count=0
     
     for model_spec in "${TEST_MODELS[@]}"; do
         IFS=':' read -r model_id model_name model_type model_category <<< "$model_spec"
         
-        # Find model ONNX file in correct Axon cache location
-        # Path: ~/.axon/cache/models/{namespace}/{model}/{version}/model.onnx
+        # Verify model was installed (ONNX file exists)
         local model_path="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}/model.onnx"
         
         if [ ! -f "$model_path" ]; then
@@ -1005,35 +1033,45 @@ register_models() {
         fi
         
         if [ -z "$model_path" ] || [ ! -f "$model_path" ]; then
-            log_error "Could not find ONNX model for $model_name"
-            log "Searched in: $HOME/.axon/cache/models/"
+            log_warn "Could not find ONNX model for $model_name - skipping registration"
             eval "METRIC_model_${model_name}_register_status=failed"
             continue
         fi
         
-        log "Registering $model_name from $model_path"
+        log "Registering $model_name using axon register..."
         
         local start_time=$(get_timestamp_ms)
         
-        local response=$(curl -s -w "\n%{http_code}" -X POST http://127.0.0.1:18080/models/register \
-            -H "Content-Type: application/json" \
-            -d "{\"model_id\": \"$model_name\", \"path\": \"$model_path\"}")
+        # Use axon register command (proper flow: install -> register -> inference)
+        local register_output=$(mktemp)
+        local register_errors=$(mktemp)
         
-        local http_code=$(echo "$response" | tail -n 1)
-        local body=$(echo "$response" | sed '$d')
+        if "$HOME/.local/bin/axon" register "$model_id" --core-url "http://127.0.0.1:18080" > "$register_output" 2> "$register_errors"; then
+            local register_exit_code=0
+        else
+            local register_exit_code=$?
+        fi
         
         local end_time=$(get_timestamp_ms)
         local register_time=$(measure_time $start_time $end_time)
         
-        if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
+        if [ $register_exit_code -eq 0 ]; then
             eval "METRIC_model_${model_name}_register_time_ms=$register_time"
             eval "METRIC_model_${model_name}_register_status=success"
             log "✅ Registered $model_name (${register_time}ms)"
             ((model_count++))
         else
-            log_error "Failed to register $model_name (HTTP $http_code)"
+            log_error "Failed to register $model_name (exit code: $register_exit_code)"
+            log_error "Axon register stderr:"
+            cat "$register_errors" | tee -a "$LOG_FILE"
+            if [ -s "$register_output" ]; then
+                log_error "Axon register stdout:"
+                cat "$register_output" | tee -a "$LOG_FILE"
+            fi
             eval "METRIC_model_${model_name}_register_status=failed"
         fi
+        
+        rm -f "$register_output" "$register_errors"
     done
     
     METRIC_models_registered=$model_count

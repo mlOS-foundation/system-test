@@ -188,13 +188,14 @@ func (r *Runner) registerModels(results *Results) error {
 	testModels := r.getTestModels()
 	for _, spec := range testModels {
 		start := time.Now()
-		modelPath, err := model.GetPath(spec.ID)
-		if err != nil {
+		// Verify model is installed before registering
+		if _, err := model.GetPath(spec.ID); err != nil {
 			log.Printf("WARN: Model %s not found, skipping registration", spec.ID)
 			continue
 		}
 
-		if err := model.Register(spec.Name, modelPath, r.cfg.CorePort); err != nil {
+		// Use axon register command (proper flow: install -> register -> inference)
+		if err := model.Register(spec.ID, r.cfg.CorePort); err != nil {
 			log.Printf("ERROR: Failed to register %s: %v", spec.Name, err)
 			continue
 		}

@@ -453,24 +453,29 @@ func GetModelPath(repoModel, version string) string {
 	return filepath.Join(homeDir, ".axon", "cache", "models", repoModel, version, "model.onnx")
 }
 
-// Register registers a model with MLOS Core
-func Register(modelID, modelPath string, port int) error {
-	// Register via HTTP API (use explicit IPv4 to avoid IPv6 resolution issues in CI)
-	jsonPayload := fmt.Sprintf(`{"model_id":%q,"path":%q}`, modelID, modelPath)
-	url := fmt.Sprintf("http://127.0.0.1:%d/models/register", port)
-
-	cmd := exec.Command("curl", "-X", "POST",
-		url,
-		"-H", "Content-Type: application/json",
-		"-d", jsonPayload)
-
+// Register registers a model with MLOS Core using axon register command
+// modelSpec should be the full model spec (e.g., "hf/distilgpt2@latest")
+func Register(modelSpec string, port int) error {
+	// Use axon register command (proper flow: install -> register -> inference)
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+	
+	axonBin := filepath.Join(homeDir, ".local", "bin", "axon")
+	coreURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+	
+	cmd := exec.Command(axonBin, "register", modelSpec, "--core-url", coreURL)
+	cmd.Env = os.Environ()
+	cmd.Dir = homeDir
+	
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("registration failed: %w, output: %s", err, string(output))
+		return fmt.Errorf("axon register failed: %w, output: %s", err, string(output))
 	}
 
-	// Check for error in response
-	if strings.Contains(string(output), "error") {
+	// Check for error in output
+	if strings.Contains(strings.ToLower(string(output)), "error") {
 		return fmt.Errorf("registration failed: %s", string(output))
 	}
 
