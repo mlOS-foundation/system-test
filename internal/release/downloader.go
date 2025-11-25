@@ -240,8 +240,7 @@ func DownloadCore(version, outputDir string) error {
 		return fmt.Errorf("failed to create local bin directory: %w", err)
 	}
 
-	// Use the same binary name (mlos_core)
-	binaryName := filepath.Base(finalBinaryPath)
+	// Use the same binary name (mlos_core) - binaryName already set above
 	installPath := filepath.Join(localBin, binaryName)
 	data2, err := os.ReadFile(finalBinaryPath)
 	if err != nil {
