@@ -22,7 +22,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 AXON_RELEASE_VERSION="v3.0.0"
-CORE_RELEASE_VERSION="v2.3.0-alpha"
+CORE_RELEASE_VERSION="3.0.0-alpha"
 TEST_DIR="$(pwd)/release-test-$(date +%s)"
 REPORT_FILE="$TEST_DIR/release-validation-report.html"
 METRICS_FILE="$TEST_DIR/metrics.json"
@@ -495,15 +495,22 @@ download_core_release() {
         fi
     fi
     
-    # Ensure we found a release archive
+    # Ensure we found a release archive - try curl fallback for public repos
     if [ -z "$core_archive" ]; then
-        log_error "Failed to download MLOS Core release"
-        log_error "No matching platform-specific archive found"
-        log_error "Please ensure:"
-        log_error "  1. You're logged in with: gh auth login"
-        log_error "  2. You have access to mlOS-foundation/core repository"
-        log_error "  3. The release includes binaries for your platform (${OS}-${ARCH})"
-        exit 1
+        log_warn "gh download failed, trying curl for public release..."
+        local core_url="https://github.com/mlOS-foundation/core-releases/releases/download/${CORE_RELEASE_VERSION}/${specific_pattern}"
+        if curl -L -f -# -o "$specific_pattern" "$core_url" >> "$LOG_FILE" 2>&1; then
+            log "✅ Downloaded via curl"
+            core_archive="$specific_pattern"
+        else
+            log_error "Failed to download MLOS Core release (both gh and curl failed)"
+            log_error "No matching platform-specific archive found"
+            log_error "Please ensure:"
+            log_error "  1. You're logged in with: gh auth login (or set GH_TOKEN)"
+            log_error "  2. The release includes binaries for your platform (${OS}-${ARCH})"
+            log_error "  3. Release version exists: ${CORE_RELEASE_VERSION}"
+            exit 1
+        fi
     fi
     
     log "Extracting Core from: $core_archive"
@@ -565,27 +572,26 @@ download_core_release() {
     if [ -n "$binary_path" ] && [ -f "$binary_path" ]; then
         log "✅ Found pre-built MLOS Core binary at: $binary_path"
         
-        # Check if binary is already in build/ directory
+        # Preserve original binary name (mlos_core, not mlos-server)
         local binary_basename=$(basename "$binary_path")
+        mkdir -p build
+        
+        # Only copy if not already in build/ directory with correct name
         if [[ "$binary_path" == "build/"* ]] || [[ "$binary_path" == "./build/"* ]]; then
-            log "Binary already in build/ directory"
-            # If it's not named mlos-server, create a symlink or copy
-            if [ "$binary_basename" != "mlos-server" ]; then
-                cp "$binary_path" build/mlos-server
-                chmod +x build/mlos-server
-                log "Normalized binary name to build/mlos-server"
-            fi
+            log "Binary already in build/ directory: $binary_basename"
         else
-            # Move binary to expected location (relative to mlos-core directory)
-            mkdir -p build
-            cp "$binary_path" build/mlos-server
-            chmod +x build/mlos-server
-            log "Copied binary to build/mlos-server"
+            # Copy to build/ preserving original name
+            cp "$binary_path" "build/$binary_basename"
+            chmod +x "build/$binary_basename"
+            log "Copied binary to build/$binary_basename"
         fi
         
+        # Set the binary name for later use
+        MLOS_CORE_BINARY="build/$binary_basename"
+        
         # Verify the binary
-        if [ -f "build/mlos-server" ]; then
-            log "✅ Binary ready at: $(pwd)/build/mlos-server"
+        if [ -f "$MLOS_CORE_BINARY" ]; then
+            log "✅ Binary ready at: $(pwd)/$MLOS_CORE_BINARY"
         else
             log_error "Failed to copy binary to build directory"
             exit 1
@@ -607,26 +613,27 @@ download_core_release() {
     
     log "✅ MLOS Core downloaded and extracted (${download_time}ms)"
     
-    # Save the current directory (where build/mlos-server is located)
+    # Save the current directory and binary name
     MLOS_CORE_DIR=$(pwd)
     log "MLOS Core directory: $MLOS_CORE_DIR"
     
     # Verify binary exists
     log "Checking for MLOS Core binary..."
-    if [ -f "build/mlos-server" ]; then
+    if [ -f "$MLOS_CORE_BINARY" ]; then
         METRIC_core_version=$CORE_RELEASE_VERSION
-        log "✅ MLOS Core binary found: $(pwd)/build/mlos-server"
+        log "✅ MLOS Core binary found: $(pwd)/$MLOS_CORE_BINARY"
         log "MLOS Core version: ${METRIC_core_version}"
         
-        # Install to ~/.local/bin
+        # Install to ~/.local/bin (preserve original name)
+        local binary_name=$(basename "$MLOS_CORE_BINARY")
         log "Installing MLOS Core to ~/.local/bin/..."
-        cp build/mlos-server "$HOME/.local/bin/mlos-server"
-        chmod +x "$HOME/.local/bin/mlos-server"
-        log "✅ MLOS Core installed to ~/.local/bin/mlos-server"
+        cp "$MLOS_CORE_BINARY" "$HOME/.local/bin/$binary_name"
+        chmod +x "$HOME/.local/bin/$binary_name"
+        log "✅ MLOS Core installed to ~/.local/bin/$binary_name"
     else
-        log_error "MLOS Core binary not found at: $(pwd)/build/mlos-server"
+        log_error "MLOS Core binary not found at: $(pwd)/$MLOS_CORE_BINARY"
         log "Directory contents:"
-        find . -name "mlos-server" 2>/dev/null | tee -a "$LOG_FILE" || log "No mlos-server found"
+        find . -name "mlos_core" -o -name "mlos-server" 2>/dev/null | tee -a "$LOG_FILE" || log "No binary found"
         ls -la build/ >> "$LOG_FILE" 2>&1 || log "Build directory doesn't exist"
         ls -la . >> "$LOG_FILE" 2>&1
         exit 1
@@ -659,6 +666,40 @@ install_models() {
     fi
     
     log "Installing models using Axon release binary..."
+    
+    # Pre-load Axon converter image for ONNX conversion
+    log "Loading Axon converter image from release..."
+    local OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    local ARCH=$(uname -m)
+    case $ARCH in
+        x86_64) ARCH="amd64" ;;
+        arm64|aarch64) ARCH="arm64" ;;
+    esac
+    
+    local converter_artifact="axon-converter-${AXON_RELEASE_VERSION#v}-${OS}-${ARCH}.tar.gz"
+    local converter_url="https://github.com/mlOS-foundation/axon/releases/download/${AXON_RELEASE_VERSION}/${converter_artifact}"
+    
+    # Check if image is already loaded
+    if docker images | grep -q "axon-converter"; then
+        log "✅ Converter image already loaded"
+    else
+        log "Downloading converter image: $converter_artifact"
+        if curl -L -f -# -o "/tmp/$converter_artifact" "$converter_url" >> "$LOG_FILE" 2>&1; then
+            log "Loading converter image into Docker..."
+            if docker load -i "/tmp/$converter_artifact" >> "$LOG_FILE" 2>&1; then
+                # Tag as :latest for Axon compatibility
+                local version_tag="ghcr.io/mlos-foundation/axon-converter:${AXON_RELEASE_VERSION#v}"
+                local latest_tag="ghcr.io/mlos-foundation/axon-converter:latest"
+                docker tag "$version_tag" "$latest_tag" 2>/dev/null || true
+                log "✅ Converter image loaded successfully"
+                rm -f "/tmp/$converter_artifact"
+            else
+                log_warn "Failed to load converter image, Axon may try to pull it automatically"
+            fi
+        else
+            log_warn "Failed to download converter image, Axon may try to pull it automatically"
+        fi
+    fi
     
     local total_start=$(get_timestamp_ms)
     local model_count=0
@@ -744,8 +785,20 @@ start_mlos_core() {
     cd "$MLOS_CORE_DIR"
     log "Using MLOS Core from: $(pwd)"
     
+    # Ensure MLOS_CORE_BINARY is set (fallback to mlos_core)
+    if [ -z "$MLOS_CORE_BINARY" ]; then
+        if [ -f "build/mlos_core" ]; then
+            MLOS_CORE_BINARY="build/mlos_core"
+        elif [ -f "build/mlos-server" ]; then
+            MLOS_CORE_BINARY="build/mlos-server"
+        else
+            log_error "MLOS Core binary not found"
+            exit 1
+        fi
+    fi
+    
     # Check if binary is valid
-    if ! file build/mlos-server >> "$LOG_FILE" 2>&1; then
+    if ! file "$MLOS_CORE_BINARY" >> "$LOG_FILE" 2>&1; then
         log_error "Binary file check failed"
         exit 1
     fi
@@ -753,7 +806,7 @@ start_mlos_core() {
     # Check binary dependencies (macOS)
     if [[ "$OSTYPE" == "darwin"* ]]; then
         log "Checking binary dependencies..."
-        otool -L build/mlos-server >> "$LOG_FILE" 2>&1 || log_warn "Could not check dependencies"
+        otool -L "$MLOS_CORE_BINARY" >> "$LOG_FILE" 2>&1 || log_warn "Could not check dependencies"
     fi
     
     # Check if ONNX Runtime is needed and install it
@@ -846,16 +899,32 @@ start_mlos_core() {
     fi
     
     log "Starting MLOS Core server..."
-    log "Note: This requires sudo privileges. Please enter your password if prompted."
+    log "Using port 18080 (non-privileged, no sudo required)"
     
     # Start server in background
     local start_time=$(get_timestamp_ms)
     
-    sudo ./build/mlos-server >> "$LOG_FILE" 2>&1 &
+    # Set LD_LIBRARY_PATH for Linux to find ONNX Runtime library
+    local core_cmd="./$MLOS_CORE_BINARY --http-port 18080"
+    if [[ "$OSTYPE" == "linux"* ]]; then
+        local onnx_lib_dir="$(pwd)/build/onnxruntime/lib"
+        if [ -d "$onnx_lib_dir" ]; then
+            export LD_LIBRARY_PATH="$onnx_lib_dir:${LD_LIBRARY_PATH:-}"
+            log "Set LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+        fi
+    fi
+    
+    # Create log directory for Core output
+    mkdir -p "$TEST_DIR/mlos-core-logs"
+    local core_stdout="$TEST_DIR/mlos-core-logs/core-stdout.log"
+    local core_stderr="$TEST_DIR/mlos-core-logs/core-stderr.log"
+    
+    $core_cmd >> "$core_stdout" 2>> "$core_stderr" &
     local pid=$!
     echo $pid > "$TEST_DIR/mlos.pid"
     
     log "MLOS Core server started (PID: $pid)"
+    log "Core logs: stdout=$core_stdout, stderr=$core_stderr"
     
     # Wait for server to be ready
     log "Waiting for server to be ready..."
@@ -866,13 +935,15 @@ start_mlos_core() {
         # Check if process is still running
         if ! ps -p $pid > /dev/null 2>&1; then
             log_error "MLOS Core process died (PID: $pid)"
-            log_error "Last 20 lines of log:"
-            tail -20 "$LOG_FILE" | tee -a "$LOG_FILE"
+            log_error "Last 20 lines of stdout:"
+            tail -20 "$core_stdout" 2>/dev/null | tee -a "$LOG_FILE" || log "No stdout log"
+            log_error "Last 20 lines of stderr:"
+            tail -20 "$core_stderr" 2>/dev/null | tee -a "$LOG_FILE" || log "No stderr log"
             cd ..
             return 1
         fi
         
-        if curl -s http://localhost:8080/health > /dev/null 2>&1; then
+        if curl -s http://127.0.0.1:18080/health > /dev/null 2>&1; then
             local end_time=$(get_timestamp_ms)
             local startup_time=$(measure_time $start_time $end_time)
             METRIC_core_startup_time_ms=$startup_time
@@ -880,7 +951,8 @@ start_mlos_core() {
             
             # Monitor MLOS Core resource usage (idle state)
             log "Monitoring MLOS Core resource usage (idle)..."
-            local mlos_resources=$(monitor_process_resources "mlos-server" 3 "$TEST_DIR/mlos_resources_idle.txt")
+            local binary_name=$(basename "$MLOS_CORE_BINARY")
+            local mlos_resources=$(monitor_process_resources "$binary_name" 3 "$TEST_DIR/mlos_resources_idle.txt")
             if [ -f "$TEST_DIR/mlos_resources_idle.txt" ]; then
                 source "$TEST_DIR/mlos_resources_idle.txt"
                 METRIC_core_idle_cpu_avg=$avg_cpu
@@ -943,7 +1015,7 @@ register_models() {
         
         local start_time=$(get_timestamp_ms)
         
-        local response=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/models/register \
+        local response=$(curl -s -w "\n%{http_code}" -X POST http://127.0.0.1:18080/models/register \
             -H "Content-Type: application/json" \
             -d "{\"model_id\": \"$model_name\", \"path\": \"$model_path\"}")
         
@@ -1086,7 +1158,7 @@ run_inference_tests() {
         fi
         
         local start_time=$(get_timestamp_ms)
-        local response=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:8080/models/${model_name}/inference" \
+        local response=$(curl -s -w "\n%{http_code}" -X POST "http://127.0.0.1:18080/models/${model_name}/inference" \
             -H "Content-Type: application/json" \
             -d "$test_input")
         
@@ -1109,7 +1181,7 @@ run_inference_tests() {
                 local large_input=$(get_test_input "$model_name" "$model_type" "$model_category" "large")
                 
                 local start_time_large=$(get_timestamp_ms)
-                local response_large=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:8080/models/${model_name}/inference" \
+                local response_large=$(curl -s -w "\n%{http_code}" -X POST "http://127.0.0.1:18080/models/${model_name}/inference" \
                     -H "Content-Type: application/json" \
                     -d "$large_input")
                 
@@ -1144,7 +1216,8 @@ run_inference_tests() {
         local mlos_pid=$(cat "$TEST_DIR/mlos.pid" 2>/dev/null)
         if ps -p "$mlos_pid" > /dev/null 2>&1; then
             log "Monitoring MLOS Core resource usage (under load)..."
-            local mlos_resources=$(monitor_process_resources "mlos-server" 5 "$TEST_DIR/mlos_resources_load.txt")
+            local binary_name=$(basename "$MLOS_CORE_BINARY")
+            local mlos_resources=$(monitor_process_resources "$binary_name" 5 "$TEST_DIR/mlos_resources_load.txt")
             if [ -f "$TEST_DIR/mlos_resources_load.txt" ]; then
                 source "$TEST_DIR/mlos_resources_load.txt"
                 METRIC_core_load_cpu_max=$max_cpu
@@ -2158,7 +2231,12 @@ print_summary() {
     log ""
     log "Binaries Installed:"
     log "  - Axon: ~/.local/bin/axon"
-    log "  - Core: ~/.local/bin/mlos-server"
+    if [ -n "$MLOS_CORE_BINARY" ]; then
+        local binary_name=$(basename "$MLOS_CORE_BINARY")
+        log "  - Core: ~/.local/bin/$binary_name"
+    else
+        log "  - Core: ~/.local/bin/mlos_core (or mlos-server)"
+    fi
     log ""
     log "Inference:"
     log "  - Total tests: ${METRIC_total_inferences:-0}"
@@ -2214,7 +2292,12 @@ main() {
         log ""
         log "🎉 Binaries installed and ready to use:"
         log "   axon --help"
-        log "   mlos-server --help"
+        if [ -n "$MLOS_CORE_BINARY" ]; then
+            local binary_name=$(basename "$MLOS_CORE_BINARY")
+            log "   $binary_name --help"
+        else
+            log "   mlos_core --help (or mlos-server --help)"
+        fi
         log ""
         if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
             log "⚠️  Add ~/.local/bin to your PATH to use the binaries:"
