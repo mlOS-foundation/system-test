@@ -3,6 +3,9 @@ package test
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/mlOS-foundation/system-test/internal/config"
@@ -14,7 +17,8 @@ import (
 
 // Runner executes E2E tests
 type Runner struct {
-	cfg *config.Config
+	cfg         *config.Config
+	coreProcess *monitor.Process
 }
 
 // NewRunner creates a new test runner
@@ -167,6 +171,9 @@ func (r *Runner) startCore(results *Results) (*monitor.Process, error) {
 		return nil, err
 	}
 
+	// Store process for crash diagnostics
+	r.coreProcess = process
+
 	results.Metrics.CoreStartupTimeMs = time.Since(start).Milliseconds()
 	log.Printf("✅ MLOS Core ready on port %d (%dms)", r.cfg.CorePort, results.Metrics.CoreStartupTimeMs)
 
@@ -229,6 +236,8 @@ func (r *Runner) runInferenceTests(results *Results) error {
 			results.Metrics.FailedInferences++
 			results.Metrics.ModelInferenceStatus[spec.Name] = "failed"
 			log.Printf("ERROR: %s inference failed: %v", spec.Name, err)
+			// If Core crashed, try to read its logs
+			r.logCoreOutputIfCrashed()
 		} else {
 			results.Metrics.SuccessfulInferences++
 			results.Metrics.ModelInferenceTimes[spec.Name] = elapsed
@@ -246,6 +255,8 @@ func (r *Runner) runInferenceTests(results *Results) error {
 			results.Metrics.FailedInferences++
 			results.Metrics.ModelLargeInferenceStatus[spec.Name] = "failed"
 			log.Printf("ERROR: %s large inference failed: %v", spec.Name, err)
+			// If Core crashed, try to read its logs
+			r.logCoreOutputIfCrashed()
 		} else {
 			results.Metrics.SuccessfulInferences++
 			results.Metrics.ModelLargeInferenceTimes[spec.Name] = elapsed
@@ -320,4 +331,51 @@ func (r *Runner) getTestModels() []ModelSpec {
 	}
 
 	return models
+}
+
+// logCoreOutputIfCrashed reads and logs Core's stdout/stderr if the process has exited
+func (r *Runner) logCoreOutputIfCrashed() {
+	if r.coreProcess == nil || r.coreProcess.Cmd == nil {
+		return
+	}
+	
+	// Check if process has exited
+	if r.coreProcess.Cmd.ProcessState != nil && r.coreProcess.Cmd.ProcessState.Exited() {
+		// Try to find log files in the results directory
+		logDir := filepath.Join(r.cfg.OutputDir, "logs")
+		stdoutLog := filepath.Join(logDir, "core-stdout.log")
+		stderrLog := filepath.Join(logDir, "core-stderr.log")
+		
+		if stdoutContent, err := os.ReadFile(stdoutLog); err == nil && len(stdoutContent) > 0 {
+			log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+			log.Printf("📋 Core stdout (last 50 lines):")
+			log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+			lines := strings.Split(string(stdoutContent), "\n")
+			start := len(lines) - 50
+			if start < 0 {
+				start = 0
+			}
+			for _, line := range lines[start:] {
+				if strings.TrimSpace(line) != "" {
+					log.Printf("   %s", line)
+				}
+			}
+		}
+		
+		if stderrContent, err := os.ReadFile(stderrLog); err == nil && len(stderrContent) > 0 {
+			log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+			log.Printf("📋 Core stderr (last 50 lines):")
+			log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+			lines := strings.Split(string(stderrContent), "\n")
+			start := len(lines) - 50
+			if start < 0 {
+				start = 0
+			}
+			for _, line := range lines[start:] {
+				if strings.TrimSpace(line) != "" {
+					log.Printf("   %s", line)
+				}
+			}
+		}
+	}
 }

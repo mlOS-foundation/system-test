@@ -1,7 +1,6 @@
 package release
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/mlOS-foundation/system-test/internal/monitor"
@@ -537,10 +537,36 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 		}
 	}
 
-	// Capture output for debugging
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	// Create log files for Core output (better than buffers for signal handling)
+	coreLogDir := filepath.Join(filepath.Dir(extractDir), "logs")
+	if err := os.MkdirAll(coreLogDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create log directory: %w", err)
+	}
+	
+	stdoutLog := filepath.Join(coreLogDir, "core-stdout.log")
+	stderrLog := filepath.Join(coreLogDir, "core-stderr.log")
+	
+	stdoutFile, err := os.Create(stdoutLog)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stdout log: %w", err)
+	}
+	
+	stderrFile, err := os.Create(stderrLog)
+	if err != nil {
+		stdoutFile.Close()
+		return nil, fmt.Errorf("failed to create stderr log: %w", err)
+	}
+	
+	// Use log files instead of buffers (allows Core to write directly)
+	cmd.Stdout = stdoutFile
+	cmd.Stderr = stderrFile
+	cmd.Stdin = nil // Close stdin (Core doesn't need it)
+	
+	// Set process attributes for proper signal handling
+	// On Linux, this ensures Core can handle signals correctly
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true, // Create new process group (allows proper signal handling)
+	}
 
 	// Start process
 	if err := cmd.Start(); err != nil {
@@ -556,29 +582,42 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	// Give server a moment to start
 	time.Sleep(1 * time.Second)
 
+	// Helper function to read log files
+	readLogs := func() (string, string) {
+		stdoutContent, _ := os.ReadFile(stdoutLog)
+		stderrContent, _ := os.ReadFile(stderrLog)
+		return string(stdoutContent), string(stderrContent)
+	}
+
 	// Check if process is still running
 	if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-		output := stdout.String()
-		errOutput := stderr.String()
-		return nil, fmt.Errorf("server process exited immediately. stdout: %s, stderr: %s", output, errOutput)
+		stdoutContent, stderrContent := readLogs()
+		stdoutFile.Close()
+		stderrFile.Close()
+		return nil, fmt.Errorf("server process exited immediately. stdout: %s, stderr: %s", stdoutContent, stderrContent)
 	}
 
 	// Wait for server to be ready
 	if err := waitForServer(port); err != nil {
-		// Log server output for debugging
-		output := stdout.String()
-		if output != "" {
-			fmt.Printf("Server stdout: %s\n", output)
+		// Read log files for debugging
+		stdoutContent, stderrContent := readLogs()
+		if stdoutContent != "" {
+			fmt.Printf("Server stdout (from %s):\n%s\n", stdoutLog, stdoutContent)
 		}
-		errOutput := stderr.String()
-		if errOutput != "" {
-			fmt.Printf("Server stderr: %s\n", errOutput)
+		if stderrContent != "" {
+			fmt.Printf("Server stderr (from %s):\n%s\n", stderrLog, stderrContent)
 		}
+		stdoutFile.Close()
+		stderrFile.Close()
 		if stopErr := monitor.StopProcess(process); stopErr != nil {
 			fmt.Printf("WARN: Failed to stop process: %v\n", stopErr)
 		}
 		return nil, fmt.Errorf("server failed to start: %w", err)
 	}
+	
+	// Keep files open for the lifetime of the process (they'll be closed when process exits)
+	// Store log paths for later access if needed
+	fmt.Printf("📝 Core logs: stdout=%s, stderr=%s\n", stdoutLog, stderrLog)
 
 	return process, nil
 }
