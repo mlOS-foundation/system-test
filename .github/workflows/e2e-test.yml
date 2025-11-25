@@ -1,10 +1,8 @@
 name: E2E Test & Report
 
+# DISABLED: Temporarily disabled during iterative development
+# To re-enable: remove the 'if: false' condition from all jobs
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       axon_version:
@@ -15,11 +13,15 @@ on:
         description: 'Core version to test'
         required: false
         default: '3.0.0-alpha'
-  repository_dispatch:
-    types: [core-release-published]
-  schedule:
-    # Check for new releases every hour
-    - cron: '0 * * * *'
+  # Disabled triggers:
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
+  # repository_dispatch:
+  #   types: [core-release-published]
+  # schedule:
+  #   - cron: '0 * * * *'
 
 permissions:
   contents: write
