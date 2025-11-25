@@ -259,7 +259,10 @@ func SetupONNXRuntime(extractDir string) error {
 		if len(parts) == 2 {
 			targetOS = parts[0]
 			targetArch = parts[1]
+			fmt.Printf("🐧 Using forced platform: %s/%s (for Docker testing)\n", targetOS, targetArch)
 		}
+	} else {
+		fmt.Printf("📦 Detected platform: %s/%s (native execution)\n", targetOS, targetArch)
 	}
 
 	// Check if ONNX Runtime is already installed
@@ -270,8 +273,11 @@ func SetupONNXRuntime(extractDir string) error {
 	onnxLibPath := filepath.Join(buildDir, "onnxruntime", "lib", libName)
 
 	if _, err := os.Stat(onnxLibPath); err == nil {
+		fmt.Printf("✅ ONNX Runtime already installed: %s\n", libName)
 		return nil // Already installed
 	}
+	
+	fmt.Printf("📥 ONNX Runtime not found, downloading for %s/%s...\n", targetOS, targetArch)
 
 	// Determine architecture for ONNX Runtime
 	var onnxArch string
@@ -463,10 +469,14 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	}
 	
 	// Check if we should run Core in Docker (for testing Linux Core on Mac)
+	// In CI, this will be false, so Core runs directly on the Linux runner
 	if os.Getenv("CORE_IN_DOCKER") == "true" {
-		fmt.Printf("🐳 Running Core in Linux Docker container\n")
+		fmt.Printf("🐳 Running Core in Linux Docker container (local testing mode)\n")
 		return startCoreInDocker(extractDir, port)
 	}
+	
+	// Direct execution path (used in CI and local native runs)
+	// LD_LIBRARY_PATH will be set below for Linux
 
 	binaryPath := filepath.Join(extractDir, "build", "mlos-server")
 
@@ -513,6 +523,19 @@ func StartCore(version, outputDir string, port int) (*monitor.Process, error) {
 	// Start server on non-privileged port (no sudo needed)
 	cmd := exec.Command(absBinaryPath, "--http-port", fmt.Sprintf("%d", port))
 	cmd.Dir = extractDir
+	
+	// Set LD_LIBRARY_PATH for Linux to find ONNX Runtime library
+	// This is needed for native Linux execution (CI) and Docker
+	if runtime.GOOS == "linux" {
+		onnxLibDir := filepath.Join(extractDir, "build", "onnxruntime", "lib")
+		// Preserve existing LD_LIBRARY_PATH if set
+		existingLibPath := os.Getenv("LD_LIBRARY_PATH")
+		if existingLibPath != "" {
+			cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", onnxLibDir, existingLibPath))
+		} else {
+			cmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", onnxLibDir))
+		}
+	}
 
 	// Capture output for debugging
 	var stdout, stderr bytes.Buffer
