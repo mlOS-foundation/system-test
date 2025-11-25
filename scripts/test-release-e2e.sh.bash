@@ -2158,60 +2158,60 @@ generate_html_report() {
 </html>
 EOF
     
-    # Replace placeholders with actual values
-    sed -i.bak "s/SUCCESS_RATE/$success_rate/g" "$REPORT_FILE"
-    sed -i.bak "s/TOTAL_DURATION/${METRIC_total_duration_seconds}/g" "$REPORT_FILE"
-    sed -i.bak "s/SUCCESSFUL_INFERENCES/${METRIC_successful_inferences:-0}/g" "$REPORT_FILE"
-    sed -i.bak "s/TOTAL_INFERENCES/${METRIC_total_inferences:-0}/g" "$REPORT_FILE"
-    sed -i.bak "s/MODELS_INSTALLED/${METRIC_models_installed:-0}/g" "$REPORT_FILE"
+    # Replace placeholders with actual values (use | as delimiter to avoid issues with / in values)
+    sed -i.bak "s|SUCCESS_RATE|$success_rate|g" "$REPORT_FILE"
+    sed -i.bak "s|TOTAL_DURATION|${METRIC_total_duration_seconds}|g" "$REPORT_FILE"
+    sed -i.bak "s|SUCCESSFUL_INFERENCES|${METRIC_successful_inferences:-0}|g" "$REPORT_FILE"
+    sed -i.bak "s|TOTAL_INFERENCES|${METRIC_total_inferences:-0}|g" "$REPORT_FILE"
+    sed -i.bak "s|MODELS_INSTALLED|${METRIC_models_installed:-0}|g" "$REPORT_FILE"
     
-    sed -i.bak "s/AXON_VERSION/${METRIC_axon_version:-N\/A}/g" "$REPORT_FILE"
-    sed -i.bak "s/CORE_VERSION/${METRIC_core_version:-N\/A}/g" "$REPORT_FILE"
+    sed -i.bak "s|AXON_VERSION|${METRIC_axon_version:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|CORE_VERSION|${METRIC_core_version:-N/A}|g" "$REPORT_FILE"
     
-    sed -i.bak "s/AXON_DOWNLOAD_TIME/${METRIC_axon_download_time_ms:-0}/g" "$REPORT_FILE"
-    sed -i.bak "s/CORE_DOWNLOAD_TIME/${METRIC_core_download_time_ms:-0}/g" "$REPORT_FILE"
-    sed -i.bak "s/CORE_STARTUP_TIME/${METRIC_core_startup_time_ms:-0}/g" "$REPORT_FILE"
-    sed -i.bak "s/TOTAL_MODEL_INSTALL_TIME/${METRIC_total_model_install_time_ms:-0}/g" "$REPORT_FILE"
+    sed -i.bak "s|AXON_DOWNLOAD_TIME|${METRIC_axon_download_time_ms:-0}|g" "$REPORT_FILE"
+    sed -i.bak "s|CORE_DOWNLOAD_TIME|${METRIC_core_download_time_ms:-0}|g" "$REPORT_FILE"
+    sed -i.bak "s|CORE_STARTUP_TIME|${METRIC_core_startup_time_ms:-0}|g" "$REPORT_FILE"
+    sed -i.bak "s|TOTAL_MODEL_INSTALL_TIME|${METRIC_total_model_install_time_ms:-0}|g" "$REPORT_FILE"
     
-    sed -i.bak "s/GPT2_INFERENCE_TIME/${METRIC_model_gpt2_inference_time_ms:-N\/A}/g" "$REPORT_FILE"
-    sed -i.bak "s/GPT2_LONG_INFERENCE_TIME/${METRIC_model_gpt2_long_inference_time_ms:-N\/A}/g" "$REPORT_FILE"
-    sed -i.bak "s/BERT_INFERENCE_TIME/${METRIC_model_bert_inference_time_ms:-N\/A}/g" "$REPORT_FILE"
+    sed -i.bak "s|GPT2_INFERENCE_TIME|${METRIC_model_gpt2_inference_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|GPT2_LONG_INFERENCE_TIME|${METRIC_model_gpt2_long_inference_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|BERT_INFERENCE_TIME|${METRIC_model_bert_inference_time_ms:-N/A}|g" "$REPORT_FILE"
     
-    sed -i.bak "s/GPT2_INSTALL_TIME/${METRIC_model_gpt2_install_time_ms:-N\/A}/g" "$REPORT_FILE"
-    sed -i.bak "s/GPT2_REGISTER_TIME/${METRIC_model_gpt2_register_time_ms:-N\/A}/g" "$REPORT_FILE"
-    sed -i.bak "s/BERT_INSTALL_TIME/${METRIC_model_bert_install_time_ms:-N\/A}/g" "$REPORT_FILE"
-    sed -i.bak "s/BERT_REGISTER_TIME/${METRIC_model_bert_register_time_ms:-N\/A}/g" "$REPORT_FILE"
+    sed -i.bak "s|GPT2_INSTALL_TIME|${METRIC_model_gpt2_install_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|GPT2_REGISTER_TIME|${METRIC_model_gpt2_register_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|BERT_INSTALL_TIME|${METRIC_model_bert_install_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|BERT_REGISTER_TIME|${METRIC_model_bert_register_time_ms:-N/A}|g" "$REPORT_FILE"
     
     # Hardware specifications
-    sed -i.bak "s/HW_OS/${METRIC_hw_os:-Unknown}/g" "$REPORT_FILE"
-    sed -i.bak "s/HW_OS_VERSION/${METRIC_hw_os_version:-Unknown}/g" "$REPORT_FILE"
-    sed -i.bak "s/HW_ARCH/${METRIC_hw_arch:-Unknown}/g" "$REPORT_FILE"
-    sed -i.bak "s/HW_CPU_MODEL/${METRIC_hw_cpu_model:-Unknown}/g" "$REPORT_FILE"
-    sed -i.bak "s/HW_CPU_CORES/${METRIC_hw_cpu_cores:-Unknown}/g" "$REPORT_FILE"
-    sed -i.bak "s/HW_CPU_THREADS/${METRIC_hw_cpu_threads:-Unknown}/g" "$REPORT_FILE"
-    sed -i.bak "s/HW_RAM_TOTAL/${METRIC_hw_ram_total_gb:-Unknown}/g" "$REPORT_FILE"
-    sed -i.bak "s/HW_GPU_MODEL/${METRIC_hw_gpu_model:-None}/g" "$REPORT_FILE"
-    sed -i.bak "s/HW_GPU_COUNT/${METRIC_hw_gpu_count:-0}/g" "$REPORT_FILE"
-    sed -i.bak "s/HW_GPU_MEMORY/${METRIC_hw_gpu_memory:-N\/A}/g" "$REPORT_FILE"
-    sed -i.bak "s/HW_DISK_TOTAL/${METRIC_hw_disk_total:-Unknown}/g" "$REPORT_FILE"
-    sed -i.bak "s/HW_DISK_AVAILABLE/${METRIC_hw_disk_available:-Unknown}/g" "$REPORT_FILE"
+    sed -i.bak "s|HW_OS|${METRIC_hw_os:-Unknown}|g" "$REPORT_FILE"
+    sed -i.bak "s|HW_OS_VERSION|${METRIC_hw_os_version:-Unknown}|g" "$REPORT_FILE"
+    sed -i.bak "s|HW_ARCH|${METRIC_hw_arch:-Unknown}|g" "$REPORT_FILE"
+    sed -i.bak "s|HW_CPU_MODEL|${METRIC_hw_cpu_model:-Unknown}|g" "$REPORT_FILE"
+    sed -i.bak "s|HW_CPU_CORES|${METRIC_hw_cpu_cores:-Unknown}|g" "$REPORT_FILE"
+    sed -i.bak "s|HW_CPU_THREADS|${METRIC_hw_cpu_threads:-Unknown}|g" "$REPORT_FILE"
+    sed -i.bak "s|HW_RAM_TOTAL|${METRIC_hw_ram_total_gb:-Unknown}|g" "$REPORT_FILE"
+    sed -i.bak "s|HW_GPU_MODEL|${METRIC_hw_gpu_model:-None}|g" "$REPORT_FILE"
+    sed -i.bak "s|HW_GPU_COUNT|${METRIC_hw_gpu_count:-0}|g" "$REPORT_FILE"
+    sed -i.bak "s|HW_GPU_MEMORY|${METRIC_hw_gpu_memory:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|HW_DISK_TOTAL|${METRIC_hw_disk_total:-Unknown}|g" "$REPORT_FILE"
+    sed -i.bak "s|HW_DISK_AVAILABLE|${METRIC_hw_disk_available:-Unknown}|g" "$REPORT_FILE"
     
     # Resource usage
-    sed -i.bak "s/CORE_IDLE_CPU_AVG/${METRIC_core_idle_cpu_avg:-0.0}/g" "$REPORT_FILE"
-    sed -i.bak "s/CORE_IDLE_MEM_MB/${METRIC_core_idle_mem_mb:-0.0}/g" "$REPORT_FILE"
-    sed -i.bak "s/CORE_LOAD_CPU_MAX/${METRIC_core_load_cpu_max:-0.0}/g" "$REPORT_FILE"
-    sed -i.bak "s/CORE_LOAD_CPU_AVG/${METRIC_core_load_cpu_avg:-0.0}/g" "$REPORT_FILE"
-    sed -i.bak "s/CORE_LOAD_MEM_MAX/${METRIC_core_load_mem_max:-0.0}/g" "$REPORT_FILE"
-    sed -i.bak "s/CORE_LOAD_MEM_AVG/${METRIC_core_load_mem_avg:-0.0}/g" "$REPORT_FILE"
-    sed -i.bak "s/AXON_CPU_AVG/${METRIC_axon_cpu_avg:-0.0}/g" "$REPORT_FILE"
-    sed -i.bak "s/AXON_MEM_MB/${METRIC_axon_mem_mb:-0.0}/g" "$REPORT_FILE"
+    sed -i.bak "s|CORE_IDLE_CPU_AVG|${METRIC_core_idle_cpu_avg:-0.0}|g" "$REPORT_FILE"
+    sed -i.bak "s|CORE_IDLE_MEM_MB|${METRIC_core_idle_mem_mb:-0.0}|g" "$REPORT_FILE"
+    sed -i.bak "s|CORE_LOAD_CPU_MAX|${METRIC_core_load_cpu_max:-0.0}|g" "$REPORT_FILE"
+    sed -i.bak "s|CORE_LOAD_CPU_AVG|${METRIC_core_load_cpu_avg:-0.0}|g" "$REPORT_FILE"
+    sed -i.bak "s|CORE_LOAD_MEM_MAX|${METRIC_core_load_mem_max:-0.0}|g" "$REPORT_FILE"
+    sed -i.bak "s|CORE_LOAD_MEM_AVG|${METRIC_core_load_mem_avg:-0.0}|g" "$REPORT_FILE"
+    sed -i.bak "s|AXON_CPU_AVG|${METRIC_axon_cpu_avg:-0.0}|g" "$REPORT_FILE"
+    sed -i.bak "s|AXON_MEM_MB|${METRIC_axon_mem_mb:-0.0}|g" "$REPORT_FILE"
     
     # GPU status
     local gpu_status="Not used (CPU-only inference)"
     if [ "$METRIC_hw_gpu_model" != "None detected" ] && [ "$METRIC_hw_gpu_model" != "None" ]; then
         gpu_status="Available but not used (ONNX Runtime CPU provider)"
     fi
-    sed -i.bak "s/HW_GPU_STATUS/$gpu_status/g" "$REPORT_FILE"
+    sed -i.bak "s|HW_GPU_STATUS|$gpu_status|g" "$REPORT_FILE"
     
     # Status badges
     # Status badges - use correct variable names (large_inference_status, not long_inference_status)
@@ -2243,12 +2243,12 @@ EOF
         bert_large_status_text="❌ Failed"
     fi
     
-    sed -i.bak "s/GPT2_STATUS_CLASS/$gpt2_status/g" "$REPORT_FILE"
-    sed -i.bak "s/GPT2_STATUS/$gpt2_status_text/g" "$REPORT_FILE"
-    sed -i.bak "s/GPT2_LONG_STATUS_CLASS/$gpt2_large_status/g" "$REPORT_FILE"
-    sed -i.bak "s/GPT2_LONG_STATUS/$gpt2_large_status_text/g" "$REPORT_FILE"
-    sed -i.bak "s/BERT_STATUS_CLASS/$bert_status/g" "$REPORT_FILE"
-    sed -i.bak "s/BERT_STATUS/$bert_status_text/g" "$REPORT_FILE"
+    sed -i.bak "s|GPT2_STATUS_CLASS|$gpt2_status|g" "$REPORT_FILE"
+    sed -i.bak "s|GPT2_STATUS|$gpt2_status_text|g" "$REPORT_FILE"
+    sed -i.bak "s|GPT2_LONG_STATUS_CLASS|$gpt2_large_status|g" "$REPORT_FILE"
+    sed -i.bak "s|GPT2_LONG_STATUS|$gpt2_large_status_text|g" "$REPORT_FILE"
+    sed -i.bak "s|BERT_STATUS_CLASS|$bert_status|g" "$REPORT_FILE"
+    sed -i.bak "s|BERT_STATUS|$bert_status_text|g" "$REPORT_FILE"
     
     # Calculate category statuses
     local nlp_models_tested=0
@@ -2351,16 +2351,16 @@ EOF
         multimodal_status_text="❌ Failed"
     fi
     
-    sed -i.bak "s/NLP_STATUS_CLASS/$nlp_status/g" "$REPORT_FILE"
-    sed -i.bak "s/NLP_STATUS/$nlp_status_text/g" "$REPORT_FILE"
-    sed -i.bak "s/VISION_STATUS_CLASS/$vision_status/g" "$REPORT_FILE"
-    sed -i.bak "s/VISION_STATUS/$vision_status_text/g" "$REPORT_FILE"
-    sed -i.bak "s/MULTIMODAL_STATUS_CLASS/$multimodal_status/g" "$REPORT_FILE"
-    sed -i.bak "s/MULTIMODAL_STATUS/$multimodal_status_text/g" "$REPORT_FILE"
+    sed -i.bak "s|NLP_STATUS_CLASS|$nlp_status|g" "$REPORT_FILE"
+    sed -i.bak "s|NLP_STATUS|$nlp_status_text|g" "$REPORT_FILE"
+    sed -i.bak "s|VISION_STATUS_CLASS|$vision_status|g" "$REPORT_FILE"
+    sed -i.bak "s|VISION_STATUS|$vision_status_text|g" "$REPORT_FILE"
+    sed -i.bak "s|MULTIMODAL_STATUS_CLASS|$multimodal_status|g" "$REPORT_FILE"
+    sed -i.bak "s|MULTIMODAL_STATUS|$multimodal_status_text|g" "$REPORT_FILE"
     
     # Use calculated totals for pie chart (already calculated above)
-    sed -i.bak "s/TOTAL_REGISTER_TIME/${METRIC_total_register_time_ms:-0}/g" "$REPORT_FILE"
-    sed -i.bak "s/TOTAL_INFERENCE_TIME/${METRIC_total_inference_time_ms:-0}/g" "$REPORT_FILE"
+    sed -i.bak "s|TOTAL_REGISTER_TIME|${METRIC_total_register_time_ms:-0}|g" "$REPORT_FILE"
+    sed -i.bak "s|TOTAL_INFERENCE_TIME|${METRIC_total_inference_time_ms:-0}|g" "$REPORT_FILE"
     
     # Replace dynamic inference data
     # Handle empty content gracefully
@@ -2401,7 +2401,7 @@ PYTHON_SCRIPT
     
     rm -f "$temp_html"
     
-    sed -i.bak "s/TIMESTAMP/$(date '+%Y-%m-%d %H:%M:%S')/g" "$REPORT_FILE"
+    sed -i.bak "s|TIMESTAMP|$(date '+%Y-%m-%d %H:%M:%S')|g" "$REPORT_FILE"
     sed -i.bak "s|TEST_DIR|$TEST_DIR|g" "$REPORT_FILE"
     
     # Remove backup files
