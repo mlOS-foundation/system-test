@@ -327,7 +327,7 @@ func loadConverterImage(axonVersion string) error {
 		"--pattern", converterArtifact,
 		"--dir", "/tmp",
 		"--clobber") // Overwrite if exists
-	if output, err := downloadCmd.CombinedOutput(); err != nil {
+	if _, err := downloadCmd.CombinedOutput(); err != nil {
 		// Fallback to curl for public repos (gh requires auth even for public repos)
 		fmt.Printf("   gh download failed, trying curl for public release...\n")
 		downloadURL := fmt.Sprintf("https://github.com/mlOS-foundation/axon/releases/download/%s/%s", axonVersion, converterArtifact)
