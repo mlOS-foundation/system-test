@@ -679,6 +679,16 @@ install_models() {
     fi
     log "✅ Docker available for ONNX conversion"
     
+    # Verify converter image is actually usable
+    if docker images | grep -q "axon-converter"; then
+        log "Testing converter image with a simple command..."
+        if docker run --rm $(docker images | grep "axon-converter" | head -1 | awk '{print $1":"$2}') echo "test" >/dev/null 2>&1; then
+            log "✅ Converter image is functional"
+        else
+            log_warn "⚠️  Converter image exists but may not be functional"
+        fi
+    fi
+    
     # Pre-load Axon converter image for ONNX conversion
     log "Loading Axon converter image from release..."
     local OS=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -734,57 +744,72 @@ install_models() {
         local axon_output=$(mktemp)
         local axon_errors=$(mktemp)
         
+        log "Running: axon install $model_id"
         if "$HOME/.local/bin/axon" install "$model_id" > "$axon_output" 2> "$axon_errors"; then
             local install_exit_code=0
         else
             local install_exit_code=$?
             log_error "Axon install failed for $model_id (exit code: $install_exit_code)"
-            log_error "Axon stderr:"
-            cat "$axon_errors" | tee -a "$LOG_FILE"
         fi
         
-        # Check for ONNX conversion issues in output
-        if grep -qi "onnx\|conversion\|docker" "$axon_output" "$axon_errors" 2>/dev/null; then
-            log_info "Axon output (relevant lines):"
-            grep -i "onnx\|conversion\|docker\|error\|failed" "$axon_output" "$axon_errors" 2>/dev/null | head -10 | tee -a "$LOG_FILE" || true
-        fi
+        # Always show output if model installation fails or model not found
+        local end_time=$(get_timestamp_ms)
+        local install_time=$(measure_time $start_time $end_time)
         
-        rm -f "$axon_output" "$axon_errors"
+        # Verify the model was actually installed
+        # Correct path: ~/.axon/cache/models/{namespace}/{model}/{version}/model.onnx
+        local model_path="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}/model.onnx"
         
-        if [ $install_exit_code -eq 0 ]; then
-            local end_time=$(get_timestamp_ms)
-            local install_time=$(measure_time $start_time $end_time)
+        if [ -f "$model_path" ]; then
+            log "✅ Model file verified at: $model_path"
+            eval "METRIC_model_${model_name}_install_time_ms=$install_time"
+            log "✅ Installed $model_name (${install_time}ms)"
+            ((model_count++))
+            rm -f "$axon_output" "$axon_errors"
+        else
+            # Model not found - show full output for debugging
+            log_warn "Model file not found at expected location: $model_path"
+            log "Axon install stdout:"
+            cat "$axon_output" | tee -a "$LOG_FILE" || true
+            log "Axon install stderr:"
+            cat "$axon_errors" | tee -a "$LOG_FILE" || true
             
-            # Verify the model was actually installed
-            # Correct path: ~/.axon/cache/models/{namespace}/{model}/{version}/model.onnx
-            local model_path="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}/model.onnx"
+            # Check for ONNX conversion issues
+            if grep -qi "onnx\|conversion\|docker" "$axon_output" "$axon_errors" 2>/dev/null; then
+                log_info "ONNX conversion related output:"
+                grep -i "onnx\|conversion\|docker\|error\|failed\|warning" "$axon_output" "$axon_errors" 2>/dev/null | head -20 | tee -a "$LOG_FILE" || true
+            fi
             
-            if [ -f "$model_path" ]; then
-                log "✅ Model file verified at: $model_path"
+            log "Searching in ~/.axon/cache/models/..."
+            local found_model=$(find "$HOME/.axon/cache/models" -name "model.onnx" -path "*${model_id%%/*}*" 2>/dev/null | head -n 1)
+            if [ -n "$found_model" ]; then
+                log "✅ Found model at: $found_model"
                 eval "METRIC_model_${model_name}_install_time_ms=$install_time"
                 log "✅ Installed $model_name (${install_time}ms)"
                 ((model_count++))
             else
-                log_warn "Model file not found at expected location: $model_path"
-                log "Searching in ~/.axon/cache/models/..."
-                local found_model=$(find "$HOME/.axon/cache/models" -name "model.onnx" -path "*${model_id%%/*}*" 2>/dev/null | head -n 1)
-                if [ -n "$found_model" ]; then
-                    log "✅ Found model at: $found_model"
-                    eval "METRIC_model_${model_name}_install_time_ms=$install_time"
-                    log "✅ Installed $model_name (${install_time}ms)"
-                    ((model_count++))
-                else
-                    log_error "Model installation failed - file not found"
-                    log "Axon cache contents:"
-                    ls -la "$HOME/.axon/cache/models/" 2>&1 | tee -a "$LOG_FILE" || log "Cache directory doesn't exist"
-                    eval "METRIC_model_${model_name}_install_status=failed"
+                log_error "Model installation failed - file not found"
+                log "Axon cache contents:"
+                ls -la "$HOME/.axon/cache/models/" 2>&1 | tee -a "$LOG_FILE" || log "Cache directory doesn't exist"
+                
+                # Show what's actually in the model's cache directory
+                local model_cache_dir="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}"
+                if [ -d "$model_cache_dir" ]; then
+                    log "Contents of $model_cache_dir:"
+                    ls -la "$model_cache_dir" 2>&1 | tee -a "$LOG_FILE" || true
+                    log "Looking for .onnx files:"
+                    find "$model_cache_dir" -name "*.onnx" 2>/dev/null | tee -a "$LOG_FILE" || log "No .onnx files found"
                 fi
+                
+                eval "METRIC_model_${model_name}_install_status=failed"
             fi
-        else
-            log_error "Failed to install $model_id"
-            log "Last 20 lines of log:"
-            tail -20 "$LOG_FILE" | tee -a "$LOG_FILE"
+            rm -f "$axon_output" "$axon_errors"
+        fi
+        
+        if [ $install_exit_code -ne 0 ]; then
+            log_error "Failed to install $model_id (exit code: $install_exit_code)"
             eval "METRIC_model_${model_name}_install_status=failed"
+            rm -f "$axon_output" "$axon_errors"
         fi
     done
     
