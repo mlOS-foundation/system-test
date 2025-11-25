@@ -1322,6 +1322,12 @@ run_inference_tests() {
         local end_time=$(get_timestamp_ms)
         local inference_time=$(measure_time $start_time $end_time)
         
+        # Immediately check if Core is still running
+        local core_pid=""
+        if [ -f "$TEST_DIR/mlos.pid" ]; then
+            core_pid=$(cat "$TEST_DIR/mlos.pid" 2>/dev/null)
+        fi
+        
         ((total_inferences++))
         
         if [ "$http_code" = "200" ]; then
@@ -1360,6 +1366,41 @@ run_inference_tests() {
             log_error "$model_name inference failed (HTTP $http_code)"
             log_error "Response: $body"
             eval "METRIC_model_${model_name}_inference_status=failed"
+            
+            # Check if Core crashed (segmentation fault or process died)
+            if [ -n "$core_pid" ] && ! ps -p "$core_pid" > /dev/null 2>&1; then
+                    log_error "⚠️  MLOS Core process crashed (PID: $core_pid)"
+                    log_error "Displaying Core logs for debugging:"
+                    
+                    local core_stdout="$TEST_DIR/mlos-core-logs/core-stdout.log"
+                    local core_stderr="$TEST_DIR/mlos-core-logs/core-stderr.log"
+                    
+                    if [ -f "$core_stderr" ]; then
+                        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                        log_error "Core stderr (last 50 lines):"
+                        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                        tail -50 "$core_stderr" 2>/dev/null | while IFS= read -r line; do
+                            log_error "   $line"
+                        done || log "Could not read stderr log"
+                    fi
+                    
+                    if [ -f "$core_stdout" ]; then
+                        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                        log_error "Core stdout (last 50 lines):"
+                        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                        tail -50 "$core_stdout" 2>/dev/null | while IFS= read -r line; do
+                            log_error "   $line"
+                        done || log "Could not read stdout log"
+                    fi
+                    
+                    # Check for segmentation fault in stderr
+                    if [ -f "$core_stderr" ] && grep -qi "segmentation fault\|segfault\|SIGSEGV" "$core_stderr" 2>/dev/null; then
+                        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                        log_error "❌ SEGMENTATION FAULT DETECTED"
+                        log_error "This is a Core server bug on Linux. Check Core logs above for details."
+                        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    fi
+                fi
         fi
     done
     
