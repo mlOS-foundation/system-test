@@ -217,13 +217,23 @@ jobs:
             echo "⚠️  Core log directory not found"
           fi
       
+      - name: List available logs
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 Available Log Files"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          find e2e-results-* -type f \( -name "*.log" -o -name "core-*.log" \) 2>/dev/null | while read f; do
+            echo "  📄 $f ($(du -h "$f" | cut -f1))"
+          done || echo "  ⚠️  No log files found"
+      
       - name: Upload logs as artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: e2e-logs-${{ github.run_number }}
           path: |
-            e2e-results-*/logs/**
+            e2e-results-*/mlos-core/logs/**
             e2e-results-*/test.log
           retention-days: 30
           if-no-files-found: ignore
