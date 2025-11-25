@@ -677,15 +677,25 @@ install_models() {
         log_error "Docker daemon is not running - Axon cannot convert to ONNX"
         return 1
     fi
+    
+    # Test if we can actually run containers (user might not be in docker group)
+    if ! docker run --rm hello-world >/dev/null 2>&1; then
+        log_error "Cannot run Docker containers - user may need to be in docker group"
+        log_error "Run: sudo usermod -aG docker $USER && newgrp docker"
+        return 1
+    fi
     log "✅ Docker available for ONNX conversion"
     
     # Verify converter image is actually usable
     if docker images | grep -q "axon-converter"; then
         log "Testing converter image with a simple command..."
-        if docker run --rm $(docker images | grep "axon-converter" | head -1 | awk '{print $1":"$2}') echo "test" >/dev/null 2>&1; then
-            log "✅ Converter image is functional"
-        else
-            log_warn "⚠️  Converter image exists but may not be functional"
+        local converter_image=$(docker images | grep "axon-converter" | head -1 | awk '{print $1":"$2}')
+        if [ -n "$converter_image" ]; then
+            if docker run --rm "$converter_image" python -c "import torch; print('OK')" >/dev/null 2>&1; then
+                log "✅ Converter image is functional"
+            else
+                log_warn "⚠️  Converter image exists but may not be functional (test command failed)"
+            fi
         fi
     fi
     
@@ -704,6 +714,14 @@ install_models() {
     # Check if image is already loaded
     if docker images | grep -q "axon-converter"; then
         log "✅ Converter image already loaded"
+        # Verify it's tagged as :latest (Axon expects this)
+        if ! docker images | grep -q "axon-converter.*latest"; then
+            log "Tagging converter image as :latest for Axon compatibility..."
+            local converter_image=$(docker images | grep "axon-converter" | head -1 | awk '{print $1":"$2}')
+            if [ -n "$converter_image" ]; then
+                docker tag "$converter_image" "ghcr.io/mlos-foundation/axon-converter:latest" 2>/dev/null || true
+            fi
+        fi
     else
         log "Downloading converter image: $converter_artifact"
         if curl -L -f -# -o "/tmp/$converter_artifact" "$converter_url" >> "$LOG_FILE" 2>&1; then
@@ -737,6 +755,19 @@ install_models() {
         if [ "$model_category" = "vision" ] || [ "$model_category" = "multimodal" ]; then
             log_info "Skipping installation of $model_name ($model_category model - not tested in E2E)"
             continue
+        fi
+        
+        # Clear model cache to force fresh installation with ONNX conversion
+        # If model was previously installed in PyTorch format, we need to reinstall for ONNX
+        local model_cache_dir="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}"
+        if [ -d "$model_cache_dir" ]; then
+            # Check if ONNX model exists
+            if [ ! -f "$model_cache_dir/model.onnx" ]; then
+                log "Clearing cache for $model_id (no ONNX model found, forcing reinstall)..."
+                rm -rf "$model_cache_dir"
+            else
+                log "ONNX model already exists, skipping reinstall"
+            fi
         fi
         
         # Use the installed Axon release binary
