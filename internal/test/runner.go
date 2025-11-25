@@ -228,8 +228,9 @@ func (r *Runner) runInferenceTests(results *Results) error {
 		}
 
 		// Small inference test
+		// Use spec.ID (full model spec) for URL, spec.Name (short name) for input generation
 		start := time.Now()
-		err = model.RunInference(spec.Name, spec.Type, false, r.cfg.CorePort)
+		err = model.RunInference(spec.ID, spec.Name, spec.Type, false, r.cfg.CorePort)
 		elapsed := time.Since(start).Milliseconds()
 		results.Metrics.TotalInferences++
 
@@ -248,7 +249,7 @@ func (r *Runner) runInferenceTests(results *Results) error {
 
 		// Large inference test
 		start = time.Now()
-		err = model.RunInference(spec.Name, spec.Type, true, r.cfg.CorePort)
+		err = model.RunInference(spec.ID, spec.Name, spec.Type, true, r.cfg.CorePort)
 		elapsed = time.Since(start).Milliseconds()
 		results.Metrics.TotalInferences++
 

@@ -4,14 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
 
 // RunInference runs an inference test for a model
-func RunInference(modelID, modelType string, large bool, port int) error {
-	// Generate test input based on model type
-	input, err := generateTestInput(modelID, modelType, large)
+// modelIDForURL is the full model spec (e.g., "hf/distilgpt2@latest") used in the URL
+// modelName is the short name (e.g., "gpt2") used for generating test input
+func RunInference(modelIDForURL, modelName, modelType string, large bool, port int) error {
+	// Generate test input based on model type (use short name)
+	input, err := generateTestInput(modelName, modelType, large)
 	if err != nil {
 		return fmt.Errorf("failed to generate test input: %w", err)
 	}
@@ -22,8 +25,12 @@ func RunInference(modelID, modelType string, large bool, port int) error {
 		return fmt.Errorf("failed to marshal input: %w", err)
 	}
 
+	// URL-encode the full model_id for use in the URL path
+	// Core stores models with the full model_id (e.g., "hf/distilgpt2@latest")
+	encodedModelID := url.PathEscape(modelIDForURL)
+
 	// Make HTTP request (use explicit IPv4 to avoid IPv6 resolution issues in CI)
-	url := fmt.Sprintf("http://127.0.0.1:%d/models/%s/inference", port, modelID)
+	url := fmt.Sprintf("http://127.0.0.1:%d/models/%s/inference", port, encodedModelID)
 	req, err := http.NewRequest("POST", url, strings.NewReader(string(payload)))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)

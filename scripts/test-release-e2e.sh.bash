@@ -1160,6 +1160,33 @@ get_test_input() {
     esac
 }
 
+# URL-encode a string for use in URL path
+url_encode() {
+    local string="$1"
+    local encoded=""
+    local i=0
+    while [ $i -lt ${#string} ]; do
+        local char="${string:$i:1}"
+        case "$char" in
+            [a-zA-Z0-9._-])
+                encoded="${encoded}${char}"
+                ;;
+            /)
+                encoded="${encoded}%2F"
+                ;;
+            @)
+                encoded="${encoded}%40"
+                ;;
+            *)
+                # URL encode other special characters
+                encoded="${encoded}$(printf '%%%02X' "'$char")"
+                ;;
+        esac
+        i=$((i + 1))
+    done
+    echo "$encoded"
+}
+
 run_inference_tests() {
     banner "🧪 Running Inference Tests"
     
@@ -1186,8 +1213,12 @@ run_inference_tests() {
             continue
         fi
         
+        # URL-encode the full model_id for use in the URL path
+        # Core stores models with the full model_id (e.g., "hf/distilgpt2@latest")
+        local encoded_model_id=$(url_encode "$model_id")
+        
         # Test small inference
-        log "Testing $model_name inference (small request)..."
+        log "Testing $model_name inference (small request) [model_id: $model_id]..."
         local test_input=$(get_test_input "$model_name" "$model_type" "$model_category" "small")
         
         if [ -z "$test_input" ]; then
@@ -1197,7 +1228,7 @@ run_inference_tests() {
         fi
         
         local start_time=$(get_timestamp_ms)
-        local response=$(curl -s -w "\n%{http_code}" -X POST "http://127.0.0.1:18080/models/${model_name}/inference" \
+        local response=$(curl -s -w "\n%{http_code}" -X POST "http://127.0.0.1:18080/models/${encoded_model_id}/inference" \
             -H "Content-Type: application/json" \
             -d "$test_input")
         
@@ -1220,7 +1251,7 @@ run_inference_tests() {
                 local large_input=$(get_test_input "$model_name" "$model_type" "$model_category" "large")
                 
                 local start_time_large=$(get_timestamp_ms)
-                local response_large=$(curl -s -w "\n%{http_code}" -X POST "http://127.0.0.1:18080/models/${model_name}/inference" \
+                local response_large=$(curl -s -w "\n%{http_code}" -X POST "http://127.0.0.1:18080/models/${encoded_model_id}/inference" \
                     -H "Content-Type: application/json" \
                     -d "$large_input")
                 
