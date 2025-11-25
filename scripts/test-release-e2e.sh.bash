@@ -1043,10 +1043,11 @@ register_models() {
         local start_time=$(get_timestamp_ms)
         
         # Use axon register command (proper flow: install -> register -> inference)
+        # axon register uses MLOS_CORE_ENDPOINT environment variable (not a flag)
         local register_output=$(mktemp)
         local register_errors=$(mktemp)
         
-        if "$HOME/.local/bin/axon" register "$model_id" --core-url "http://127.0.0.1:18080" > "$register_output" 2> "$register_errors"; then
+        if MLOS_CORE_ENDPOINT="http://127.0.0.1:18080" "$HOME/.local/bin/axon" register "$model_id" > "$register_output" 2> "$register_errors"; then
             local register_exit_code=0
         else
             local register_exit_code=$?

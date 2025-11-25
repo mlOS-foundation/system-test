@@ -465,8 +465,11 @@ func Register(modelSpec string, port int) error {
 	axonBin := filepath.Join(homeDir, ".local", "bin", "axon")
 	coreURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	
-	cmd := exec.Command(axonBin, "register", modelSpec, "--core-url", coreURL)
-	cmd.Env = os.Environ()
+	cmd := exec.Command(axonBin, "register", modelSpec)
+	// Set MLOS_CORE_ENDPOINT environment variable (axon register uses this, not a flag)
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("MLOS_CORE_ENDPOINT=%s", coreURL))
+	cmd.Env = env
 	cmd.Dir = homeDir
 	
 	output, err := cmd.CombinedOutput()
