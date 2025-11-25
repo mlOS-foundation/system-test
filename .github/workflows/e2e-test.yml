@@ -193,13 +193,40 @@ jobs:
           path: e2e-results-*/release-validation-report.html
           retention-days: 90
       
+      - name: Display Core logs if test failed
+        if: failure()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 Core Server Logs (if available)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          LOG_DIR=$(find . -type d -path "*/e2e-results-*/mlos-core/logs" | head -1)
+          if [ -n "$LOG_DIR" ]; then
+            if [ -f "$LOG_DIR/core-stdout.log" ]; then
+              echo ""
+              echo "📄 Core stdout:"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              tail -100 "$LOG_DIR/core-stdout.log" || echo "Could not read stdout log"
+            fi
+            if [ -f "$LOG_DIR/core-stderr.log" ]; then
+              echo ""
+              echo "📄 Core stderr:"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              tail -100 "$LOG_DIR/core-stderr.log" || echo "Could not read stderr log"
+            fi
+          else
+            echo "⚠️  Core log directory not found"
+          fi
+      
       - name: Upload logs as artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: e2e-logs-${{ github.run_number }}
-          path: e2e-results-*/test.log
+          path: |
+            e2e-results-*/logs/**
+            e2e-results-*/test.log
           retention-days: 30
+          if-no-files-found: ignore
       
       - name: Prepare report for GitHub Pages
         if: github.ref == 'refs/heads/main' && github.event_name == 'push' && always()
