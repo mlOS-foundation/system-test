@@ -328,7 +328,14 @@ func loadConverterImage(axonVersion string) error {
 		"--dir", "/tmp",
 		"--clobber") // Overwrite if exists
 	if output, err := downloadCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to download converter artifact: %w, output: %s", err, string(output))
+		// Fallback to curl for public repos (gh requires auth even for public repos)
+		fmt.Printf("   gh download failed, trying curl for public release...\n")
+		downloadURL := fmt.Sprintf("https://github.com/mlOS-foundation/axon/releases/download/%s/%s", axonVersion, converterArtifact)
+		curlCmd := exec.Command("curl", "-fL", "-o", converterPath, downloadURL)
+		if curlOutput, curlErr := curlCmd.CombinedOutput(); curlErr != nil {
+			return fmt.Errorf("failed to download converter artifact (gh: %v, curl: %v), output: %s", err, curlErr, string(curlOutput))
+		}
+		fmt.Printf("   ✅ Downloaded via curl\n")
 	}
 	defer os.Remove(converterPath) // Cleanup after loading
 	
