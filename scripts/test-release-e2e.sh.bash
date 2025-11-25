@@ -691,10 +691,14 @@ install_models() {
         log "Testing converter image with a simple command..."
         local converter_image=$(docker images | grep "axon-converter" | head -1 | awk '{print $1":"$2}')
         if [ -n "$converter_image" ]; then
-            if docker run --rm "$converter_image" python -c "import torch; print('OK')" >/dev/null 2>&1; then
+            local test_output=$(docker run --rm "$converter_image" python -c "import torch; print('OK')" 2>&1)
+            local test_exit=$?
+            if [ $test_exit -eq 0 ]; then
                 log "✅ Converter image is functional"
             else
-                log_warn "⚠️  Converter image exists but may not be functional (test command failed)"
+                log_warn "⚠️  Converter image test failed (exit code: $test_exit)"
+                log_warn "Test output: $test_output"
+                log_warn "This may indicate Docker permission issues or image problems"
             fi
         fi
     fi
@@ -771,17 +775,46 @@ install_models() {
         fi
         
         # Use the installed Axon release binary
-        # Capture output to check for errors and ONNX conversion status
+        # Use timeout to prevent hanging (15 minutes max for model download + conversion)
         local axon_output=$(mktemp)
-        local axon_errors=$(mktemp)
+        local install_exit_code=0
         
-        log "Running: axon install $model_id"
-        if "$HOME/.local/bin/axon" install "$model_id" > "$axon_output" 2> "$axon_errors"; then
-            local install_exit_code=0
+        log "Running: axon install $model_id (timeout: 15 minutes)"
+        log "Showing real-time output (press Ctrl+C to cancel)..."
+        
+        # Start progress indicator in background (shows every 30s if no output)
+        (
+            local count=0
+            while [ $count -lt 30 ]; do  # 30 * 30s = 15 minutes max
+                sleep 30
+                # Check if axon process is still running
+                if ! pgrep -f "axon install.*$model_id" >/dev/null 2>&1; then
+                    break  # Process finished
+                fi
+                count=$((count + 1))
+                log "⏳ Still installing... ($((count * 30))s elapsed)"
+            done
+        ) &
+        local progress_pid=$!
+        
+        # Run with timeout and show output in real-time
+        # Use tee to both capture and display output
+        if timeout 900 "$HOME/.local/bin/axon" install "$model_id" 2>&1 | tee "$axon_output"; then
+            install_exit_code=0
         else
-            local install_exit_code=$?
-            log_error "Axon install failed for $model_id (exit code: $install_exit_code)"
+            install_exit_code=$?
+            # Check if it was a timeout (exit code 124 from timeout command)
+            if [ $install_exit_code -eq 124 ]; then
+                log_error "Axon install timed out after 15 minutes for $model_id"
+                log_error "This usually means Docker conversion is stuck or very slow"
+            else
+                log_error "Axon install failed for $model_id (exit code: $install_exit_code)"
+            fi
         fi
+        
+        # Kill progress indicator
+        kill $progress_pid 2>/dev/null || true
+        wait $progress_pid 2>/dev/null || true
         
         # Always show output if model installation fails or model not found
         local end_time=$(get_timestamp_ms)
@@ -796,19 +829,15 @@ install_models() {
             eval "METRIC_model_${model_name}_install_time_ms=$install_time"
             log "✅ Installed $model_name (${install_time}ms)"
             ((model_count++))
-            rm -f "$axon_output" "$axon_errors"
+            rm -f "$axon_output"
         else
-            # Model not found - show full output for debugging
+            # Model not found - output was already shown in real-time, but summarize key issues
             log_warn "Model file not found at expected location: $model_path"
-            log "Axon install stdout:"
-            cat "$axon_output" | tee -a "$LOG_FILE" || true
-            log "Axon install stderr:"
-            cat "$axon_errors" | tee -a "$LOG_FILE" || true
             
-            # Check for ONNX conversion issues
-            if grep -qi "onnx\|conversion\|docker" "$axon_output" "$axon_errors" 2>/dev/null; then
-                log_info "ONNX conversion related output:"
-                grep -i "onnx\|conversion\|docker\|error\|failed\|warning" "$axon_output" "$axon_errors" 2>/dev/null | head -20 | tee -a "$LOG_FILE" || true
+            # Check for ONNX conversion issues in captured output
+            if grep -qi "onnx\|conversion\|docker" "$axon_output" 2>/dev/null; then
+                log_info "ONNX conversion related output (from captured log):"
+                grep -i "onnx\|conversion\|docker\|error\|failed\|warning" "$axon_output" 2>/dev/null | head -20 | tee -a "$LOG_FILE" || true
             fi
             
             log "Searching in ~/.axon/cache/models/..."
@@ -834,13 +863,13 @@ install_models() {
                 
                 eval "METRIC_model_${model_name}_install_status=failed"
             fi
-            rm -f "$axon_output" "$axon_errors"
+            rm -f "$axon_output"
         fi
         
         if [ $install_exit_code -ne 0 ]; then
             log_error "Failed to install $model_id (exit code: $install_exit_code)"
             eval "METRIC_model_${model_name}_install_status=failed"
-            rm -f "$axon_output" "$axon_errors"
+            rm -f "$axon_output"
         fi
     done
     
