@@ -22,7 +22,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 AXON_RELEASE_VERSION="v3.0.0"
-CORE_RELEASE_VERSION="3.0.3-alpha"
+CORE_RELEASE_VERSION="3.0.5-alpha"
 TEST_DIR="$(pwd)/release-test-$(date +%s)"
 REPORT_FILE="$TEST_DIR/release-validation-report.html"
 METRICS_FILE="$TEST_DIR/metrics.json"
@@ -92,6 +92,53 @@ log_error() {
 log_warn() {
     check_log_size
     echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARN:${NC} $1" | tee -a "$LOG_FILE"
+}
+
+# Cross-platform timeout function
+# Usage: run_with_timeout <seconds> <command> [args...]
+# Returns exit code 124 if timeout, otherwise returns command's exit code
+run_with_timeout() {
+    local timeout_seconds=$1
+    shift
+    local cmd="$@"
+    
+    # Check if timeout command is available (Linux)
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "$timeout_seconds" $cmd
+        return $?
+    fi
+    
+    # macOS: Use perl to implement timeout
+    if command -v perl >/dev/null 2>&1; then
+        perl -e '
+            my $timeout = shift;
+            my $pid = fork();
+            if ($pid == 0) {
+                # Child process: execute command
+                exec @ARGV;
+            } else {
+                # Parent process: wait with timeout
+                eval {
+                    local $SIG{ALRM} = sub { die "timeout" };
+                    alarm $timeout;
+                    waitpid($pid, 0);
+                    alarm 0;
+                    exit $? >> 8;
+                };
+                if ($@ =~ /timeout/) {
+                    kill 9, $pid;
+                    waitpid($pid, 0);
+                    exit 124;
+                }
+            }
+        ' "$timeout_seconds" $cmd
+        return $?
+    fi
+    
+    # Fallback: run without timeout (not ideal, but better than failing)
+    log_warn "No timeout command available, running without timeout (may hang)"
+    $cmd
+    return $?
 }
 
 # Collect hardware specifications
@@ -806,7 +853,8 @@ install_models() {
         
         # Run with timeout and show output in real-time
         # Use tee to both capture and display output
-        if timeout 900 "$HOME/.local/bin/axon" install "$model_id" 2>&1 | tee "$axon_output"; then
+        # Use cross-platform timeout function
+        if run_with_timeout 900 "$HOME/.local/bin/axon" install "$model_id" 2>&1 | tee "$axon_output"; then
             install_exit_code=0
         else
             install_exit_code=$?
