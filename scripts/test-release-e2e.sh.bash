@@ -22,7 +22,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 AXON_RELEASE_VERSION="v3.0.0"
-CORE_RELEASE_VERSION="3.0.0-alpha"
+CORE_RELEASE_VERSION="3.0.3-alpha"
 TEST_DIR="$(pwd)/release-test-$(date +%s)"
 REPORT_FILE="$TEST_DIR/release-validation-report.html"
 METRICS_FILE="$TEST_DIR/metrics.json"
@@ -498,7 +498,13 @@ download_core_release() {
     # Ensure we found a release archive - try curl fallback for public repos
     if [ -z "$core_archive" ]; then
         log_warn "gh download failed, trying curl for public release..."
-        local core_url="https://github.com/mlOS-foundation/core-releases/releases/download/${CORE_RELEASE_VERSION}/${specific_pattern}"
+        # GitHub release tags always have 'v' prefix, so add it if missing
+        local release_tag="${CORE_RELEASE_VERSION}"
+        if [[ ! "$release_tag" =~ ^v ]]; then
+            release_tag="v${release_tag}"
+        fi
+        local core_url="https://github.com/mlOS-foundation/core-releases/releases/download/${release_tag}/${specific_pattern}"
+        log "Trying curl download from: $core_url"
         if curl -L -f -# -o "$specific_pattern" "$core_url" >> "$LOG_FILE" 2>&1; then
             log "✅ Downloaded via curl"
             core_archive="$specific_pattern"
@@ -508,7 +514,8 @@ download_core_release() {
             log_error "Please ensure:"
             log_error "  1. You're logged in with: gh auth login (or set GH_TOKEN)"
             log_error "  2. The release includes binaries for your platform (${OS}-${ARCH})"
-            log_error "  3. Release version exists: ${CORE_RELEASE_VERSION}"
+            log_error "  3. Release version exists: ${CORE_RELEASE_VERSION} (or ${release_tag})"
+            log_error "  4. Tried URL: $core_url"
             exit 1
         fi
     fi
