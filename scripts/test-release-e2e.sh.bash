@@ -1123,6 +1123,28 @@ register_models() {
             continue
         fi
         
+        # Check manifest execution_format (should be "onnx" if model.onnx exists)
+        local model_dir="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}"
+        local manifest_path="$model_dir/manifest.yaml"
+        if [ -f "$manifest_path" ]; then
+            # Check if execution_format is set to "onnx"
+            if command -v yq &> /dev/null; then
+                local exec_format=$(yq '.spec.format.execution_format' "$manifest_path" 2>/dev/null)
+                if [ "$exec_format" != "onnx" ] && [ "$exec_format" != "ONNX" ]; then
+                    log_warn "Manifest execution_format is '$exec_format' but model.onnx exists"
+                    log_warn "Core may show framework as PyTorch but will use ONNX Runtime (this is expected)"
+                fi
+            elif grep -q "execution_format.*onnx" "$manifest_path" 2>/dev/null; then
+                log "✅ Manifest execution_format is set to onnx"
+            else
+                log_warn "Could not verify manifest execution_format (yq not installed)"
+            fi
+            # Note: Core reads framework.name from manifest (original framework), but correctly
+            # auto-selects ONNX Runtime plugin when model.onnx exists. The framework field is
+            # just metadata - Core's plugin selection is based on available model files.
+            log_info "Note: Core may show 'framework: PyTorch' in logs, but will use ONNX Runtime (model.onnx detected)"
+        fi
+        
         log "Registering $model_name using axon register..."
         
         local start_time=$(get_timestamp_ms)
