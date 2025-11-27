@@ -2439,29 +2439,62 @@ EOF
         INFERENCE_COLORS_JSON="[]"
     fi
     
-    # Use Python for ALL replacements (more reliable with Unicode/special chars)
+    # Use Python for ALL replacements (sed has Unicode issues on Linux)
     local temp_html=$(mktemp)
     printf '%s' "$INFERENCE_METRICS_HTML_CONTENT" > "$temp_html"
     
-    # Export variables for Python to use
+    # Export ALL variables for Python - this is comprehensive
     export REPORT_FILE_PATH="$REPORT_FILE"
     export TEMP_HTML_PATH="$temp_html"
+    
+    # Status variables
     export NLP_STATUS_CLASS_VAL="$nlp_status"
     export NLP_STATUS_VAL="$nlp_status_text"
     export VISION_STATUS_CLASS_VAL="$vision_status"
     export VISION_STATUS_VAL="$vision_status_text"
     export MULTIMODAL_STATUS_CLASS_VAL="$multimodal_status"
     export MULTIMODAL_STATUS_VAL="$multimodal_status_text"
-    export TOTAL_REGISTER_TIME_VAL="${METRIC_total_register_time_ms:-0}"
-    export TOTAL_INFERENCE_TIME_VAL="${METRIC_total_inference_time_ms:-0}"
+    
+    # Inference chart data
     export INFERENCE_LABELS_VAL="$INFERENCE_LABELS_JSON"
     export INFERENCE_DATA_VAL="$INFERENCE_DATA_JSON"
     export INFERENCE_COLORS_VAL="$INFERENCE_COLORS_JSON"
+    
+    # Timing data (for charts)
+    export AXON_DOWNLOAD_TIME_VAL="${METRIC_axon_download_time_ms:-0}"
+    export CORE_DOWNLOAD_TIME_VAL="${METRIC_core_download_time_ms:-0}"
+    export CORE_STARTUP_TIME_VAL="${METRIC_core_startup_time_ms:-0}"
+    export TOTAL_MODEL_INSTALL_TIME_VAL="${METRIC_total_model_install_time_ms:-0}"
+    export TOTAL_REGISTER_TIME_VAL="${METRIC_total_register_time_ms:-0}"
+    export TOTAL_INFERENCE_TIME_VAL="${METRIC_total_inference_time_ms:-0}"
+    
+    # Model-specific times
+    export GPT2_INSTALL_TIME_VAL="${METRIC_model_gpt2_install_time_ms:-0}"
+    export GPT2_REGISTER_TIME_VAL="${METRIC_model_gpt2_register_time_ms:-0}"
+    export BERT_INSTALL_TIME_VAL="${METRIC_model_bert_install_time_ms:-0}"
+    export BERT_REGISTER_TIME_VAL="${METRIC_model_bert_register_time_ms:-0}"
+    export GPT2_INFERENCE_TIME_VAL="${METRIC_model_gpt2_inference_time_ms:-0}"
+    export GPT2_LONG_INFERENCE_TIME_VAL="${METRIC_model_gpt2_long_inference_time_ms:-0}"
+    export BERT_INFERENCE_TIME_VAL="${METRIC_model_bert_inference_time_ms:-0}"
+    export BERT_LONG_INFERENCE_TIME_VAL="${METRIC_model_bert_long_inference_time_ms:-0}"
+    
+    # Status badges
+    export GPT2_STATUS_VAL="$gpt2_status_text"
+    export GPT2_STATUS_CLASS_VAL="$gpt2_status"
+    export GPT2_LONG_STATUS_VAL="$gpt2_large_status_text"
+    export GPT2_LONG_STATUS_CLASS_VAL="$gpt2_large_status"
+    export BERT_STATUS_VAL="$bert_status_text"
+    export BERT_STATUS_CLASS_VAL="$bert_status"
+    export BERT_LONG_STATUS_VAL="$bert_large_status_text"
+    export BERT_LONG_STATUS_CLASS_VAL="$bert_large_status"
+    
+    # Metadata
     export TIMESTAMP_VAL="$(date '+%Y-%m-%d %H:%M:%S')"
     export TEST_DIR_VAL="$TEST_DIR"
     
     python3 << 'PYTHON_SCRIPT'
 import os
+import re
 
 report_file = os.environ['REPORT_FILE_PATH']
 temp_html = os.environ['TEMP_HTML_PATH']
@@ -2474,38 +2507,73 @@ with open(report_file, 'r', encoding='utf-8') as f:
 with open(temp_html, 'r', encoding='utf-8') as f:
     html_content = f.read()
 
-# Replace all placeholders using environment variables
+# Build comprehensive replacement dictionary
 replacements = {
+    # Inference chart
     'INFERENCE_METRICS_HTML': html_content,
     'INFERENCE_LABELS': os.environ.get('INFERENCE_LABELS_VAL', '[]'),
     'INFERENCE_DATA': os.environ.get('INFERENCE_DATA_VAL', '[]'),
     'INFERENCE_COLORS': os.environ.get('INFERENCE_COLORS_VAL', '[]'),
+    
+    # Category status (longer _CLASS versions first!)
     'NLP_STATUS_CLASS': os.environ.get('NLP_STATUS_CLASS_VAL', 'ready_not_tested'),
-    'NLP_STATUS': os.environ.get('NLP_STATUS_VAL', '⏳ Ready (not tested)'),
+    'NLP_STATUS': os.environ.get('NLP_STATUS_VAL', '⏳ Ready'),
     'VISION_STATUS_CLASS': os.environ.get('VISION_STATUS_CLASS_VAL', 'ready_not_tested'),
-    'VISION_STATUS': os.environ.get('VISION_STATUS_VAL', '⏳ Ready (not tested)'),
+    'VISION_STATUS': os.environ.get('VISION_STATUS_VAL', '⏳ Ready'),
     'MULTIMODAL_STATUS_CLASS': os.environ.get('MULTIMODAL_STATUS_CLASS_VAL', 'ready_not_tested'),
-    'MULTIMODAL_STATUS': os.environ.get('MULTIMODAL_STATUS_VAL', '⏳ Ready (not tested)'),
+    'MULTIMODAL_STATUS': os.environ.get('MULTIMODAL_STATUS_VAL', '⏳ Ready'),
+    
+    # Timing data for charts
+    'AXON_DOWNLOAD_TIME': os.environ.get('AXON_DOWNLOAD_TIME_VAL', '0'),
+    'CORE_DOWNLOAD_TIME': os.environ.get('CORE_DOWNLOAD_TIME_VAL', '0'),
+    'CORE_STARTUP_TIME': os.environ.get('CORE_STARTUP_TIME_VAL', '0'),
+    'TOTAL_MODEL_INSTALL_TIME': os.environ.get('TOTAL_MODEL_INSTALL_TIME_VAL', '0'),
     'TOTAL_REGISTER_TIME': os.environ.get('TOTAL_REGISTER_TIME_VAL', '0'),
     'TOTAL_INFERENCE_TIME': os.environ.get('TOTAL_INFERENCE_TIME_VAL', '0'),
+    
+    # Model times
+    'GPT2_INSTALL_TIME': os.environ.get('GPT2_INSTALL_TIME_VAL', '0'),
+    'GPT2_REGISTER_TIME': os.environ.get('GPT2_REGISTER_TIME_VAL', '0'),
+    'BERT_INSTALL_TIME': os.environ.get('BERT_INSTALL_TIME_VAL', '0'),
+    'BERT_REGISTER_TIME': os.environ.get('BERT_REGISTER_TIME_VAL', '0'),
+    'GPT2_INFERENCE_TIME': os.environ.get('GPT2_INFERENCE_TIME_VAL', '0'),
+    'GPT2_LONG_INFERENCE_TIME': os.environ.get('GPT2_LONG_INFERENCE_TIME_VAL', '0'),
+    'BERT_INFERENCE_TIME': os.environ.get('BERT_INFERENCE_TIME_VAL', '0'),
+    'BERT_LONG_INFERENCE_TIME': os.environ.get('BERT_LONG_INFERENCE_TIME_VAL', '0'),
+    
+    # Status badges (longer _CLASS versions first!)
+    'GPT2_LONG_STATUS_CLASS': os.environ.get('GPT2_LONG_STATUS_CLASS_VAL', 'failed'),
+    'GPT2_LONG_STATUS': os.environ.get('GPT2_LONG_STATUS_VAL', '❌ Failed'),
+    'GPT2_STATUS_CLASS': os.environ.get('GPT2_STATUS_CLASS_VAL', 'failed'),
+    'GPT2_STATUS': os.environ.get('GPT2_STATUS_VAL', '❌ Failed'),
+    'BERT_LONG_STATUS_CLASS': os.environ.get('BERT_LONG_STATUS_CLASS_VAL', 'failed'),
+    'BERT_LONG_STATUS': os.environ.get('BERT_LONG_STATUS_VAL', '❌ Failed'),
+    'BERT_STATUS_CLASS': os.environ.get('BERT_STATUS_CLASS_VAL', 'failed'),
+    'BERT_STATUS': os.environ.get('BERT_STATUS_VAL', '❌ Failed'),
+    
+    # Metadata
     'TIMESTAMP': os.environ.get('TIMESTAMP_VAL', 'N/A'),
     'TEST_DIR': os.environ.get('TEST_DIR_VAL', 'N/A'),
 }
 
 # Do replacements - ORDER MATTERS: longer strings first to avoid partial matches
 for key in sorted(replacements.keys(), key=len, reverse=True):
-    content = content.replace(key, str(replacements[key]))
+    val = str(replacements[key])
+    count = content.count(key)
+    if count > 0:
+        content = content.replace(key, val)
+        print(f"  Replaced {key}: {count} occurrence(s)")
 
 # Write back
 with open(report_file, 'w', encoding='utf-8') as f:
     f.write(content)
 
-print(f"✅ Report placeholders replaced successfully")
+print(f"✅ Python replacement complete")
 PYTHON_SCRIPT
     
     rm -f "$temp_html"
     
-    # Remove backup files
+    # Remove backup files created by sed (if any remain)
     rm -f "$REPORT_FILE.bak"
     
     log "✅ HTML report generated: $REPORT_FILE"
