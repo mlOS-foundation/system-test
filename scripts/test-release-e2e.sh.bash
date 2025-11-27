@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -e
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -22,7 +23,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 AXON_RELEASE_VERSION="v3.0.0"
-CORE_RELEASE_VERSION="3.0.5-alpha"
+CORE_RELEASE_VERSION="3.1.6-alpha"
 TEST_DIR="$(pwd)/release-test-$(date +%s)"
 REPORT_FILE="$TEST_DIR/release-validation-report.html"
 METRICS_FILE="$TEST_DIR/metrics.json"
@@ -2428,18 +2429,6 @@ EOF
         multimodal_status_text="❌ Failed"
     fi
     
-    sed -i.bak "s|NLP_STATUS_CLASS|$nlp_status|g" "$REPORT_FILE"
-    sed -i.bak "s|NLP_STATUS|$nlp_status_text|g" "$REPORT_FILE"
-    sed -i.bak "s|VISION_STATUS_CLASS|$vision_status|g" "$REPORT_FILE"
-    sed -i.bak "s|VISION_STATUS|$vision_status_text|g" "$REPORT_FILE"
-    sed -i.bak "s|MULTIMODAL_STATUS_CLASS|$multimodal_status|g" "$REPORT_FILE"
-    sed -i.bak "s|MULTIMODAL_STATUS|$multimodal_status_text|g" "$REPORT_FILE"
-    
-    # Use calculated totals for pie chart (already calculated above)
-    sed -i.bak "s|TOTAL_REGISTER_TIME|${METRIC_total_register_time_ms:-0}|g" "$REPORT_FILE"
-    sed -i.bak "s|TOTAL_INFERENCE_TIME|${METRIC_total_inference_time_ms:-0}|g" "$REPORT_FILE"
-    
-    # Replace dynamic inference data
     # Handle empty content gracefully
     if [ -z "$INFERENCE_METRICS_HTML_CONTENT" ]; then
         INFERENCE_METRICS_HTML_CONTENT="<p style=\"text-align: center; color: #666;\">No inference tests were run.</p>"
@@ -2450,36 +2439,71 @@ EOF
         INFERENCE_COLORS_JSON="[]"
     fi
     
-    # Replace placeholders - use Python for reliable multiline replacement
+    # Use Python for ALL replacements (more reliable with Unicode/special chars)
     local temp_html=$(mktemp)
     printf '%s' "$INFERENCE_METRICS_HTML_CONTENT" > "$temp_html"
     
-    python3 << PYTHON_SCRIPT
-import sys
+    # Export variables for Python to use
+    export REPORT_FILE_PATH="$REPORT_FILE"
+    export TEMP_HTML_PATH="$temp_html"
+    export NLP_STATUS_CLASS_VAL="$nlp_status"
+    export NLP_STATUS_VAL="$nlp_status_text"
+    export VISION_STATUS_CLASS_VAL="$vision_status"
+    export VISION_STATUS_VAL="$vision_status_text"
+    export MULTIMODAL_STATUS_CLASS_VAL="$multimodal_status"
+    export MULTIMODAL_STATUS_VAL="$multimodal_status_text"
+    export TOTAL_REGISTER_TIME_VAL="${METRIC_total_register_time_ms:-0}"
+    export TOTAL_INFERENCE_TIME_VAL="${METRIC_total_inference_time_ms:-0}"
+    export INFERENCE_LABELS_VAL="$INFERENCE_LABELS_JSON"
+    export INFERENCE_DATA_VAL="$INFERENCE_DATA_JSON"
+    export INFERENCE_COLORS_VAL="$INFERENCE_COLORS_JSON"
+    export TIMESTAMP_VAL="$(date '+%Y-%m-%d %H:%M:%S')"
+    export TEST_DIR_VAL="$TEST_DIR"
+    
+    python3 << 'PYTHON_SCRIPT'
+import os
+
+report_file = os.environ['REPORT_FILE_PATH']
+temp_html = os.environ['TEMP_HTML_PATH']
 
 # Read the report file
-with open("$REPORT_FILE", 'r') as f:
+with open(report_file, 'r', encoding='utf-8') as f:
     content = f.read()
 
-# Read the HTML content
-with open("$temp_html", 'r') as f:
+# Read the HTML content for inference metrics
+with open(temp_html, 'r', encoding='utf-8') as f:
     html_content = f.read()
 
-# Replace placeholders
-content = content.replace('INFERENCE_METRICS_HTML', html_content)
-content = content.replace('INFERENCE_LABELS', '$INFERENCE_LABELS_JSON')
-content = content.replace('INFERENCE_DATA', '$INFERENCE_DATA_JSON')
-content = content.replace('INFERENCE_COLORS', '$INFERENCE_COLORS_JSON')
+# Replace all placeholders using environment variables
+replacements = {
+    'INFERENCE_METRICS_HTML': html_content,
+    'INFERENCE_LABELS': os.environ.get('INFERENCE_LABELS_VAL', '[]'),
+    'INFERENCE_DATA': os.environ.get('INFERENCE_DATA_VAL', '[]'),
+    'INFERENCE_COLORS': os.environ.get('INFERENCE_COLORS_VAL', '[]'),
+    'NLP_STATUS_CLASS': os.environ.get('NLP_STATUS_CLASS_VAL', 'ready_not_tested'),
+    'NLP_STATUS': os.environ.get('NLP_STATUS_VAL', '⏳ Ready (not tested)'),
+    'VISION_STATUS_CLASS': os.environ.get('VISION_STATUS_CLASS_VAL', 'ready_not_tested'),
+    'VISION_STATUS': os.environ.get('VISION_STATUS_VAL', '⏳ Ready (not tested)'),
+    'MULTIMODAL_STATUS_CLASS': os.environ.get('MULTIMODAL_STATUS_CLASS_VAL', 'ready_not_tested'),
+    'MULTIMODAL_STATUS': os.environ.get('MULTIMODAL_STATUS_VAL', '⏳ Ready (not tested)'),
+    'TOTAL_REGISTER_TIME': os.environ.get('TOTAL_REGISTER_TIME_VAL', '0'),
+    'TOTAL_INFERENCE_TIME': os.environ.get('TOTAL_INFERENCE_TIME_VAL', '0'),
+    'TIMESTAMP': os.environ.get('TIMESTAMP_VAL', 'N/A'),
+    'TEST_DIR': os.environ.get('TEST_DIR_VAL', 'N/A'),
+}
+
+# Do replacements - ORDER MATTERS: longer strings first to avoid partial matches
+for key in sorted(replacements.keys(), key=len, reverse=True):
+    content = content.replace(key, str(replacements[key]))
 
 # Write back
-with open("$REPORT_FILE", 'w') as f:
+with open(report_file, 'w', encoding='utf-8') as f:
     f.write(content)
+
+print(f"✅ Report placeholders replaced successfully")
 PYTHON_SCRIPT
     
     rm -f "$temp_html"
-    
-    sed -i.bak "s|TIMESTAMP|$(date '+%Y-%m-%d %H:%M:%S')|g" "$REPORT_FILE"
-    sed -i.bak "s|TEST_DIR|$TEST_DIR|g" "$REPORT_FILE"
     
     # Remove backup files
     rm -f "$REPORT_FILE.bak"
@@ -2591,4 +2615,3 @@ main() {
 
 # Run main
 main "$@"
-
