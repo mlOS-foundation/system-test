@@ -12,7 +12,7 @@ on:
       core_version:
         description: 'Core version to test'
         required: false
-        default: '3.0.0-alpha'
+        default: '3.1.6-alpha'
   # Disabled triggers:
   # push:
   #   branches: [main]
