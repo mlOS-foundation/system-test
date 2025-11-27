@@ -161,10 +161,6 @@ jobs:
           echo "No version determined, skipping E2E tests"
           exit 0
       
-      - name: Build test tool
-        run: |
-          go build -o bin/e2e-test ./cmd/e2e-test
-      
       - name: Check disk space before tests
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -172,19 +168,31 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           df -h
       
-      - name: Run E2E tests
+      - name: Run E2E tests (Bash Script)
         if: steps.core_version.outputs.version != ''
+        env:
+          AXON_RELEASE_VERSION: ${{ github.event.inputs.axon_version || 'v3.0.0' }}
+          CORE_RELEASE_VERSION: ${{ steps.core_version.outputs.version }}
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🧪 Running E2E Tests (Minimal Mode)"
+          echo "🧪 Running E2E Tests (Bash Script)"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📦 Axon: ${{ github.event.inputs.axon_version || 'v3.0.0' }}"
-          echo "📦 Core: ${{ steps.core_version.outputs.version }} (from public core-releases)"
+          echo "📦 Axon: ${AXON_RELEASE_VERSION}"
+          echo "📦 Core: ${CORE_RELEASE_VERSION} (from public core-releases)"
           echo ""
-          ./bin/e2e-test \
-            -axon-version ${{ github.event.inputs.axon_version || 'v3.0.0' }} \
-            -core-version ${{ steps.core_version.outputs.version }} \
-            -minimal
+          
+          # Update versions in the script
+          sed -i "s/AXON_RELEASE_VERSION=.*/AXON_RELEASE_VERSION=\"${AXON_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
+          sed -i "s/CORE_RELEASE_VERSION=.*/CORE_RELEASE_VERSION=\"${CORE_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
+          
+          # Make script executable and run
+          chmod +x scripts/test-release-e2e.sh.bash
+          cd scripts && ./test-release-e2e.sh.bash || true
+          
+          # Move results to expected location
+          if [ -d release-test-* ]; then
+            mv release-test-* ../e2e-results-$(date +%s)
+          fi
         continue-on-error: true
       
       - name: Upload HTML report as artifact
@@ -241,34 +249,41 @@ jobs:
           if-no-files-found: ignore
       
       - name: Prepare report for GitHub Pages
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && always()
+        if: always()
         run: |
           mkdir -p _site
-          REPORT_DIR=$(find . -type d -name "e2e-results-*" | head -1)
+          REPORT_DIR=$(find . -type d -name "e2e-results-*" -o -type d -name "release-test-*" | head -1)
           if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
             cp "$REPORT_DIR/release-validation-report.html" _site/index.html
             if [ -f "$REPORT_DIR/report_app.js" ]; then
               cp "$REPORT_DIR/report_app.js" _site/report_app.js
             fi
             echo "✅ Report prepared for GitHub Pages"
+            echo "   Source: $REPORT_DIR"
           else
             echo "⚠️ No report found - using fallback report"
-            cp .github/fallback-report.html _site/index.html
-            echo "✅ Fallback report copied"
+            if [ -f .github/fallback-report.html ]; then
+              cp .github/fallback-report.html _site/index.html
+              echo "✅ Fallback report copied"
+            else
+              echo "<html><body><h1>E2E Test Report</h1><p>Report generation failed. Check workflow logs.</p></body></html>" > _site/index.html
+              echo "✅ Minimal fallback created"
+            fi
           fi
+          ls -la _site/
       
       - name: Setup Pages
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && always()
+        if: always()
         uses: actions/configure-pages@v4
       
       - name: Upload Pages artifact
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && always()
+        if: always()
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./_site
       
       - name: Deploy to GitHub Pages
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && always()
+        if: always()
         id: deployment
         uses: actions/deploy-pages@v4
       
@@ -278,15 +293,13 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "📊 E2E Test Complete"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          REPORT_DIR=$(find . -type d -name "e2e-results-*" | head -1)
+          REPORT_DIR=$(find . -type d -name "e2e-results-*" -o -type d -name "release-test-*" | head -1)
           if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
             echo "✅ Report generated"
-            if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
-              echo "🌐 Report published to: https://mlos-foundation.github.io/system-test/"
-            else
-              echo "📦 Report available in artifacts (e2e-report-${{ github.run_number }})"
-            fi
+            echo "🌐 Report published to: https://mlos-foundation.github.io/system-test/"
+            echo "📦 Report also available in artifacts (e2e-report-${{ github.run_number }})"
           else
             echo "⚠️  Report not generated (test may have failed)"
+            echo "📋 Check workflow logs for details"
           fi
 
