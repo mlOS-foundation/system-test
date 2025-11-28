@@ -1647,6 +1647,9 @@ generate_html_report() {
     
     log "Generating HTML report: $REPORT_FILE"
     
+    # Disable exit on error for report generation (sed/python may have issues)
+    set +e
+    
     cat > "$REPORT_FILE" << 'EOF'
 <!DOCTYPE html>
 <html lang="en">
@@ -2134,10 +2137,18 @@ generate_html_report() {
                 },
                 scales: {
                     y: {
-                        beginAtZero: true,
+                        type: 'logarithmic',
+                        min: 10,
                         title: {
                             display: true,
-                            text: 'Time (milliseconds)'
+                            text: 'Time (milliseconds) - Log Scale'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                if (value >= 1000000) return (value/1000000).toFixed(0) + 'M';
+                                if (value >= 1000) return (value/1000).toFixed(0) + 'K';
+                                return value;
+                            }
                         }
                     }
                 }
@@ -2608,6 +2619,9 @@ PYTHON_SCRIPT
     
     # Remove backup files created by sed (if any remain)
     rm -f "$REPORT_FILE.bak"
+    
+    # Re-enable exit on error
+    set -e
     
     log "✅ HTML report generated: $REPORT_FILE"
 }
