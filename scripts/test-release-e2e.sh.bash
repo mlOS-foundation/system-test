@@ -2492,83 +2492,116 @@ EOF
     export TIMESTAMP_VAL="$(date '+%Y-%m-%d %H:%M:%S')"
     export TEST_DIR_VAL="$TEST_DIR"
     
+    # Debug: Show that we're about to run Python
+    log "Running Python replacement script..."
+    log "  REPORT_FILE_PATH=$REPORT_FILE_PATH"
+    log "  TEMP_HTML_PATH=$TEMP_HTML_PATH"
+    
+    # Check if files exist before running Python
+    if [ ! -f "$REPORT_FILE" ]; then
+        log_warn "Report file not found: $REPORT_FILE"
+    fi
+    
     python3 << 'PYTHON_SCRIPT'
 import os
-import re
+import sys
 
-report_file = os.environ['REPORT_FILE_PATH']
-temp_html = os.environ['TEMP_HTML_PATH']
+print("🐍 Python script starting...", flush=True)
 
-# Read the report file
-with open(report_file, 'r', encoding='utf-8') as f:
-    content = f.read()
-
-# Read the HTML content for inference metrics
-with open(temp_html, 'r', encoding='utf-8') as f:
-    html_content = f.read()
-
-# Build comprehensive replacement dictionary
-replacements = {
-    # Inference chart
-    'INFERENCE_METRICS_HTML': html_content,
-    'INFERENCE_LABELS': os.environ.get('INFERENCE_LABELS_VAL', '[]'),
-    'INFERENCE_DATA': os.environ.get('INFERENCE_DATA_VAL', '[]'),
-    'INFERENCE_COLORS': os.environ.get('INFERENCE_COLORS_VAL', '[]'),
+try:
+    report_file = os.environ.get('REPORT_FILE_PATH', '')
+    temp_html = os.environ.get('TEMP_HTML_PATH', '')
     
-    # Category status (longer _CLASS versions first!)
-    'NLP_STATUS_CLASS': os.environ.get('NLP_STATUS_CLASS_VAL', 'ready_not_tested'),
-    'NLP_STATUS': os.environ.get('NLP_STATUS_VAL', '⏳ Ready'),
-    'VISION_STATUS_CLASS': os.environ.get('VISION_STATUS_CLASS_VAL', 'ready_not_tested'),
-    'VISION_STATUS': os.environ.get('VISION_STATUS_VAL', '⏳ Ready'),
-    'MULTIMODAL_STATUS_CLASS': os.environ.get('MULTIMODAL_STATUS_CLASS_VAL', 'ready_not_tested'),
-    'MULTIMODAL_STATUS': os.environ.get('MULTIMODAL_STATUS_VAL', '⏳ Ready'),
+    print(f"  report_file={report_file}", flush=True)
+    print(f"  temp_html={temp_html}", flush=True)
     
-    # Timing data for charts
-    'AXON_DOWNLOAD_TIME': os.environ.get('AXON_DOWNLOAD_TIME_VAL', '0'),
-    'CORE_DOWNLOAD_TIME': os.environ.get('CORE_DOWNLOAD_TIME_VAL', '0'),
-    'CORE_STARTUP_TIME': os.environ.get('CORE_STARTUP_TIME_VAL', '0'),
-    'TOTAL_MODEL_INSTALL_TIME': os.environ.get('TOTAL_MODEL_INSTALL_TIME_VAL', '0'),
-    'TOTAL_REGISTER_TIME': os.environ.get('TOTAL_REGISTER_TIME_VAL', '0'),
-    'TOTAL_INFERENCE_TIME': os.environ.get('TOTAL_INFERENCE_TIME_VAL', '0'),
+    if not report_file or not os.path.exists(report_file):
+        print(f"❌ Report file not found: {report_file}", flush=True)
+        sys.exit(1)
     
-    # Model times
-    'GPT2_INSTALL_TIME': os.environ.get('GPT2_INSTALL_TIME_VAL', '0'),
-    'GPT2_REGISTER_TIME': os.environ.get('GPT2_REGISTER_TIME_VAL', '0'),
-    'BERT_INSTALL_TIME': os.environ.get('BERT_INSTALL_TIME_VAL', '0'),
-    'BERT_REGISTER_TIME': os.environ.get('BERT_REGISTER_TIME_VAL', '0'),
-    'GPT2_INFERENCE_TIME': os.environ.get('GPT2_INFERENCE_TIME_VAL', '0'),
-    'GPT2_LONG_INFERENCE_TIME': os.environ.get('GPT2_LONG_INFERENCE_TIME_VAL', '0'),
-    'BERT_INFERENCE_TIME': os.environ.get('BERT_INFERENCE_TIME_VAL', '0'),
-    'BERT_LONG_INFERENCE_TIME': os.environ.get('BERT_LONG_INFERENCE_TIME_VAL', '0'),
+    # Read the report file
+    with open(report_file, 'r', encoding='utf-8') as f:
+        content = f.read()
     
-    # Status badges (longer _CLASS versions first!)
-    'GPT2_LONG_STATUS_CLASS': os.environ.get('GPT2_LONG_STATUS_CLASS_VAL', 'failed'),
-    'GPT2_LONG_STATUS': os.environ.get('GPT2_LONG_STATUS_VAL', '❌ Failed'),
-    'GPT2_STATUS_CLASS': os.environ.get('GPT2_STATUS_CLASS_VAL', 'failed'),
-    'GPT2_STATUS': os.environ.get('GPT2_STATUS_VAL', '❌ Failed'),
-    'BERT_LONG_STATUS_CLASS': os.environ.get('BERT_LONG_STATUS_CLASS_VAL', 'failed'),
-    'BERT_LONG_STATUS': os.environ.get('BERT_LONG_STATUS_VAL', '❌ Failed'),
-    'BERT_STATUS_CLASS': os.environ.get('BERT_STATUS_CLASS_VAL', 'failed'),
-    'BERT_STATUS': os.environ.get('BERT_STATUS_VAL', '❌ Failed'),
+    print(f"  Read {len(content)} bytes from report file", flush=True)
     
-    # Metadata
-    'TIMESTAMP': os.environ.get('TIMESTAMP_VAL', 'N/A'),
-    'TEST_DIR': os.environ.get('TEST_DIR_VAL', 'N/A'),
-}
+    # Read the HTML content for inference metrics
+    html_content = ""
+    if temp_html and os.path.exists(temp_html):
+        with open(temp_html, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        print(f"  Read {len(html_content)} bytes from temp HTML", flush=True)
+    else:
+        print(f"  No temp HTML file, using empty string", flush=True)
 
-# Do replacements - ORDER MATTERS: longer strings first to avoid partial matches
-for key in sorted(replacements.keys(), key=len, reverse=True):
-    val = str(replacements[key])
-    count = content.count(key)
-    if count > 0:
-        content = content.replace(key, val)
-        print(f"  Replaced {key}: {count} occurrence(s)")
+    # Build comprehensive replacement dictionary
+    replacements = {
+        # Inference chart
+        'INFERENCE_METRICS_HTML': html_content,
+        'INFERENCE_LABELS': os.environ.get('INFERENCE_LABELS_VAL', '[]'),
+        'INFERENCE_DATA': os.environ.get('INFERENCE_DATA_VAL', '[]'),
+        'INFERENCE_COLORS': os.environ.get('INFERENCE_COLORS_VAL', '[]'),
+        
+        # Category status (longer _CLASS versions first!)
+        'NLP_STATUS_CLASS': os.environ.get('NLP_STATUS_CLASS_VAL', 'ready_not_tested'),
+        'NLP_STATUS': os.environ.get('NLP_STATUS_VAL', '⏳ Ready'),
+        'VISION_STATUS_CLASS': os.environ.get('VISION_STATUS_CLASS_VAL', 'ready_not_tested'),
+        'VISION_STATUS': os.environ.get('VISION_STATUS_VAL', '⏳ Ready'),
+        'MULTIMODAL_STATUS_CLASS': os.environ.get('MULTIMODAL_STATUS_CLASS_VAL', 'ready_not_tested'),
+        'MULTIMODAL_STATUS': os.environ.get('MULTIMODAL_STATUS_VAL', '⏳ Ready'),
+        
+        # Timing data for charts
+        'AXON_DOWNLOAD_TIME': os.environ.get('AXON_DOWNLOAD_TIME_VAL', '0'),
+        'CORE_DOWNLOAD_TIME': os.environ.get('CORE_DOWNLOAD_TIME_VAL', '0'),
+        'CORE_STARTUP_TIME': os.environ.get('CORE_STARTUP_TIME_VAL', '0'),
+        'TOTAL_MODEL_INSTALL_TIME': os.environ.get('TOTAL_MODEL_INSTALL_TIME_VAL', '0'),
+        'TOTAL_REGISTER_TIME': os.environ.get('TOTAL_REGISTER_TIME_VAL', '0'),
+        'TOTAL_INFERENCE_TIME': os.environ.get('TOTAL_INFERENCE_TIME_VAL', '0'),
+        
+        # Model times
+        'GPT2_INSTALL_TIME': os.environ.get('GPT2_INSTALL_TIME_VAL', '0'),
+        'GPT2_REGISTER_TIME': os.environ.get('GPT2_REGISTER_TIME_VAL', '0'),
+        'BERT_INSTALL_TIME': os.environ.get('BERT_INSTALL_TIME_VAL', '0'),
+        'BERT_REGISTER_TIME': os.environ.get('BERT_REGISTER_TIME_VAL', '0'),
+        'GPT2_INFERENCE_TIME': os.environ.get('GPT2_INFERENCE_TIME_VAL', '0'),
+        'GPT2_LONG_INFERENCE_TIME': os.environ.get('GPT2_LONG_INFERENCE_TIME_VAL', '0'),
+        'BERT_INFERENCE_TIME': os.environ.get('BERT_INFERENCE_TIME_VAL', '0'),
+        'BERT_LONG_INFERENCE_TIME': os.environ.get('BERT_LONG_INFERENCE_TIME_VAL', '0'),
+        
+        # Status badges (longer _CLASS versions first!)
+        'GPT2_LONG_STATUS_CLASS': os.environ.get('GPT2_LONG_STATUS_CLASS_VAL', 'failed'),
+        'GPT2_LONG_STATUS': os.environ.get('GPT2_LONG_STATUS_VAL', '❌ Failed'),
+        'GPT2_STATUS_CLASS': os.environ.get('GPT2_STATUS_CLASS_VAL', 'failed'),
+        'GPT2_STATUS': os.environ.get('GPT2_STATUS_VAL', '❌ Failed'),
+        'BERT_LONG_STATUS_CLASS': os.environ.get('BERT_LONG_STATUS_CLASS_VAL', 'failed'),
+        'BERT_LONG_STATUS': os.environ.get('BERT_LONG_STATUS_VAL', '❌ Failed'),
+        'BERT_STATUS_CLASS': os.environ.get('BERT_STATUS_CLASS_VAL', 'failed'),
+        'BERT_STATUS': os.environ.get('BERT_STATUS_VAL', '❌ Failed'),
+        
+        # Metadata
+        'TIMESTAMP': os.environ.get('TIMESTAMP_VAL', 'N/A'),
+        'TEST_DIR': os.environ.get('TEST_DIR_VAL', 'N/A'),
+    }
 
-# Write back
-with open(report_file, 'w', encoding='utf-8') as f:
-    f.write(content)
+    # Do replacements - ORDER MATTERS: longer strings first to avoid partial matches
+    for key in sorted(replacements.keys(), key=len, reverse=True):
+        val = str(replacements[key])
+        count = content.count(key)
+        if count > 0:
+            content = content.replace(key, val)
+            print(f"  Replaced {key}: {count} occurrence(s)", flush=True)
 
-print(f"✅ Python replacement complete")
+    # Write back
+    with open(report_file, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    print(f"✅ Python replacement complete", flush=True)
+
+except Exception as e:
+    print(f"❌ Python error: {e}", flush=True)
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
 PYTHON_SCRIPT
     
     rm -f "$temp_html"
