@@ -2084,6 +2084,14 @@ generate_html_report() {
                 <div class="chart-container">
                     <canvas id="breakdownChart"></canvas>
                 </div>
+                <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #17998e15 0%, #38ef7d15 100%); border-radius: 10px; border-left: 4px solid #17998e;">
+                    <h4 style="margin: 0 0 10px 0; color: #17998e;">📦 Model Installation (not shown in chart)</h4>
+                    <div style="font-size: 1.8em; font-weight: bold; color: #333;">TOTAL_MODEL_INSTALL_TIME ms</div>
+                    <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                        Model installation includes downloading from HuggingFace and ONNX conversion via Docker.
+                        This dominates the total time (~99%) so it's shown separately.
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -2200,24 +2208,22 @@ generate_html_report() {
             }
         });
         
-        // Performance Breakdown Chart (Pie)
+        // Performance Breakdown Chart (Pie) - Excludes Model Installation (too large)
         const breakdownCtx = document.getElementById('breakdownChart').getContext('2d');
         new Chart(breakdownCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Axon Download', 'Core Download', 'Model Installation', 'Model Registration', 'Inference Tests'],
+                labels: ['Axon Download', 'Core Download', 'Model Registration', 'Inference Tests'],
                 datasets: [{
                     data: [
                         AXON_DOWNLOAD_TIME,
                         CORE_DOWNLOAD_TIME,
-                        TOTAL_MODEL_INSTALL_TIME,
                         TOTAL_REGISTER_TIME,
                         TOTAL_INFERENCE_TIME
                     ],
                     backgroundColor: [
                         'rgba(102, 126, 234, 0.8)',
                         'rgba(118, 75, 162, 0.8)',
-                        'rgba(17, 153, 142, 0.8)',
                         'rgba(56, 239, 125, 0.8)',
                         'rgba(240, 147, 251, 0.8)'
                     ],
@@ -2233,7 +2239,7 @@ generate_html_report() {
                     },
                     title: {
                         display: true,
-                        text: 'Time Distribution Across Test Phases',
+                        text: 'Quick Operations Time Distribution (excludes Model Install)',
                         font: {
                             size: 16,
                             weight: 'bold'
