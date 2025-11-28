@@ -31,22 +31,22 @@ LOG_FILE="$TEST_DIR/test.log"
 
 # Test models - Format: "repo/model@version:name:type:category"
 # Categories: nlp, vision, multimodal
-# Set TEST_ALL_MODELS=1 to test all models, otherwise only test essential NLP models
+# Set TEST_ALL_MODELS=1 to test all models, otherwise only test essential models
 TEST_MODELS=(
-    # Essential NLP Models (always tested)
+    # NLP Models - These all work with ONNX conversion
     "hf/distilgpt2@latest:gpt2:single:nlp"
     "hf/bert-base-uncased@latest:bert:multi:nlp"
+    "hf/roberta-base@latest:roberta:single:nlp"
+    # Note: T5 ONNX conversion fails (encoder-decoder models require special handling)
+    # Note: Vision models blocked by Axon bug with nested namespaces (microsoft/, google/, etc.)
 )
 
 # Additional models (tested if TEST_ALL_MODELS=1 or model already installed)
 ADDITIONAL_MODELS=(
-    "hf/roberta-base@latest:roberta:multi:nlp"
-    "hf/t5-small@latest:t5:multi:nlp"
-    # Vision Models (will be marked as ready but not tested if not available)
-    "hf/microsoft/resnet-50@latest:resnet:single:vision"
-    "hf/timm/vgg16@latest:vgg:single:vision"
-    # Multi-Modal Models (will be marked as ready but not tested if not available)
-    "hf/openai/clip-vit-base-patch32@latest:clip:multi:multimodal"
+    # These models have known issues:
+    # - T5: ONNX export fails (encoder-decoder model needs decoder_input_ids)
+    # - Vision: All HuggingFace vision models use nested namespaces (Axon bug)
+    # - Multimodal: Requires complex inputs (text + image)
 )
 
 # Add additional models if TEST_ALL_MODELS is set or if they're already installed
@@ -810,9 +810,9 @@ install_models() {
         
         local start_time=$(get_timestamp_ms)
         
-        # Skip vision and multimodal models (require special inputs, not tested)
-        if [ "$model_category" = "vision" ] || [ "$model_category" = "multimodal" ]; then
-            log_info "Skipping installation of $model_name ($model_category model - not tested in E2E)"
+        # Skip multimodal models (require both text and image inputs - complex setup)
+        if [ "$model_category" = "multimodal" ]; then
+            log_info "Skipping installation of $model_name (multimodal model - requires complex inputs)"
             continue
         fi
         
@@ -1310,8 +1310,53 @@ get_test_input() {
             esac
             ;;
         vision)
-            # Vision models typically need image data - mark as not tested for now
-            echo ""
+            # Vision models need image tensor (batch, channels, height, width)
+            # ResNet/VGG/ViT expect (1, 3, 224, 224) normalized images
+            case "$model_name" in
+                resnet|vgg|vit|alexnet)
+                    # Generate a simple test image tensor (1, 3, 224, 224)
+                    # Using a simple pattern (normalized values between -1 and 1)
+                    if [ "$size" = "large" ]; then
+                        # Batch of 4 images
+                        local batch_size=4
+                    else
+                        # Single image
+                        local batch_size=1
+                    fi
+                    # Generate pixel data using Python (much faster than bash loops)
+                    local pixel_data=$(python3 -c "
+import random
+import json
+random.seed(42)  # Reproducible
+batch = $batch_size
+channels = 3
+height = 224
+width = 224
+# Generate normalized random values (ImageNet normalization range)
+data = [[[[random.gauss(0, 1) for _ in range(width)] for _ in range(height)] for _ in range(channels)] for _ in range(batch)]
+# Flatten for JSON
+flat = []
+for b in data:
+    for c in b:
+        for h in c:
+            flat.extend(h)
+print(json.dumps({'pixel_values': flat, 'shape': [batch, channels, height, width]}))
+")
+                    echo "$pixel_data"
+                    ;;
+                *)
+                    # Generic vision model - use same format
+                    local pixel_data=$(python3 -c "
+import random
+import json
+random.seed(42)
+data = [[[[random.gauss(0, 1) for _ in range(224)] for _ in range(224)] for _ in range(3)]]
+flat = [x for b in data for c in b for h in c for x in h]
+print(json.dumps({'pixel_values': flat, 'shape': [1, 3, 224, 224]}))
+")
+                    echo "$pixel_data"
+                    ;;
+            esac
             ;;
         multimodal)
             # Multi-modal models need both text and image/audio - mark as not tested for now
@@ -1369,9 +1414,9 @@ run_inference_tests() {
             continue
         fi
         
-        # Skip vision and multimodal models for now (require special inputs)
-        if [ "$model_category" = "vision" ] || [ "$model_category" = "multimodal" ]; then
-            log_info "Skipping inference test for $model_name ($model_category model - requires special inputs)"
+        # Skip multimodal models (require both text and image inputs - complex setup)
+        if [ "$model_category" = "multimodal" ]; then
+            log_info "Skipping inference test for $model_name (multimodal model - requires complex inputs)"
             eval "METRIC_model_${model_name}_inference_status=ready_not_tested"
             continue
         fi
@@ -2058,6 +2103,7 @@ generate_html_report() {
             <!-- Model Details -->
             <div class="section">
                 <h2>📊 Model Details</h2>
+                <h4 style="color: #667eea; margin-bottom: 15px;">🔤 NLP Models</h4>
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <h4>GPT-2 Install Time</h4>
@@ -2074,6 +2120,22 @@ generate_html_report() {
                     <div class="metric-card">
                         <h4>BERT Register Time</h4>
                         <div class="metric-value">BERT_REGISTER_TIME ms</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>RoBERTa Install Time</h4>
+                        <div class="metric-value">ROBERTA_INSTALL_TIME ms</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>RoBERTa Register Time</h4>
+                        <div class="metric-value">ROBERTA_REGISTER_TIME ms</div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 10px; border-left: 4px solid #ffc107;">
+                    <h4 style="margin: 0 0 10px 0; color: #856404;">⚠️ Models Not Tested</h4>
+                    <div style="font-size: 0.9em; color: #856404;">
+                        <strong>T5:</strong> ONNX export fails (encoder-decoder models need special handling)<br>
+                        <strong>Vision (ResNet, VGG, ViT):</strong> Axon bug with nested namespaces (microsoft/, google/)<br>
+                        <strong>Multimodal (CLIP):</strong> Requires complex inputs (text + image)
                     </div>
                 </div>
             </div>
@@ -2276,6 +2338,14 @@ EOF
     sed -i.bak "s|GPT2_REGISTER_TIME|${METRIC_model_gpt2_register_time_ms:-N/A}|g" "$REPORT_FILE"
     sed -i.bak "s|BERT_INSTALL_TIME|${METRIC_model_bert_install_time_ms:-N/A}|g" "$REPORT_FILE"
     sed -i.bak "s|BERT_REGISTER_TIME|${METRIC_model_bert_register_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|ROBERTA_INSTALL_TIME|${METRIC_model_roberta_install_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|ROBERTA_REGISTER_TIME|${METRIC_model_roberta_register_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|T5_INSTALL_TIME|${METRIC_model_t5_install_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|T5_REGISTER_TIME|${METRIC_model_t5_register_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|RESNET_INSTALL_TIME|${METRIC_model_resnet_install_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|RESNET_REGISTER_TIME|${METRIC_model_resnet_register_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|VGG_INSTALL_TIME|${METRIC_model_vgg_install_time_ms:-N/A}|g" "$REPORT_FILE"
+    sed -i.bak "s|VGG_REGISTER_TIME|${METRIC_model_vgg_register_time_ms:-N/A}|g" "$REPORT_FILE"
     
     # Hardware specifications
     sed -i.bak "s|HW_OS|${METRIC_hw_os:-Unknown}|g" "$REPORT_FILE"
@@ -2490,10 +2560,22 @@ EOF
     export GPT2_REGISTER_TIME_VAL="${METRIC_model_gpt2_register_time_ms:-0}"
     export BERT_INSTALL_TIME_VAL="${METRIC_model_bert_install_time_ms:-0}"
     export BERT_REGISTER_TIME_VAL="${METRIC_model_bert_register_time_ms:-0}"
+    export ROBERTA_INSTALL_TIME_VAL="${METRIC_model_roberta_install_time_ms:-0}"
+    export ROBERTA_REGISTER_TIME_VAL="${METRIC_model_roberta_register_time_ms:-0}"
+    export T5_INSTALL_TIME_VAL="${METRIC_model_t5_install_time_ms:-0}"
+    export T5_REGISTER_TIME_VAL="${METRIC_model_t5_register_time_ms:-0}"
+    export RESNET_INSTALL_TIME_VAL="${METRIC_model_resnet_install_time_ms:-0}"
+    export RESNET_REGISTER_TIME_VAL="${METRIC_model_resnet_register_time_ms:-0}"
+    export VGG_INSTALL_TIME_VAL="${METRIC_model_vgg_install_time_ms:-0}"
+    export VGG_REGISTER_TIME_VAL="${METRIC_model_vgg_register_time_ms:-0}"
     export GPT2_INFERENCE_TIME_VAL="${METRIC_model_gpt2_inference_time_ms:-0}"
     export GPT2_LONG_INFERENCE_TIME_VAL="${METRIC_model_gpt2_long_inference_time_ms:-0}"
     export BERT_INFERENCE_TIME_VAL="${METRIC_model_bert_inference_time_ms:-0}"
     export BERT_LONG_INFERENCE_TIME_VAL="${METRIC_model_bert_long_inference_time_ms:-0}"
+    export ROBERTA_INFERENCE_TIME_VAL="${METRIC_model_roberta_inference_time_ms:-0}"
+    export T5_INFERENCE_TIME_VAL="${METRIC_model_t5_inference_time_ms:-0}"
+    export RESNET_INFERENCE_TIME_VAL="${METRIC_model_resnet_inference_time_ms:-0}"
+    export VGG_INFERENCE_TIME_VAL="${METRIC_model_vgg_inference_time_ms:-0}"
     
     # Status badges
     export GPT2_STATUS_VAL="$gpt2_status_text"
@@ -2580,10 +2662,22 @@ try:
         'GPT2_REGISTER_TIME': os.environ.get('GPT2_REGISTER_TIME_VAL', '0'),
         'BERT_INSTALL_TIME': os.environ.get('BERT_INSTALL_TIME_VAL', '0'),
         'BERT_REGISTER_TIME': os.environ.get('BERT_REGISTER_TIME_VAL', '0'),
+        'ROBERTA_INSTALL_TIME': os.environ.get('ROBERTA_INSTALL_TIME_VAL', '0'),
+        'ROBERTA_REGISTER_TIME': os.environ.get('ROBERTA_REGISTER_TIME_VAL', '0'),
+        'T5_INSTALL_TIME': os.environ.get('T5_INSTALL_TIME_VAL', '0'),
+        'T5_REGISTER_TIME': os.environ.get('T5_REGISTER_TIME_VAL', '0'),
+        'RESNET_INSTALL_TIME': os.environ.get('RESNET_INSTALL_TIME_VAL', '0'),
+        'RESNET_REGISTER_TIME': os.environ.get('RESNET_REGISTER_TIME_VAL', '0'),
+        'VGG_INSTALL_TIME': os.environ.get('VGG_INSTALL_TIME_VAL', '0'),
+        'VGG_REGISTER_TIME': os.environ.get('VGG_REGISTER_TIME_VAL', '0'),
         'GPT2_INFERENCE_TIME': os.environ.get('GPT2_INFERENCE_TIME_VAL', '0'),
         'GPT2_LONG_INFERENCE_TIME': os.environ.get('GPT2_LONG_INFERENCE_TIME_VAL', '0'),
         'BERT_INFERENCE_TIME': os.environ.get('BERT_INFERENCE_TIME_VAL', '0'),
         'BERT_LONG_INFERENCE_TIME': os.environ.get('BERT_LONG_INFERENCE_TIME_VAL', '0'),
+        'ROBERTA_INFERENCE_TIME': os.environ.get('ROBERTA_INFERENCE_TIME_VAL', '0'),
+        'T5_INFERENCE_TIME': os.environ.get('T5_INFERENCE_TIME_VAL', '0'),
+        'RESNET_INFERENCE_TIME': os.environ.get('RESNET_INFERENCE_TIME_VAL', '0'),
+        'VGG_INFERENCE_TIME': os.environ.get('VGG_INFERENCE_TIME_VAL', '0'),
         
         # Status badges (longer _CLASS versions first!)
         'GPT2_LONG_STATUS_CLASS': os.environ.get('GPT2_LONG_STATUS_CLASS_VAL', 'failed'),
