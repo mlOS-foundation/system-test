@@ -22,17 +22,25 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
+      - name: Free up disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo apt-get clean
+          echo "Disk space after cleanup:"
+          df -h
+
       - uses: actions/checkout@v4
-      
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
       
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl tar
+          sudo apt-get install -y curl tar python3
       
       - name: Install gh CLI
         run: |
@@ -45,23 +53,43 @@ jobs:
       - name: Authenticate gh CLI
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-      
-      - name: Build test tool
-        run: go build -o bin/e2e-test ./cmd/e2e-test
-      
-      - name: Run E2E tests
+
+      - name: Ensure Docker is accessible
         run: |
-          ./bin/e2e-test \
-            -axon-version v3.0.0 \
-            -core-version v2.3.0-alpha \
-            -all-models
+          docker --version || echo "⚠️  Docker CLI not found"
+          docker ps 2>&1 || echo "⚠️  Docker daemon not accessible"
+      
+      - name: Run E2E tests (Bash Script)
+        env:
+          AXON_RELEASE_VERSION: "v3.0.0"
+          CORE_RELEASE_VERSION: "3.1.6-alpha"
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧪 Running E2E Tests (Bash Script)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Axon: ${AXON_RELEASE_VERSION}"
+          echo "📦 Core: ${CORE_RELEASE_VERSION}"
+          echo ""
+          
+          # Update versions in the script
+          sed -i "s/AXON_RELEASE_VERSION=.*/AXON_RELEASE_VERSION=\"${AXON_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
+          sed -i "s/CORE_RELEASE_VERSION=.*/CORE_RELEASE_VERSION=\"${CORE_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
+          
+          # Make script executable and run
+          chmod +x scripts/test-release-e2e.sh.bash
+          cd scripts && ./test-release-e2e.sh.bash || true
+          
+          # Move results to expected location
+          if [ -d release-test-* ]; then
+            mv release-test-* ../e2e-results-$(date +%s)
+          fi
         continue-on-error: true
       
       - name: Prepare GitHub Pages site
         if: always()
         run: |
           mkdir -p _site
-          REPORT_DIR=$(find . -type d -name "e2e-results-*" | head -1)
+          REPORT_DIR=$(find . -type d -name "e2e-results-*" -o -type d -name "release-test-*" | head -1)
           if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
             cp "$REPORT_DIR/release-validation-report.html" _site/index.html
             if [ -f "$REPORT_DIR/report_app.js" ]; then
