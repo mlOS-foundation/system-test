@@ -2061,10 +2061,10 @@ generate_html_report() {
                     <div class="metric-card" style="border-left: 4px solid #56EF7D;">
                         <h3 style="margin-top: 0;">😊 NLP Models</h3>
                         <ul style="list-style: none; padding: 0; text-align: left;">
-                            <li style="margin: 8px 0;">✅ GPT-2 (DistilGPT-2)</li>
-                            <li style="margin: 8px 0;">✅ BERT (base-uncased)</li>
-                            <li style="margin: 8px 0;">✅ RoBERTa</li>
-                            <li style="margin: 8px 0;">✅ T5</li>
+                            <li style="margin: 8px 0;"><span class="status-badge GPT2_STATUS_CLASS" style="font-size: 0.8em;">GPT2_STATUS</span> GPT-2</li>
+                            <li style="margin: 8px 0;"><span class="status-badge BERT_STATUS_CLASS" style="font-size: 0.8em;">BERT_STATUS</span> BERT</li>
+                            <li style="margin: 8px 0;"><span class="status-badge ROBERTA_STATUS_CLASS" style="font-size: 0.8em;">ROBERTA_STATUS</span> RoBERTa</li>
+                            <li style="margin: 8px 0;"><span style="color: #856404;">⏳</span> T5 <small style="color: #856404;">(ONNX export blocked)</small></li>
                         </ul>
                         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
                             <strong>Status:</strong> <span class="status-badge NLP_STATUS_CLASS">NLP_STATUS</span>
@@ -2075,10 +2075,9 @@ generate_html_report() {
                     <div class="metric-card" style="border-left: 4px solid #FF6B6B;">
                         <h3 style="margin-top: 0;">🔥 Vision Models</h3>
                         <ul style="list-style: none; padding: 0; text-align: left;">
-                            <li style="margin: 8px 0;">✅ ResNet (50, 101, 152)</li>
-                            <li style="margin: 8px 0;">✅ VGG (16, 19)</li>
-                            <li style="margin: 8px 0;">✅ AlexNet</li>
-                            <li style="margin: 8px 0;">✅ ViT (coming soon)</li>
+                            <li style="margin: 8px 0;"><span class="status-badge RESNET_STATUS_CLASS" style="font-size: 0.8em;">RESNET_STATUS</span> ResNet-50</li>
+                            <li style="margin: 8px 0;"><span style="color: #856404;">⏳</span> VGG <small style="color: #856404;">(pending)</small></li>
+                            <li style="margin: 8px 0;"><span style="color: #856404;">⏳</span> ViT <small style="color: #856404;">(pending)</small></li>
                         </ul>
                         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
                             <strong>Status:</strong> <span class="status-badge VISION_STATUS_CLASS">VISION_STATUS</span>
@@ -2089,9 +2088,8 @@ generate_html_report() {
                     <div class="metric-card" style="border-left: 4px solid #FFD93D;">
                         <h3 style="margin-top: 0;">🎨 Multi-Modal</h3>
                         <ul style="list-style: none; padding: 0; text-align: left;">
-                            <li style="margin: 8px 0;">✅ CLIP (text + image)</li>
-                            <li style="margin: 8px 0;">✅ Wav2Vec2 (audio)</li>
-                            <li style="margin: 8px 0;">✅ ModelScope models</li>
+                            <li style="margin: 8px 0;"><span style="color: #856404;">⏳</span> CLIP <small style="color: #856404;">(pending)</small></li>
+                            <li style="margin: 8px 0;"><span style="color: #856404;">⏳</span> Wav2Vec2 <small style="color: #856404;">(pending)</small></li>
                         </ul>
                         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
                             <strong>Status:</strong> <span class="status-badge MULTIMODAL_STATUS_CLASS">MULTIMODAL_STATUS</span>
@@ -2418,12 +2416,33 @@ EOF
         bert_large_status_text="❌ Failed"
     fi
     
+    local roberta_status_text="✅ Success"
+    if [ "$roberta_status" != "success" ]; then
+        roberta_status_text="❌ Failed"
+    fi
+    
+    local roberta_large_status_text="✅ Success"
+    if [ "$roberta_large_status" != "success" ]; then
+        roberta_large_status_text="❌ Failed"
+    fi
+    
+    # Vision model status
+    local resnet_status="${METRIC_model_resnet_inference_status:-failed}"
+    local resnet_status_text="✅ Success"
+    if [ "$resnet_status" != "success" ]; then
+        resnet_status_text="❌ Failed"
+    fi
+    
     sed -i.bak "s|GPT2_STATUS_CLASS|$gpt2_status|g" "$REPORT_FILE"
     sed -i.bak "s|GPT2_STATUS|$gpt2_status_text|g" "$REPORT_FILE"
     sed -i.bak "s|GPT2_LONG_STATUS_CLASS|$gpt2_large_status|g" "$REPORT_FILE"
     sed -i.bak "s|GPT2_LONG_STATUS|$gpt2_large_status_text|g" "$REPORT_FILE"
     sed -i.bak "s|BERT_STATUS_CLASS|$bert_status|g" "$REPORT_FILE"
     sed -i.bak "s|BERT_STATUS|$bert_status_text|g" "$REPORT_FILE"
+    sed -i.bak "s|ROBERTA_STATUS_CLASS|$roberta_status|g" "$REPORT_FILE"
+    sed -i.bak "s|ROBERTA_STATUS|$roberta_status_text|g" "$REPORT_FILE"
+    sed -i.bak "s|RESNET_STATUS_CLASS|$resnet_status|g" "$REPORT_FILE"
+    sed -i.bak "s|RESNET_STATUS|$resnet_status_text|g" "$REPORT_FILE"
     
     # Calculate category statuses
     local nlp_models_tested=0
@@ -2596,6 +2615,12 @@ EOF
     export BERT_STATUS_CLASS_VAL="$bert_status"
     export BERT_LONG_STATUS_VAL="$bert_large_status_text"
     export BERT_LONG_STATUS_CLASS_VAL="$bert_large_status"
+    export ROBERTA_STATUS_VAL="$roberta_status_text"
+    export ROBERTA_STATUS_CLASS_VAL="$roberta_status"
+    export ROBERTA_LONG_STATUS_VAL="$roberta_large_status_text"
+    export ROBERTA_LONG_STATUS_CLASS_VAL="$roberta_large_status"
+    export RESNET_STATUS_VAL="$resnet_status_text"
+    export RESNET_STATUS_CLASS_VAL="$resnet_status"
     
     # Metadata
     export TIMESTAMP_VAL="$(date '+%Y-%m-%d %H:%M:%S')"
@@ -2627,18 +2652,18 @@ try:
     if not report_file or not os.path.exists(report_file):
         print(f"❌ Report file not found: {report_file}", flush=True)
         sys.exit(1)
-    
-    # Read the report file
+
+# Read the report file
     with open(report_file, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
+    content = f.read()
+
     print(f"  Read {len(content)} bytes from report file", flush=True)
     
     # Read the HTML content for inference metrics
     html_content = ""
     if temp_html and os.path.exists(temp_html):
         with open(temp_html, 'r', encoding='utf-8') as f:
-            html_content = f.read()
+    html_content = f.read()
         print(f"  Read {len(html_content)} bytes from temp HTML", flush=True)
     else:
         print(f"  No temp HTML file, using empty string", flush=True)
@@ -2698,6 +2723,12 @@ try:
         'BERT_LONG_STATUS': os.environ.get('BERT_LONG_STATUS_VAL', '❌ Failed'),
         'BERT_STATUS_CLASS': os.environ.get('BERT_STATUS_CLASS_VAL', 'failed'),
         'BERT_STATUS': os.environ.get('BERT_STATUS_VAL', '❌ Failed'),
+        'ROBERTA_LONG_STATUS_CLASS': os.environ.get('ROBERTA_LONG_STATUS_CLASS_VAL', 'failed'),
+        'ROBERTA_LONG_STATUS': os.environ.get('ROBERTA_LONG_STATUS_VAL', '❌ Failed'),
+        'ROBERTA_STATUS_CLASS': os.environ.get('ROBERTA_STATUS_CLASS_VAL', 'failed'),
+        'ROBERTA_STATUS': os.environ.get('ROBERTA_STATUS_VAL', '❌ Failed'),
+        'RESNET_STATUS_CLASS': os.environ.get('RESNET_STATUS_CLASS_VAL', 'failed'),
+        'RESNET_STATUS': os.environ.get('RESNET_STATUS_VAL', '❌ Failed'),
         
         # Metadata
         'TIMESTAMP': os.environ.get('TIMESTAMP_VAL', 'N/A'),
@@ -2712,9 +2743,9 @@ try:
             content = content.replace(key, val)
             print(f"  Replaced {key}: {count} occurrence(s)", flush=True)
 
-    # Write back
+# Write back
     with open(report_file, 'w', encoding='utf-8') as f:
-        f.write(content)
+    f.write(content)
 
     print(f"✅ Python replacement complete", flush=True)
 
