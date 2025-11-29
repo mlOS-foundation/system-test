@@ -37,8 +37,9 @@ TEST_MODELS=(
     "hf/distilgpt2@latest:gpt2:single:nlp"
     "hf/bert-base-uncased@latest:bert:multi:nlp"
     "hf/roberta-base@latest:roberta:single:nlp"
+    # Vision Models - Now working with Axon v3.0.1 (nested namespace fix)
+    "hf/microsoft/resnet-50@latest:resnet:single:vision"
     # Note: T5 ONNX conversion fails (encoder-decoder models require special handling)
-    # Note: Vision models blocked by Axon bug with nested namespaces (microsoft/, google/, etc.)
 )
 
 # Additional models (tested if TEST_ALL_MODELS=1 or model already installed)
@@ -2130,11 +2131,21 @@ generate_html_report() {
                         <div class="metric-value">ROBERTA_REGISTER_TIME ms</div>
                     </div>
                 </div>
+                <h4 style="color: #17998e; margin: 25px 0 15px 0;">👁️ Vision Models</h4>
+                <div class="metrics-grid">
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <h4>ResNet Install Time</h4>
+                        <div class="metric-value">RESNET_INSTALL_TIME ms</div>
+                    </div>
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <h4>ResNet Register Time</h4>
+                        <div class="metric-value">RESNET_REGISTER_TIME ms</div>
+                    </div>
+                </div>
                 <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 10px; border-left: 4px solid #ffc107;">
                     <h4 style="margin: 0 0 10px 0; color: #856404;">⚠️ Models Not Tested</h4>
                     <div style="font-size: 0.9em; color: #856404;">
                         <strong>T5:</strong> ONNX export fails (encoder-decoder models need special handling)<br>
-                        <strong>Vision (ResNet, VGG, ViT):</strong> Axon bug with nested namespaces (microsoft/, google/)<br>
                         <strong>Multimodal (CLIP):</strong> Requires complex inputs (text + image)
                     </div>
                 </div>
