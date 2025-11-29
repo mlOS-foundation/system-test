@@ -61,7 +61,7 @@ jobs:
       
       - name: Run E2E tests (Bash Script)
         env:
-          AXON_RELEASE_VERSION: "v3.0.0"
+          AXON_RELEASE_VERSION: "v3.0.1"
           CORE_RELEASE_VERSION: "3.1.6-alpha"
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

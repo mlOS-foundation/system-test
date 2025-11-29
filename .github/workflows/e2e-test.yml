@@ -171,7 +171,7 @@ jobs:
       - name: Run E2E tests (Bash Script)
         if: steps.core_version.outputs.version != ''
         env:
-          AXON_RELEASE_VERSION: ${{ github.event.inputs.axon_version || 'v3.0.0' }}
+          AXON_RELEASE_VERSION: ${{ github.event.inputs.axon_version || 'v3.0.1' }}
           CORE_RELEASE_VERSION: ${{ steps.core_version.outputs.version }}
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
