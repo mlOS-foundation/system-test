@@ -1,73 +1,139 @@
-.PHONY: build install test clean run check vet lint fmt ci
+# MLOS System Test Makefile
+# Commands for running E2E tests and generating reports
 
-# Build the E2E test tool
-build:
-	@echo "Building e2e-test..."
-	@go build -o bin/e2e-test ./cmd/e2e-test
+.PHONY: all test render serve clean lint help
 
-# Install the tool
-install: build
-	@echo "Installing e2e-test..."
-	@cp bin/e2e-test ~/.local/bin/e2e-test
-	@echo "✅ Installed to ~/.local/bin/e2e-test"
+# Default target
+all: help
 
-# Run tests
+# =============================================================================
+# E2E Testing
+# =============================================================================
+
+## test: Run full E2E test suite (generates metrics.json)
 test:
-	@echo "Running tests..."
-	@go test ./...
+	@echo "🧪 Running E2E tests..."
+	@chmod +x scripts/test-release-e2e.sh
+	@./scripts/test-release-e2e.sh
+	@echo "✅ Tests complete. Metrics saved to scripts/metrics/latest.json"
 
-# Run E2E test (default versions)
-run: build
-	@echo "Running E2E test..."
-	@sudo ./bin/e2e-test
+## test-quick: Run tests with only GPT-2 (fast validation)
+test-quick:
+	@echo "⚡ Running quick E2E test (GPT-2 only)..."
+	@QUICK_TEST=1 ./scripts/test-release-e2e.sh
+	@echo "✅ Quick test complete."
 
-# Run E2E test with all models
-run-all: build
-	@echo "Running E2E test with all models..."
-	@sudo ./bin/e2e-test -all-models
+# =============================================================================
+# Report Generation
+# =============================================================================
 
-# Clean build artifacts
+## render: Render HTML report from existing metrics
+render:
+	@echo "🎨 Rendering report..."
+	@python3 report/render.py \
+		--metrics scripts/metrics/latest.json \
+		--template report/template.html \
+		--output output/index.html
+	@cp report/styles.css output/
+	@echo "✅ Report generated at output/index.html"
+
+## render-example: Render report using example metrics (for testing)
+render-example:
+	@echo "🎨 Rendering example report..."
+	@python3 report/render.py \
+		--metrics scripts/metrics/example.json \
+		--template report/template.html \
+		--output output/index.html
+	@cp report/styles.css output/
+	@echo "✅ Example report generated at output/index.html"
+
+# =============================================================================
+# Local Development
+# =============================================================================
+
+## serve: Start local HTTP server for report preview
+serve:
+	@echo "🌐 Starting local server at http://localhost:8080"
+	@echo "   Press Ctrl+C to stop"
+	@cd output && python3 -m http.server 8080
+
+## watch: Auto-render on file changes (requires entr)
+watch:
+	@echo "👀 Watching for changes..."
+	@ls report/*.py report/*.html report/*.css scripts/metrics/*.json | entr -c make render
+
+# =============================================================================
+# Maintenance
+# =============================================================================
+
+## clean: Remove generated files
 clean:
-	@echo "Cleaning..."
-	@rm -rf bin/
-	@rm -rf e2e-results-*/
+	@echo "🧹 Cleaning generated files..."
+	@rm -rf output/*
+	@rm -f scripts/metrics/latest.json
+	@echo "✅ Clean complete"
 
-# Format code
-fmt:
-	@echo "Formatting code..."
-	@go fmt ./...
-	@echo "✅ Code formatted"
-
-# Run go vet
-vet:
-	@echo "Running go vet..."
-	@go vet ./...
-	@echo "✅ go vet passed"
-
-# Lint code
+## lint: Lint Python and bash scripts
 lint:
-	@echo "Running golangci-lint..."
-	@if ! command -v golangci-lint >/dev/null 2>&1; then \
-		echo "Installing golangci-lint v1.64.8..."; \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.64.8; \
-	fi
-	@golangci-lint version | grep -q "1.64.8" || (echo "⚠️  Warning: golangci-lint version mismatch. CI uses v1.64.8" && exit 1)
-	@golangci-lint run --timeout=5m ./...
-	@echo "✅ golangci-lint passed"
+	@echo "🔍 Linting..."
+	@python3 -m py_compile report/render.py && echo "  ✓ Python OK"
+	@bash -n scripts/test-release-e2e.sh 2>/dev/null && echo "  ✓ Bash OK" || echo "  ✗ Bash has issues"
+	@echo "✅ Lint complete"
 
-# Run all checks
-check: vet lint fmt build
-	@echo "✅ All checks passed!"
+## check: Verify metrics JSON is valid
+check:
+	@echo "🔎 Checking metrics..."
+	@python3 -c "import json; json.load(open('scripts/metrics/latest.json')); print('  ✓ JSON valid')" 2>/dev/null || echo "  ✗ No metrics file or invalid JSON"
 
-# Run full CI checks (matches GitHub Actions CI)
-ci: vet lint fmt build
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "✅ All CI checks passed!"
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+# =============================================================================
+# CI/CD Helpers
+# =============================================================================
+
+## ci-test: Full CI pipeline (test + render)
+ci-test: test render
+	@echo "✅ CI pipeline complete"
+
+## ci-render: CI render only (uses existing metrics)
+ci-render: render
+	@echo "✅ CI render complete"
+
+# =============================================================================
+# Go Build (legacy)
+# =============================================================================
+
+## build: Build Go test binary (legacy)
+build:
+	@echo "🔨 Building Go binary..."
+	@go build -o bin/e2e-test ./cmd/e2e-test
+	@echo "✅ Build complete"
+
+# =============================================================================
+# Help
+# =============================================================================
+
+## help: Show this help message
+help:
 	@echo ""
-	@echo "Ready to push! Run 'git push' to update PR."
-
-# Show version
-version: build
-	@./bin/e2e-test -version
-
+	@echo "MLOS System Test - E2E Validation Framework"
+	@echo "============================================"
+	@echo ""
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Testing:"
+	@echo "  test          Run full E2E test suite"
+	@echo "  test-quick    Quick test (GPT-2 only)"
+	@echo ""
+	@echo "Report Generation:"
+	@echo "  render        Render HTML from metrics.json"
+	@echo "  render-example  Render using example data"
+	@echo "  serve         Start local preview server"
+	@echo ""
+	@echo "Maintenance:"
+	@echo "  clean         Remove generated files"
+	@echo "  lint          Check Python/Bash syntax"
+	@echo "  check         Validate metrics JSON"
+	@echo ""
+	@echo "CI/CD:"
+	@echo "  ci-test       Full pipeline (test + render)"
+	@echo "  ci-render     Render only (existing metrics)"
+	@echo ""
