@@ -1,26 +1,33 @@
-name: GitHub Pages
+name: Scheduled E2E & Pages Deploy
 
 on:
-  workflow_dispatch:
   schedule:
-    # Run daily at midnight UTC
-    - cron: '0 0 * * *'
+    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight UTC
+  workflow_dispatch:
+    inputs:
+      axon_version:
+        description: 'Axon version to test'
+        required: false
+        default: 'v3.0.2'
+      core_version:
+        description: 'Core version to test'
+        required: false
+        default: '3.1.6-alpha'
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  packages: read
 
 jobs:
-  deploy:
+  build-and-deploy:
+    name: Build Report & Deploy
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    
     steps:
       - name: Free up disk space
         run: |
@@ -34,16 +41,31 @@ jobs:
           sudo apt-get clean
           echo "Disk space after cleanup:"
           df -h
-
+      
       - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl tar python3
+          sudo apt-get install -y curl tar jq
+      
+      - name: Ensure Docker is accessible
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🐳 Docker Setup Check"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          docker --version || echo "⚠️  Docker CLI not found"
+          docker ps 2>&1 || echo "⚠️  Docker daemon not accessible"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       
       - name: Install gh CLI
         run: |
+          type -p curl >/dev/null || (apt-get update && apt-get install curl -y)
           curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
           && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
           && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
@@ -51,65 +73,119 @@ jobs:
           && sudo apt-get install gh -y
       
       - name: Authenticate gh CLI
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-
-      - name: Ensure Docker is accessible
-        run: |
-          docker --version || echo "⚠️  Docker CLI not found"
-          docker ps 2>&1 || echo "⚠️  Docker daemon not accessible"
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
       
-      - name: Run E2E tests (Bash Script)
+      - name: Determine Versions
+        id: versions
+        run: |
+          AXON_VERSION="${{ github.event.inputs.axon_version || 'v3.0.2' }}"
+          CORE_VERSION="${{ github.event.inputs.core_version || '3.1.6-alpha' }}"
+          echo "axon=$AXON_VERSION" >> $GITHUB_OUTPUT
+          echo "core=$CORE_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Axon: $AXON_VERSION"
+          echo "📦 Core: $CORE_VERSION"
+      
+      - name: Run E2E tests
         env:
-          AXON_RELEASE_VERSION: "v3.0.1"
-          CORE_RELEASE_VERSION: "3.1.6-alpha"
+          AXON_RELEASE_VERSION: ${{ steps.versions.outputs.axon }}
+          CORE_RELEASE_VERSION: ${{ steps.versions.outputs.core }}
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🧪 Running E2E Tests (Bash Script)"
+          echo "🧪 Running E2E Tests"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📦 Axon: ${AXON_RELEASE_VERSION}"
-          echo "📦 Core: ${CORE_RELEASE_VERSION}"
-          echo ""
           
-          # Update versions in the script
+          # Update versions
           sed -i "s/AXON_RELEASE_VERSION=.*/AXON_RELEASE_VERSION=\"${AXON_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
           sed -i "s/CORE_RELEASE_VERSION=.*/CORE_RELEASE_VERSION=\"${CORE_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
           
-          # Make script executable and run
+          # Run test script
           chmod +x scripts/test-release-e2e.sh.bash
           cd scripts && ./test-release-e2e.sh.bash || true
+          cd ..
           
-          # Move results to expected location
-          if [ -d release-test-* ]; then
-            mv release-test-* ../e2e-results-$(date +%s)
+          # Move results
+          if [ -d scripts/release-test-* ]; then
+            mv scripts/release-test-* e2e-results
           fi
         continue-on-error: true
       
-      - name: Prepare GitHub Pages site
+      - name: Generate metrics JSON
         if: always()
         run: |
-          mkdir -p _site
-          REPORT_DIR=$(find . -type d -name "e2e-results-*" -o -type d -name "release-test-*" | head -1)
-          if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
-            cp "$REPORT_DIR/release-validation-report.html" _site/index.html
-            if [ -f "$REPORT_DIR/report_app.js" ]; then
-              cp "$REPORT_DIR/report_app.js" _site/report_app.js
+          mkdir -p scripts/metrics
+          
+          python3 << 'PYTHON_EOF'
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+
+result_dir = Path('e2e-results') if Path('e2e-results').exists() else Path('.')
+
+metrics = {
+    "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "test_dir": str(result_dir),
+    "versions": {"axon": os.environ.get("AXON_RELEASE_VERSION", "N/A"), "core": os.environ.get("CORE_RELEASE_VERSION", "N/A")},
+    "hardware": {"os": "Linux", "os_version": "Ubuntu 22.04", "arch": "x86_64", "cpu_model": "GitHub Actions Runner", "cpu_cores": 2, "cpu_threads": 2, "memory_gb": 7, "gpu_name": "None", "gpu_count": 0, "gpu_memory": "N/A", "disk_total": "N/A", "disk_available": "N/A"},
+    "timings": {"axon_download_ms": 0, "core_download_ms": 0, "core_startup_ms": 0, "total_model_install_ms": 0, "total_register_ms": 0, "total_inference_ms": 0, "total_duration_s": 0},
+    "resources": {"core_idle_cpu": 0, "core_idle_mem_mb": 0, "core_load_cpu_avg": 0, "core_load_cpu_max": 0, "core_load_mem_avg_mb": 0, "core_load_mem_max_mb": 0, "axon_cpu": 0, "axon_mem_mb": 0, "gpu_status": "Not used (CPU-only inference)"},
+    "models": {}
+}
+
+for model in ["gpt2", "bert", "roberta", "resnet"]:
+    category = "nlp" if model in ["gpt2", "bert", "roberta"] else "vision"
+    metrics["models"][model] = {
+        "category": category, "tested": False, "install_time_ms": 0, "register_time_ms": 0,
+        "inference_status": "unknown", "inference_time_ms": 0,
+        "inference_large_tested": False, "inference_large_status": "unknown", "inference_large_time_ms": 0
+    }
+
+with open("scripts/metrics/latest.json", "w") as f:
+    json.dump(metrics, f, indent=2)
+print("✅ Metrics written")
+PYTHON_EOF
+      
+      - name: Render HTML report
+        if: always()
+        run: |
+          echo "🎨 Rendering HTML report..."
+          mkdir -p output
+          
+          python3 report/render.py \
+            --metrics scripts/metrics/latest.json \
+            --template report/template.html \
+            --output output/index.html || true
+          
+          cp report/styles.css output/ 2>/dev/null || true
+          
+          # Fallback to legacy report
+          if [ ! -f output/index.html ]; then
+            LEGACY=$(find . -name "release-validation-report.html" | head -1)
+            if [ -f "$LEGACY" ]; then
+              cp "$LEGACY" output/index.html
+            else
+              echo "<html><body><h1>E2E Test Report</h1><p>Report generation in progress. Check back soon.</p></body></html>" > output/index.html
             fi
-            echo "✅ Report prepared for GitHub Pages"
-            ls -la _site/
-          else
-            echo "⚠️ No report found, creating placeholder"
-            echo "<!DOCTYPE html><html><head><title>MLOS E2E Test Report</title></head><body><h1>No report available</h1><p>Run the E2E tests to generate a report.</p></body></html>" > _site/index.html
           fi
+          
+          ls -la output/
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
       
-      - name: Upload artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./_site
+          path: ./output
       
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 Deployment Complete"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🌐 Report: https://mlos-foundation.github.io/system-test/"

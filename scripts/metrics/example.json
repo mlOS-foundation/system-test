@@ -1,0 +1,94 @@
+{
+  "timestamp": "2024-11-30T12:00:00Z",
+  "test_dir": "/tmp/mlos-e2e-example",
+  
+  "versions": {
+    "axon": "v3.0.2",
+    "core": "3.1.6-alpha"
+  },
+  
+  "hardware": {
+    "os": "Linux",
+    "os_version": "Ubuntu 22.04.3 LTS",
+    "arch": "x86_64",
+    "cpu_model": "Intel(R) Xeon(R) CPU @ 2.20GHz",
+    "cpu_cores": 4,
+    "cpu_threads": 8,
+    "memory_gb": 16,
+    "gpu_name": "None detected",
+    "gpu_count": 0,
+    "gpu_memory": "N/A",
+    "disk_total": "100 GB",
+    "disk_available": "50 GB"
+  },
+  
+  "timings": {
+    "axon_download_ms": 1234,
+    "core_download_ms": 2345,
+    "core_startup_ms": 500,
+    "total_model_install_ms": 600000,
+    "total_register_ms": 1500,
+    "total_inference_ms": 8500,
+    "total_duration_s": 900
+  },
+  
+  "models": {
+    "gpt2": {
+      "category": "nlp",
+      "tested": true,
+      "install_time_ms": 120000,
+      "register_time_ms": 500,
+      "inference_status": "success",
+      "inference_time_ms": 1500,
+      "inference_large_tested": true,
+      "inference_large_status": "success",
+      "inference_large_time_ms": 3000
+    },
+    "bert": {
+      "category": "nlp",
+      "tested": true,
+      "install_time_ms": 150000,
+      "register_time_ms": 450,
+      "inference_status": "success",
+      "inference_time_ms": 1200,
+      "inference_large_tested": true,
+      "inference_large_status": "success",
+      "inference_large_time_ms": 2500
+    },
+    "roberta": {
+      "category": "nlp",
+      "tested": true,
+      "install_time_ms": 140000,
+      "register_time_ms": 480,
+      "inference_status": "success",
+      "inference_time_ms": 1300,
+      "inference_large_tested": true,
+      "inference_large_status": "success",
+      "inference_large_time_ms": 2800
+    },
+    "resnet": {
+      "category": "vision",
+      "tested": true,
+      "install_time_ms": 80000,
+      "register_time_ms": 350,
+      "inference_status": "success",
+      "inference_time_ms": 800,
+      "inference_large_tested": false,
+      "inference_large_status": null,
+      "inference_large_time_ms": 0
+    }
+  },
+  
+  "resources": {
+    "core_idle_cpu": 0.5,
+    "core_idle_mem_mb": 50,
+    "core_load_cpu_avg": 45,
+    "core_load_cpu_max": 85,
+    "core_load_mem_avg_mb": 500,
+    "core_load_mem_max_mb": 750,
+    "axon_cpu": 25,
+    "axon_mem_mb": 200,
+    "gpu_status": "Not used (CPU-only inference)"
+  }
+}
+

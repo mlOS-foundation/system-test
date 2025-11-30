@@ -9,6 +9,14 @@ e2e-test
 
 # Test results
 e2e-results-*/
+e2e-results/
+scripts/release-test-*/
+
+# Generated output
+output/
+
+# Metrics (keep example, ignore latest)
+scripts/metrics/latest.json
 
 # Go
 *.test
@@ -27,3 +35,5 @@ go.work
 Thumbs.db
 
 scripts/*.bak
+__pycache__/
+*.pyc

@@ -1,128 +1,285 @@
-# MLOS System Test
+# MLOS System Test & E2E Validation
 
-[![Build Status](https://github.com/mlOS-foundation/system-test/workflows/CI/badge.svg)](https://github.com/mlOS-foundation/system-test/actions)
-[![Latest Report](https://img.shields.io/badge/report-latest-blue)](https://mlOS-foundation.github.io/system-test/)
+End-to-end testing framework for validating MLOS Core and Axon releases across platforms.
 
-**📊 View Latest Report:** [https://mlOS-foundation.github.io/system-test/](https://mlOS-foundation.github.io/system-test/)
+## 🏗️ Architecture
 
-End-to-end integration testing framework for MLOS Foundation releases (Axon + Core).
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         System Test Pipeline                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐   │
+│  │  Test Runner    │───▶│  Metrics Output  │───▶│  HTML Renderer  │   │
+│  │  (Bash Script)  │    │  (JSON)          │    │  (Python)       │   │
+│  └─────────────────┘    └──────────────────┘    └─────────────────┘   │
+│          │                      │                       │              │
+│          ▼                      ▼                       ▼              │
+│  • Downloads releases    • Hardware specs       • Template engine      │
+│  • Installs models       • Timing metrics       • Chart generation     │
+│  • Runs inference        • Status results       • Status badges        │
+│  • Captures metrics      • Resource usage       • Category rollups     │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-## Overview
+### Design Principles
 
-This repository contains a Go-based E2E testing framework that validates MLOS Foundation releases by:
-- Downloading and installing Axon and MLOS Core release binaries
-- Installing test models using Axon
-- Starting MLOS Core server
-- Running inference tests across multiple models
-- Collecting hardware specifications and resource usage metrics
-- Generating comprehensive HTML reports
+1. **Separation of Concerns**: Testing/metrics collection is decoupled from rendering
+2. **Data-Driven**: All report content comes from `metrics.json`
+3. **Reproducible**: Re-render reports without re-running expensive tests
+4. **Platform Parity**: Local runs match GitHub Actions runs exactly
 
-## Structure
+## 📁 Project Structure
 
 ```
 system-test/
-├── cmd/
-│   └── e2e-test/          # Main CLI application
-├── internal/
-│   ├── config/            # Configuration management
-│   ├── test/              # Test runner and types
-│   ├── release/           # Release download and management
-│   ├── model/             # Model installation and inference
-│   ├── hardware/          # Hardware specification collection
-│   ├── monitor/           # Resource usage monitoring
-│   └── report/            # HTML report generation
+├── .github/
+│   └── workflows/
+│       ├── e2e-test.yml      # On-demand E2E test workflow
+│       └── pages.yml         # Scheduled report generation & deploy
+│
 ├── scripts/
-│   └── test-release-e2e.sh.bash  # Original bash script (reference)
-└── README.md
+│   ├── test-release-e2e.sh   # Main test runner (generates metrics.json)
+│   └── metrics/              # Stored metrics from test runs
+│       └── latest.json       # Most recent test metrics
+│
+├── report/
+│   ├── render.py             # Python renderer (all business logic)
+│   ├── template.html         # HTML template (dumb, no logic)
+│   └── styles.css            # CSS styles
+│
+├── output/                   # Generated reports
+│   └── index.html            # Final rendered HTML
+│
+├── Makefile                  # Build commands
+└── README.md                 # This file
 ```
 
-## Usage
+## 🔄 How Report Generation Works
 
-### Basic Usage
+### Phase 1: Test Execution & Metrics Collection
 
 ```bash
-# Test latest releases
-go run ./cmd/e2e-test
-
-# Test specific versions
-go run ./cmd/e2e-test -axon-version v3.0.0 -core-version v2.3.0-alpha
-
-# Test all models (including vision and multimodal)
-go run ./cmd/e2e-test -all-models
-
-# Skip installation (use existing binaries)
-go run ./cmd/e2e-test -skip-install
+# Run full E2E tests (expensive, ~15-30 min)
+make test
 ```
 
-### Build and Install
+The test runner (`scripts/test-release-e2e.sh`) performs:
+
+1. **Environment Setup**
+   - Downloads Axon release binary
+   - Downloads MLOS Core release binary
+   - Collects hardware specifications
+
+2. **Model Testing** (for each model: GPT-2, BERT, RoBERTa, ResNet, etc.)
+   - `axon install hf/<model>@latest` - Install from HuggingFace
+   - `axon register` - Register with MLOS Core
+   - `curl /inference` - Run inference tests (small & large inputs)
+
+3. **Metrics Output**
+   - All timing, status, and resource data → `scripts/metrics/latest.json`
+
+### Phase 2: Report Rendering
 
 ```bash
-# Build binary
-go build -o bin/e2e-test ./cmd/e2e-test
-
-# Install
-go install ./cmd/e2e-test
+# Render report from existing metrics (fast, <1 sec)
+make render
 ```
 
-### Command Line Options
+The Python renderer (`report/render.py`) performs:
 
-- `-axon-version`: Axon release version to test (default: v3.0.0)
-- `-core-version`: MLOS Core release version to test (default: v2.3.0-alpha)
-- `-output`: Output directory for reports (default: ./e2e-results-<timestamp>)
-- `-all-models`: Test all models including vision and multimodal
-- `-skip-install`: Skip downloading and installing releases
-- `-verbose`: Enable verbose logging
-- `-version`: Show version information
+1. **Load Metrics**: Read `scripts/metrics/latest.json`
+2. **Calculate Status**: Derive pass/fail from raw results
+3. **Generate Charts**: Build Chart.js data arrays
+4. **Apply Template**: Replace `{{PLACEHOLDERS}}` in template
+5. **Write Output**: Save to `output/index.html`
 
-## Test Models
+### Phase 3: Serving & Deployment
 
-### Essential NLP Models (Always Tested)
-- GPT-2 (`hf/distilgpt2@latest`)
-- BERT (`hf/bert-base-uncased@latest`)
+```bash
+# Local preview
+make serve  # Opens http://localhost:8080
 
-### Additional Models (Tested with `-all-models`)
-- RoBERTa (`hf/roberta-base@latest`)
-- T5 (`hf/t5-small@latest`)
-- ResNet (`hf/microsoft/resnet-50@latest`)
-- VGG (`hf/timm/vgg16@latest`)
-- CLIP (`hf/openai/clip-vit-base-patch32@latest`)
+# GitHub Pages (automatic via workflow)
+# - Publishes to https://mlos-foundation.github.io/system-test/
+```
 
-## Output
+## 📊 Metrics Schema
 
-The test generates:
-- **HTML Report**: Comprehensive validation report with metrics, charts, and status indicators
-- **Log File**: Detailed test execution log
-- **Metrics JSON**: Structured metrics data (future)
+```json
+{
+  "timestamp": "2024-11-30T12:00:00Z",
+  "test_dir": "/tmp/mlos-e2e-xxx",
+  
+  "versions": {
+    "axon": "v3.0.2",
+    "core": "3.1.6-alpha"
+  },
+  
+  "hardware": {
+    "os": "Linux",
+    "os_version": "Ubuntu 22.04",
+    "arch": "x86_64",
+    "cpu_model": "Intel Xeon...",
+    "cpu_cores": 4,
+    "memory_gb": 16
+  },
+  
+  "timings": {
+    "axon_download_ms": 1234,
+    "core_download_ms": 2345,
+    "core_startup_ms": 500,
+    "total_model_install_ms": 600000,
+    "total_register_ms": 1000,
+    "total_inference_ms": 5000,
+    "total_duration_s": 900
+  },
+  
+  "models": {
+    "gpt2": {
+      "category": "nlp",
+      "tested": true,
+      "install_time_ms": 120000,
+      "register_time_ms": 500,
+      "inference_status": "success",
+      "inference_time_ms": 1500,
+      "inference_large_tested": true,
+      "inference_large_status": "success",
+      "inference_large_time_ms": 3000
+    }
+  },
+  
+  "resources": {
+    "core_idle_cpu": 0.5,
+    "core_idle_mem_mb": 50,
+    "core_load_cpu_avg": 45,
+    "core_load_mem_avg_mb": 500
+  }
+}
+```
 
-## GitHub Actions Integration
+## 🚀 Quick Start
 
-This framework is designed to be integrated with GitHub Actions to automatically test releases. See `.github/workflows/` for workflow definitions.
+### Prerequisites
 
-## Requirements
+- Python 3.8+
+- Bash
+- curl, jq
+- Docker (for model conversion)
 
-- Go 1.21+
-- `gh` CLI (for downloading releases)
-- `curl` (for HTTP requests)
-- `tar` (for extracting archives)
-- Network access to download releases and models
+### Run Full E2E Test
 
-**Note:** No sudo/administrator access required. The framework uses non-privileged ports (18080) for MLOS Core.
+```bash
+# Clone and enter directory
+cd system-test
 
-## Development
+# Run full test suite
+make test
 
-### Adding New Test Models
+# View report
+make serve
+```
 
-Edit `internal/test/runner.go` and add model specs to the `getTestModels()` function.
+### Re-render Existing Report
 
-### Extending Report Generation
+```bash
+# If you already have metrics from a previous run
+make render
 
-Modify `internal/report/generator.go` to add new sections or metrics to the HTML report.
+# Preview
+make serve
+```
 
-### Adding New Metrics
+### GitHub Actions
 
-Extend `internal/test/types.go` to add new metric fields, then update the runner to collect them.
+**Manual Trigger:**
+1. Go to Actions → "E2E Test & Report"
+2. Click "Run workflow"
+3. Select Core version (default: `3.1.6-alpha`)
+4. Wait ~15-30 min
+5. View at https://mlos-foundation.github.io/system-test/
 
-## License
+**Scheduled:**
+- Runs weekly (Sunday midnight UTC)
+- Auto-publishes to GitHub Pages
 
-See LICENSE file.
+## 🧪 Tested Models
 
+| Category | Model | Status | Notes |
+|----------|-------|--------|-------|
+| **NLP** | GPT-2 | ✅ | Small & large inference |
+| | BERT | ✅ | Small & large inference |
+| | RoBERTa | ✅ | Small & large inference |
+| | T5 | ⏳ | ONNX export blocked |
+| **Vision** | ResNet-50 | ✅ | Image classification |
+| | VGG | ⏳ | Pending |
+| | ViT | ⏳ | Pending |
+| **Multi-Modal** | CLIP | ⏳ | Pending |
+| | Wav2Vec2 | ⏳ | Pending |
+
+## 🛠️ Development
+
+### Adding New Models
+
+1. **Add to test array** in `scripts/test-release-e2e.sh`:
+   ```bash
+   TEST_MODELS=(
+     "hf/new-model@latest:newmodel:single:nlp"
+   )
+   ```
+
+2. **Add test input generator**:
+   ```bash
+   get_test_input() {
+     case "$model_name" in
+       newmodel)
+         echo '{"input_ids": [1,2,3]}'
+         ;;
+     esac
+   }
+   ```
+
+3. **Update template** in `report/template.html`
+
+4. **Update renderer** in `report/render.py`
+
+### Modifying Report Style
+
+Edit `report/styles.css` - changes take effect on next `make render`.
+
+### Debugging Render Issues
+
+```bash
+# Check metrics are valid JSON
+python3 -c "import json; json.load(open('scripts/metrics/latest.json'))"
+
+# Run renderer with verbose output
+python3 report/render.py --metrics scripts/metrics/latest.json
+
+# Check for missing placeholders
+grep -o '{{[A-Z_]*}}' output/index.html
+```
+
+## 📋 Makefile Commands
+
+| Command | Description |
+|---------|-------------|
+| `make test` | Run full E2E tests and generate metrics |
+| `make render` | Render HTML from existing metrics |
+| `make serve` | Start local HTTP server on :8080 |
+| `make clean` | Remove generated files |
+| `make lint` | Lint Python and bash scripts |
+
+## 🔗 Related Repositories
+
+- [mlos-foundation/core](https://github.com/mlos-foundation/core) - MLOS Core inference engine
+- [mlos-foundation/axon](https://github.com/mlos-foundation/axon) - Model package manager
+
+## 📄 License
+
+Apache 2.0 - See [LICENSE](LICENSE)
+
+---
+
+**MLOS Foundation** - Signal. Propagate. Myelinate. 🧠

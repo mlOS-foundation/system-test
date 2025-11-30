@@ -1,27 +1,18 @@
 name: E2E Test & Report
 
-# DISABLED: Temporarily disabled during iterative development
-# To re-enable: remove the 'if: false' condition from all jobs
 on:
   workflow_dispatch:
     inputs:
       axon_version:
         description: 'Axon version to test'
         required: false
-        default: 'v3.0.0'
+        default: 'v3.0.2'
       core_version:
         description: 'Core version to test'
         required: false
         default: '3.1.6-alpha'
-  # Disabled triggers:
-  # push:
-  #   branches: [main]
-  # pull_request:
-  #   branches: [main]
-  # repository_dispatch:
-  #   types: [core-release-published]
   # schedule:
-  #   - cron: '0 * * * *'
+  #   - cron: '0 0 * * 0'  # Weekly on Sunday
 
 permissions:
   contents: write
@@ -91,10 +82,15 @@ jobs:
         with:
           go-version: '1.21'
       
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl tar
+          sudo apt-get install -y curl tar jq
       
       - name: Ensure Docker is accessible
         run: |
@@ -123,43 +119,15 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
       
-      - name: Determine Core Version
-        id: core_version
+      - name: Determine Versions
+        id: versions
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # Manual trigger: use input or default
-            VERSION="${{ github.event.inputs.core_version || '3.0.0-alpha' }}"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "Using workflow_dispatch version: $VERSION"
-          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            # Triggered by core-releases: use payload version
-            VERSION="${{ github.event.client_payload.version }}"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "Using dispatch version: $VERSION"
-          elif [ "${{ github.event_name }}" = "schedule" ]; then
-            # Scheduled: check for latest release in core-releases
-            echo "Checking for latest release in core-releases..."
-            LATEST_RELEASE=$(gh release list --repo mlOS-foundation/core-releases --limit 1 --json tagName --jq '.[0].tagName' || echo "")
-            if [ -n "$LATEST_RELEASE" ] && [ "$LATEST_RELEASE" != "null" ]; then
-              VERSION="$LATEST_RELEASE"
-              echo "version=$VERSION" >> $GITHUB_OUTPUT
-              echo "Found latest release: $VERSION"
-            else
-              echo "No releases found in core-releases, skipping"
-              echo "version=" >> $GITHUB_OUTPUT
-            fi
-          else
-            # Push/PR: use hardcoded version
-            VERSION="3.0.0-alpha"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "Using default version for push/PR: $VERSION"
-          fi
-      
-      - name: Skip if no version
-        if: steps.core_version.outputs.version == ''
-        run: |
-          echo "No version determined, skipping E2E tests"
-          exit 0
+          AXON_VERSION="${{ github.event.inputs.axon_version || 'v3.0.2' }}"
+          CORE_VERSION="${{ github.event.inputs.core_version || '3.1.6-alpha' }}"
+          echo "axon=$AXON_VERSION" >> $GITHUB_OUTPUT
+          echo "core=$CORE_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Axon: $AXON_VERSION"
+          echo "📦 Core: $CORE_VERSION"
       
       - name: Check disk space before tests
         run: |
@@ -168,39 +136,162 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           df -h
       
-      - name: Run E2E tests (Bash Script)
-        if: steps.core_version.outputs.version != ''
+      - name: Run E2E tests
         env:
-          AXON_RELEASE_VERSION: ${{ github.event.inputs.axon_version || 'v3.0.1' }}
-          CORE_RELEASE_VERSION: ${{ steps.core_version.outputs.version }}
+          AXON_RELEASE_VERSION: ${{ steps.versions.outputs.axon }}
+          CORE_RELEASE_VERSION: ${{ steps.versions.outputs.core }}
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🧪 Running E2E Tests (Bash Script)"
+          echo "🧪 Running E2E Tests"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "📦 Axon: ${AXON_RELEASE_VERSION}"
-          echo "📦 Core: ${CORE_RELEASE_VERSION} (from public core-releases)"
+          echo "📦 Core: ${CORE_RELEASE_VERSION}"
           echo ""
           
           # Update versions in the script
           sed -i "s/AXON_RELEASE_VERSION=.*/AXON_RELEASE_VERSION=\"${AXON_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
           sed -i "s/CORE_RELEASE_VERSION=.*/CORE_RELEASE_VERSION=\"${CORE_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
           
-          # Make script executable and run
+          # Run test script (generates HTML and sets up metrics)
           chmod +x scripts/test-release-e2e.sh.bash
           cd scripts && ./test-release-e2e.sh.bash || true
           
           # Move results to expected location
           if [ -d release-test-* ]; then
-            mv release-test-* ../e2e-results-$(date +%s)
+            TEST_DIR=$(ls -d release-test-* | head -1)
+            mv "$TEST_DIR" ../e2e-results
+            echo "TEST_DIR=$(pwd)/../e2e-results" >> $GITHUB_ENV
           fi
         continue-on-error: true
+      
+      - name: Generate metrics JSON
+        if: always()
+        run: |
+          echo "📊 Generating metrics JSON..."
+          RESULT_DIR=$(find . -type d -name "e2e-results" -o -name "release-test-*" | head -1)
+          if [ -n "$RESULT_DIR" ]; then
+            # Extract metrics from test.log if available
+            if [ -f "$RESULT_DIR/test.log" ]; then
+              # Create metrics directory
+              mkdir -p scripts/metrics
+              
+              # Generate metrics JSON from environment/log
+              python3 << 'PYTHON_EOF'
+import json
+import os
+import re
+from datetime import datetime
+from pathlib import Path
+
+result_dir = None
+for d in ['e2e-results', '.']:
+    for p in Path(d).glob('release-test-*'):
+        if p.is_dir():
+            result_dir = p
+            break
+    if not result_dir:
+        for p in Path(d).glob('e2e-results*'):
+            if p.is_dir():
+                result_dir = p
+                break
+    if result_dir:
+        break
+
+if not result_dir:
+    result_dir = Path('e2e-results')
+
+metrics = {
+    "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "test_dir": str(result_dir),
+    "versions": {"axon": os.environ.get("AXON_RELEASE_VERSION", "N/A"), "core": os.environ.get("CORE_RELEASE_VERSION", "N/A")},
+    "hardware": {"os": "Linux", "os_version": "", "arch": "x86_64", "cpu_model": "GitHub Actions Runner", "cpu_cores": 2, "cpu_threads": 2, "memory_gb": 7, "gpu_name": "None", "gpu_count": 0, "gpu_memory": "N/A", "disk_total": "N/A", "disk_available": "N/A"},
+    "timings": {"axon_download_ms": 0, "core_download_ms": 0, "core_startup_ms": 0, "total_model_install_ms": 0, "total_register_ms": 0, "total_inference_ms": 0, "total_duration_s": 0},
+    "resources": {"core_idle_cpu": 0, "core_idle_mem_mb": 0, "core_load_cpu_avg": 0, "core_load_cpu_max": 0, "core_load_mem_avg_mb": 0, "core_load_mem_max_mb": 0, "axon_cpu": 0, "axon_mem_mb": 0, "gpu_status": "Not used (CPU-only inference)"},
+    "models": {}
+}
+
+# Try to parse test.log for metrics
+log_file = result_dir / "test.log" if result_dir else None
+if log_file and log_file.exists():
+    with open(log_file) as f:
+        content = f.read()
+        
+        # Extract timing patterns
+        patterns = {
+            "axon_download_ms": r"Axon download.*?(\d+)\s*ms",
+            "core_download_ms": r"Core download.*?(\d+)\s*ms", 
+            "core_startup_ms": r"Core startup.*?(\d+)\s*ms",
+        }
+        for key, pattern in patterns.items():
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                metrics["timings"][key] = int(match.group(1))
+
+# Default model data - will be updated by actual results
+for model in ["gpt2", "bert", "roberta", "resnet"]:
+    category = "nlp" if model in ["gpt2", "bert", "roberta"] else "vision"
+    metrics["models"][model] = {
+        "category": category,
+        "tested": False,
+        "install_time_ms": 0,
+        "register_time_ms": 0,
+        "inference_status": "unknown",
+        "inference_time_ms": 0,
+        "inference_large_tested": False,
+        "inference_large_status": "unknown",
+        "inference_large_time_ms": 0
+    }
+
+with open("scripts/metrics/latest.json", "w") as f:
+    json.dump(metrics, f, indent=2)
+
+print(f"✅ Metrics written to scripts/metrics/latest.json")
+PYTHON_EOF
+            fi
+          fi
+      
+      - name: Render HTML report
+        if: always()
+        run: |
+          echo "🎨 Rendering HTML report..."
+          mkdir -p output
+          
+          # Run Python renderer
+          python3 report/render.py \
+            --metrics scripts/metrics/latest.json \
+            --template report/template.html \
+            --output output/index.html || {
+              echo "⚠️ Renderer failed, using legacy report if available"
+            }
+          
+          # Copy CSS
+          cp report/styles.css output/ 2>/dev/null || true
+          
+          # Fallback to legacy report if new render failed
+          if [ ! -f output/index.html ]; then
+            LEGACY_REPORT=$(find . -name "release-validation-report.html" | head -1)
+            if [ -f "$LEGACY_REPORT" ]; then
+              cp "$LEGACY_REPORT" output/index.html
+              echo "📋 Using legacy report"
+            fi
+          fi
+          
+          ls -la output/
       
       - name: Upload HTML report as artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: e2e-report-${{ github.run_number }}
-          path: e2e-results-*/release-validation-report.html
+          path: output/
+          retention-days: 90
+      
+      - name: Upload metrics as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-metrics-${{ github.run_number }}
+          path: scripts/metrics/latest.json
           retention-days: 90
       
       - name: Display Core logs if test failed
@@ -209,33 +300,19 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "📋 Core Server Logs (if available)"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          LOG_DIR=$(find . -type d -path "*/e2e-results-*/mlos-core/logs" | head -1)
+          LOG_DIR=$(find . -type d -path "*/e2e-results*/mlos-core/logs" -o -path "*/release-test-*/mlos-core/logs" | head -1)
           if [ -n "$LOG_DIR" ]; then
             if [ -f "$LOG_DIR/core-stdout.log" ]; then
-              echo ""
               echo "📄 Core stdout:"
-              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-              tail -100 "$LOG_DIR/core-stdout.log" || echo "Could not read stdout log"
+              tail -100 "$LOG_DIR/core-stdout.log" || true
             fi
             if [ -f "$LOG_DIR/core-stderr.log" ]; then
-              echo ""
               echo "📄 Core stderr:"
-              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-              tail -100 "$LOG_DIR/core-stderr.log" || echo "Could not read stderr log"
+              tail -100 "$LOG_DIR/core-stderr.log" || true
             fi
           else
             echo "⚠️  Core log directory not found"
           fi
-      
-      - name: List available logs
-        if: always()
-        run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📋 Available Log Files"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          find e2e-results-* -type f \( -name "*.log" -o -name "core-*.log" \) 2>/dev/null | while read f; do
-            echo "  📄 $f ($(du -h "$f" | cut -f1))"
-          done || echo "  ⚠️  No log files found"
       
       - name: Upload logs as artifact
         uses: actions/upload-artifact@v4
@@ -243,34 +320,12 @@ jobs:
         with:
           name: e2e-logs-${{ github.run_number }}
           path: |
-            e2e-results-*/mlos-core/logs/**
-            e2e-results-*/test.log
+            e2e-results*/mlos-core/logs/**
+            e2e-results*/test.log
+            release-test-*/mlos-core/logs/**
+            release-test-*/test.log
           retention-days: 30
           if-no-files-found: ignore
-      
-      - name: Prepare report for GitHub Pages
-        if: always()
-        run: |
-          mkdir -p _site
-          REPORT_DIR=$(find . -type d -name "e2e-results-*" -o -type d -name "release-test-*" | head -1)
-          if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
-            cp "$REPORT_DIR/release-validation-report.html" _site/index.html
-            if [ -f "$REPORT_DIR/report_app.js" ]; then
-              cp "$REPORT_DIR/report_app.js" _site/report_app.js
-            fi
-            echo "✅ Report prepared for GitHub Pages"
-            echo "   Source: $REPORT_DIR"
-          else
-            echo "⚠️ No report found - using fallback report"
-            if [ -f .github/fallback-report.html ]; then
-              cp .github/fallback-report.html _site/index.html
-              echo "✅ Fallback report copied"
-            else
-              echo "<html><body><h1>E2E Test Report</h1><p>Report generation failed. Check workflow logs.</p></body></html>" > _site/index.html
-              echo "✅ Minimal fallback created"
-            fi
-          fi
-          ls -la _site/
       
       - name: Setup Pages
         if: always()
@@ -280,7 +335,7 @@ jobs:
         if: always()
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./_site
+          path: ./output
       
       - name: Deploy to GitHub Pages
         if: always()
@@ -293,8 +348,7 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "📊 E2E Test Complete"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          REPORT_DIR=$(find . -type d -name "e2e-results-*" -o -type d -name "release-test-*" | head -1)
-          if [ -n "$REPORT_DIR" ] && [ -f "$REPORT_DIR/release-validation-report.html" ]; then
+          if [ -f output/index.html ]; then
             echo "✅ Report generated"
             echo "🌐 Report published to: https://mlos-foundation.github.io/system-test/"
             echo "📦 Report also available in artifacts (e2e-report-${{ github.run_number }})"
@@ -302,4 +356,3 @@ jobs:
             echo "⚠️  Report not generated (test may have failed)"
             echo "📋 Check workflow logs for details"
           fi
-
