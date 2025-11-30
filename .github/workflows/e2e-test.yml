@@ -63,15 +63,12 @@ jobs:
         run: |
           echo "Disk space before cleanup:"
           df -h
-          
-          # Remove unnecessary software to free up space (~10GB)
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo docker image prune --all --force
           sudo apt-get clean
-          
           echo "Disk space after cleanup:"
           df -h
       
@@ -96,28 +93,21 @@ jobs:
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🐳 Docker Setup Check"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           docker --version || echo "⚠️  Docker CLI not found"
-          docker ps 2>&1 || {
-            echo "⚠️  Docker daemon not accessible"
-            echo "   This may cause Axon to skip ONNX conversion"
-          }
-          echo "Current user: $(whoami)"
-          echo "User groups: $(groups)"
+          docker ps 2>&1 || echo "⚠️  Docker daemon not accessible"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       
       - name: Install gh CLI
         run: |
           type -p curl >/dev/null || (apt-get update && apt-get install curl -y)
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-          && sudo apt-get update \
-          && sudo apt-get install gh -y
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install gh -y
       
       - name: Authenticate gh CLI
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
       
       - name: Determine Versions
         id: versions
@@ -129,12 +119,8 @@ jobs:
           echo "📦 Axon: $AXON_VERSION"
           echo "📦 Core: $CORE_VERSION"
       
-      - name: Check disk space before tests
-        run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "Disk Space Status:"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          df -h
+      - name: Check disk space
+        run: df -h
       
       - name: Run E2E tests
         env:
@@ -144,111 +130,31 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🧪 Running E2E Tests"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📦 Axon: ${AXON_RELEASE_VERSION}"
-          echo "📦 Core: ${CORE_RELEASE_VERSION}"
-          echo ""
           
           # Update versions in the script
           sed -i "s/AXON_RELEASE_VERSION=.*/AXON_RELEASE_VERSION=\"${AXON_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
           sed -i "s/CORE_RELEASE_VERSION=.*/CORE_RELEASE_VERSION=\"${CORE_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
           
-          # Run test script (generates HTML and sets up metrics)
+          # Run test script
           chmod +x scripts/test-release-e2e.sh.bash
           cd scripts && ./test-release-e2e.sh.bash || true
           
-          # Move results to expected location
+          # Move results
           if [ -d release-test-* ]; then
             TEST_DIR=$(ls -d release-test-* | head -1)
             mv "$TEST_DIR" ../e2e-results
-            echo "TEST_DIR=$(pwd)/../e2e-results" >> $GITHUB_ENV
           fi
         continue-on-error: true
       
       - name: Generate metrics JSON
         if: always()
+        env:
+          AXON_RELEASE_VERSION: ${{ steps.versions.outputs.axon }}
+          CORE_RELEASE_VERSION: ${{ steps.versions.outputs.core }}
         run: |
           echo "📊 Generating metrics JSON..."
-          RESULT_DIR=$(find . -type d -name "e2e-results" -o -name "release-test-*" | head -1)
-          if [ -n "$RESULT_DIR" ]; then
-            # Extract metrics from test.log if available
-            if [ -f "$RESULT_DIR/test.log" ]; then
-              # Create metrics directory
-              mkdir -p scripts/metrics
-              
-              # Generate metrics JSON from environment/log
-              python3 << 'PYTHON_EOF'
-import json
-import os
-import re
-from datetime import datetime
-from pathlib import Path
-
-result_dir = None
-for d in ['e2e-results', '.']:
-    for p in Path(d).glob('release-test-*'):
-        if p.is_dir():
-            result_dir = p
-            break
-    if not result_dir:
-        for p in Path(d).glob('e2e-results*'):
-            if p.is_dir():
-                result_dir = p
-                break
-    if result_dir:
-        break
-
-if not result_dir:
-    result_dir = Path('e2e-results')
-
-metrics = {
-    "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-    "test_dir": str(result_dir),
-    "versions": {"axon": os.environ.get("AXON_RELEASE_VERSION", "N/A"), "core": os.environ.get("CORE_RELEASE_VERSION", "N/A")},
-    "hardware": {"os": "Linux", "os_version": "", "arch": "x86_64", "cpu_model": "GitHub Actions Runner", "cpu_cores": 2, "cpu_threads": 2, "memory_gb": 7, "gpu_name": "None", "gpu_count": 0, "gpu_memory": "N/A", "disk_total": "N/A", "disk_available": "N/A"},
-    "timings": {"axon_download_ms": 0, "core_download_ms": 0, "core_startup_ms": 0, "total_model_install_ms": 0, "total_register_ms": 0, "total_inference_ms": 0, "total_duration_s": 0},
-    "resources": {"core_idle_cpu": 0, "core_idle_mem_mb": 0, "core_load_cpu_avg": 0, "core_load_cpu_max": 0, "core_load_mem_avg_mb": 0, "core_load_mem_max_mb": 0, "axon_cpu": 0, "axon_mem_mb": 0, "gpu_status": "Not used (CPU-only inference)"},
-    "models": {}
-}
-
-# Try to parse test.log for metrics
-log_file = result_dir / "test.log" if result_dir else None
-if log_file and log_file.exists():
-    with open(log_file) as f:
-        content = f.read()
-        
-        # Extract timing patterns
-        patterns = {
-            "axon_download_ms": r"Axon download.*?(\d+)\s*ms",
-            "core_download_ms": r"Core download.*?(\d+)\s*ms", 
-            "core_startup_ms": r"Core startup.*?(\d+)\s*ms",
-        }
-        for key, pattern in patterns.items():
-            match = re.search(pattern, content, re.IGNORECASE)
-            if match:
-                metrics["timings"][key] = int(match.group(1))
-
-# Default model data - will be updated by actual results
-for model in ["gpt2", "bert", "roberta", "resnet"]:
-    category = "nlp" if model in ["gpt2", "bert", "roberta"] else "vision"
-    metrics["models"][model] = {
-        "category": category,
-        "tested": False,
-        "install_time_ms": 0,
-        "register_time_ms": 0,
-        "inference_status": "unknown",
-        "inference_time_ms": 0,
-        "inference_large_tested": False,
-        "inference_large_status": "unknown",
-        "inference_large_time_ms": 0
-    }
-
-with open("scripts/metrics/latest.json", "w") as f:
-    json.dump(metrics, f, indent=2)
-
-print(f"✅ Metrics written to scripts/metrics/latest.json")
-PYTHON_EOF
-            fi
-          fi
+          mkdir -p scripts/metrics
+          python3 scripts/generate-metrics.py
       
       - name: Render HTML report
         if: always()
@@ -256,29 +162,26 @@ PYTHON_EOF
           echo "🎨 Rendering HTML report..."
           mkdir -p output
           
-          # Run Python renderer
           python3 report/render.py \
             --metrics scripts/metrics/latest.json \
             --template report/template.html \
-            --output output/index.html || {
-              echo "⚠️ Renderer failed, using legacy report if available"
-            }
+            --output output/index.html || echo "⚠️ Renderer failed"
           
-          # Copy CSS
           cp report/styles.css output/ 2>/dev/null || true
           
-          # Fallback to legacy report if new render failed
+          # Fallback to legacy report
           if [ ! -f output/index.html ]; then
-            LEGACY_REPORT=$(find . -name "release-validation-report.html" | head -1)
-            if [ -f "$LEGACY_REPORT" ]; then
-              cp "$LEGACY_REPORT" output/index.html
-              echo "📋 Using legacy report"
+            LEGACY=$(find . -name "release-validation-report.html" | head -1)
+            if [ -f "$LEGACY" ]; then
+              cp "$LEGACY" output/index.html
+            else
+              echo "<html><body><h1>E2E Report</h1><p>Report generation failed.</p></body></html>" > output/index.html
             fi
           fi
           
           ls -la output/
       
-      - name: Upload HTML report as artifact
+      - name: Upload report artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -286,7 +189,7 @@ PYTHON_EOF
           path: output/
           retention-days: 90
       
-      - name: Upload metrics as artifact
+      - name: Upload metrics artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -294,36 +197,14 @@ PYTHON_EOF
           path: scripts/metrics/latest.json
           retention-days: 90
       
-      - name: Display Core logs if test failed
-        if: failure()
-        run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📋 Core Server Logs (if available)"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          LOG_DIR=$(find . -type d -path "*/e2e-results*/mlos-core/logs" -o -path "*/release-test-*/mlos-core/logs" | head -1)
-          if [ -n "$LOG_DIR" ]; then
-            if [ -f "$LOG_DIR/core-stdout.log" ]; then
-              echo "📄 Core stdout:"
-              tail -100 "$LOG_DIR/core-stdout.log" || true
-            fi
-            if [ -f "$LOG_DIR/core-stderr.log" ]; then
-              echo "📄 Core stderr:"
-              tail -100 "$LOG_DIR/core-stderr.log" || true
-            fi
-          else
-            echo "⚠️  Core log directory not found"
-          fi
-      
-      - name: Upload logs as artifact
+      - name: Upload logs artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: e2e-logs-${{ github.run_number }}
           path: |
-            e2e-results*/mlos-core/logs/**
-            e2e-results*/test.log
-            release-test-*/mlos-core/logs/**
-            release-test-*/test.log
+            e2e-results/mlos-core/logs/**
+            e2e-results/test.log
           retention-days: 30
           if-no-files-found: ignore
       
@@ -342,7 +223,7 @@ PYTHON_EOF
         id: deployment
         uses: actions/deploy-pages@v4
       
-      - name: Test Summary
+      - name: Summary
         if: always()
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -350,9 +231,7 @@ PYTHON_EOF
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           if [ -f output/index.html ]; then
             echo "✅ Report generated"
-            echo "🌐 Report published to: https://mlos-foundation.github.io/system-test/"
-            echo "📦 Report also available in artifacts (e2e-report-${{ github.run_number }})"
+            echo "🌐 https://mlos-foundation.github.io/system-test/"
           else
-            echo "⚠️  Report not generated (test may have failed)"
-            echo "📋 Check workflow logs for details"
+            echo "⚠️  Report not generated"
           fi

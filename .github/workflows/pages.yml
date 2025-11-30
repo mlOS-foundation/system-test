@@ -56,21 +56,16 @@ jobs:
       
       - name: Ensure Docker is accessible
         run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🐳 Docker Setup Check"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           docker --version || echo "⚠️  Docker CLI not found"
           docker ps 2>&1 || echo "⚠️  Docker daemon not accessible"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       
       - name: Install gh CLI
         run: |
-          type -p curl >/dev/null || (apt-get update && apt-get install curl -y)
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-          && sudo apt-get update \
-          && sudo apt-get install gh -y
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install gh -y
       
       - name: Authenticate gh CLI
         run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
@@ -82,8 +77,6 @@ jobs:
           CORE_VERSION="${{ github.event.inputs.core_version || '3.1.6-alpha' }}"
           echo "axon=$AXON_VERSION" >> $GITHUB_OUTPUT
           echo "core=$CORE_VERSION" >> $GITHUB_OUTPUT
-          echo "📦 Axon: $AXON_VERSION"
-          echo "📦 Core: $CORE_VERSION"
       
       - name: Run E2E tests
         env:
@@ -94,16 +87,13 @@ jobs:
           echo "🧪 Running E2E Tests"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           
-          # Update versions
           sed -i "s/AXON_RELEASE_VERSION=.*/AXON_RELEASE_VERSION=\"${AXON_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
           sed -i "s/CORE_RELEASE_VERSION=.*/CORE_RELEASE_VERSION=\"${CORE_RELEASE_VERSION}\"/" scripts/test-release-e2e.sh.bash
           
-          # Run test script
           chmod +x scripts/test-release-e2e.sh.bash
           cd scripts && ./test-release-e2e.sh.bash || true
           cd ..
           
-          # Move results
           if [ -d scripts/release-test-* ]; then
             mv scripts/release-test-* e2e-results
           fi
@@ -111,44 +101,16 @@ jobs:
       
       - name: Generate metrics JSON
         if: always()
+        env:
+          AXON_RELEASE_VERSION: ${{ steps.versions.outputs.axon }}
+          CORE_RELEASE_VERSION: ${{ steps.versions.outputs.core }}
         run: |
           mkdir -p scripts/metrics
-          
-          python3 << 'PYTHON_EOF'
-import json
-import os
-from datetime import datetime
-from pathlib import Path
-
-result_dir = Path('e2e-results') if Path('e2e-results').exists() else Path('.')
-
-metrics = {
-    "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-    "test_dir": str(result_dir),
-    "versions": {"axon": os.environ.get("AXON_RELEASE_VERSION", "N/A"), "core": os.environ.get("CORE_RELEASE_VERSION", "N/A")},
-    "hardware": {"os": "Linux", "os_version": "Ubuntu 22.04", "arch": "x86_64", "cpu_model": "GitHub Actions Runner", "cpu_cores": 2, "cpu_threads": 2, "memory_gb": 7, "gpu_name": "None", "gpu_count": 0, "gpu_memory": "N/A", "disk_total": "N/A", "disk_available": "N/A"},
-    "timings": {"axon_download_ms": 0, "core_download_ms": 0, "core_startup_ms": 0, "total_model_install_ms": 0, "total_register_ms": 0, "total_inference_ms": 0, "total_duration_s": 0},
-    "resources": {"core_idle_cpu": 0, "core_idle_mem_mb": 0, "core_load_cpu_avg": 0, "core_load_cpu_max": 0, "core_load_mem_avg_mb": 0, "core_load_mem_max_mb": 0, "axon_cpu": 0, "axon_mem_mb": 0, "gpu_status": "Not used (CPU-only inference)"},
-    "models": {}
-}
-
-for model in ["gpt2", "bert", "roberta", "resnet"]:
-    category = "nlp" if model in ["gpt2", "bert", "roberta"] else "vision"
-    metrics["models"][model] = {
-        "category": category, "tested": False, "install_time_ms": 0, "register_time_ms": 0,
-        "inference_status": "unknown", "inference_time_ms": 0,
-        "inference_large_tested": False, "inference_large_status": "unknown", "inference_large_time_ms": 0
-    }
-
-with open("scripts/metrics/latest.json", "w") as f:
-    json.dump(metrics, f, indent=2)
-print("✅ Metrics written")
-PYTHON_EOF
+          python3 scripts/generate-metrics.py
       
       - name: Render HTML report
         if: always()
         run: |
-          echo "🎨 Rendering HTML report..."
           mkdir -p output
           
           python3 report/render.py \
@@ -158,13 +120,12 @@ PYTHON_EOF
           
           cp report/styles.css output/ 2>/dev/null || true
           
-          # Fallback to legacy report
           if [ ! -f output/index.html ]; then
             LEGACY=$(find . -name "release-validation-report.html" | head -1)
             if [ -f "$LEGACY" ]; then
               cp "$LEGACY" output/index.html
             else
-              echo "<html><body><h1>E2E Test Report</h1><p>Report generation in progress. Check back soon.</p></body></html>" > output/index.html
+              echo "<html><body><h1>E2E Report</h1><p>Pending...</p></body></html>" > output/index.html
             fi
           fi
           
@@ -187,5 +148,5 @@ PYTHON_EOF
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "📊 Deployment Complete"
+          echo "🌐 https://mlos-foundation.github.io/system-test/"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🌐 Report: https://mlos-foundation.github.io/system-test/"
