@@ -837,18 +837,20 @@ install_models() {
         
         log "Running: axon install $model_id (timeout: 15 minutes)"
         
-        # Start progress indicator in background (shows every 30s if no output)
+        # Start progress indicator in background (shows every 60s to reduce log noise)
         (
             local count=0
-            while [ $count -lt 30 ]; do  # 30 * 30s = 15 minutes max
-                sleep 30
+            while [ $count -lt 15 ]; do  # 15 * 60s = 15 minutes max
+                sleep 60
                 # Check if axon process is still running
                 if ! pgrep -f "axon install.*$model_id" >/dev/null 2>&1; then
                     break  # Process finished
                 fi
                 count=$((count + 1))
-                log "⏳ Still installing... ($((count * 30))s elapsed)"
+                # Use printf with \r for same-line update in terminal, but log file gets full line
+                printf "\r⏳ Installing %s... %dm elapsed" "$model_name" "$count" >&2
             done
+            echo "" >&2  # Final newline
         ) &
         local progress_pid=$!
         

@@ -1,5 +1,12 @@
 # MLOS System Test & E2E Validation
 
+[![E2E Test](https://github.com/mlOS-foundation/system-test/actions/workflows/e2e-test.yml/badge.svg)](https://github.com/mlOS-foundation/system-test/actions/workflows/e2e-test.yml)
+[![Pages Deploy](https://github.com/mlOS-foundation/system-test/actions/workflows/pages.yml/badge.svg)](https://github.com/mlOS-foundation/system-test/actions/workflows/pages.yml)
+
+**📊 [View Latest Report](https://mlos-foundation.github.io/system-test/)** | **🔗 [GitHub Actions](https://github.com/mlOS-foundation/system-test/actions)**
+
+---
+
 End-to-end testing framework for validating MLOS Core and Axon releases across platforms.
 
 ## 🏗️ Architecture
