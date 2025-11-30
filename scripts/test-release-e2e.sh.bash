@@ -836,7 +836,6 @@ install_models() {
         local install_exit_code=0
         
         log "Running: axon install $model_id (timeout: 15 minutes)"
-        log "Showing real-time output (press Ctrl+C to cancel)..."
         
         # Start progress indicator in background (shows every 30s if no output)
         (
@@ -853,10 +852,13 @@ install_models() {
         ) &
         local progress_pid=$!
         
-        # Run with timeout and show output in real-time
-        # Use tee to both capture and display output
-        # Use cross-platform timeout function
-        if run_with_timeout 900 "$HOME/.local/bin/axon" install "$model_id" 2>&1 | tee "$axon_output"; then
+        # Run with timeout and filter output to reduce noise
+        # Only show: start messages, 10%/20%/.../100% progress, errors, completion
+        # This dramatically reduces GitHub Actions log size
+        if run_with_timeout 900 "$HOME/.local/bin/axon" install "$model_id" 2>&1 | \
+            tee "$axon_output" | \
+            grep -E --line-buffered "Propagating|Using|Package will|✓|✅|❌|⚠️|ERROR|Error|failed|SUCCESS|success|Converting|Docker|ONNX|10\.0%|20\.0%|30\.0%|40\.0%|50\.0%|60\.0%|70\.0%|80\.0%|90\.0%|100\.0%|already installed" | \
+            head -100; then
             install_exit_code=0
         else
             install_exit_code=$?
@@ -2653,9 +2655,9 @@ try:
         print(f"❌ Report file not found: {report_file}", flush=True)
         sys.exit(1)
 
-# Read the report file
+    # Read the report file
     with open(report_file, 'r', encoding='utf-8') as f:
-    content = f.read()
+        content = f.read()
 
     print(f"  Read {len(content)} bytes from report file", flush=True)
     
@@ -2663,7 +2665,7 @@ try:
     html_content = ""
     if temp_html and os.path.exists(temp_html):
         with open(temp_html, 'r', encoding='utf-8') as f:
-    html_content = f.read()
+            html_content = f.read()
         print(f"  Read {len(html_content)} bytes from temp HTML", flush=True)
     else:
         print(f"  No temp HTML file, using empty string", flush=True)
@@ -2743,9 +2745,9 @@ try:
             content = content.replace(key, val)
             print(f"  Replaced {key}: {count} occurrence(s)", flush=True)
 
-# Write back
+    # Write back
     with open(report_file, 'w', encoding='utf-8') as f:
-    f.write(content)
+        f.write(content)
 
     print(f"✅ Python replacement complete", flush=True)
 
