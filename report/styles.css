@@ -384,3 +384,30 @@ body {
 .section:nth-child(5) { animation-delay: 0.4s; }
 .section:nth-child(6) { animation-delay: 0.5s; }
 
+/* Config Link */
+.config-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--gradient-purple);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.config-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* CSS Variables for models page */
+:root {
+    --card-bg: var(--bg-card);
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --accent-primary: var(--accent-purple);
+}

@@ -1,0 +1,153 @@
+# MLOS E2E Test - Model Configuration
+# Add new models here to include them in test runs
+
+# Test runner settings
+settings:
+  # Maximum time (seconds) to wait for model installation
+  install_timeout: 600
+  # Maximum time (seconds) to wait for inference
+  inference_timeout: 60
+  # Run large inference tests (more tokens/larger inputs)
+  run_large_tests: true
+
+# Model definitions
+# Each model needs:
+#   - enabled: whether to test this model
+#   - category: nlp | vision | multimodal
+#   - axon_id: the Axon model identifier (hf/namespace/model@version)
+#   - input_type: text | image | audio
+#   - small_input: input config for small/quick test
+#   - large_input: input config for large/stress test
+
+models:
+  # =============================================================================
+  # NLP Models (Text-based)
+  # =============================================================================
+  
+  gpt2:
+    enabled: true
+    category: nlp
+    axon_id: "hf/distilgpt2@latest"
+    description: "DistilGPT-2 - Lightweight text generation"
+    input_type: text
+    small_input:
+      tokens: 7
+      sequence: [101, 2054, 2003, 1996, 3462, 102]  # "What is the capital"
+    large_input:
+      tokens: 128
+      # Generated dynamically
+
+  bert:
+    enabled: true
+    category: nlp
+    axon_id: "hf/bert-base-uncased@latest"
+    description: "BERT base - Masked language model"
+    input_type: text
+    small_input:
+      tokens: 7
+      sequence: [101, 2054, 2003, 1996, 3462, 102]
+    large_input:
+      tokens: 128
+
+  roberta:
+    enabled: true
+    category: nlp
+    axon_id: "hf/roberta-base@latest"
+    description: "RoBERTa base - Robust BERT variant"
+    input_type: text
+    small_input:
+      tokens: 7
+      sequence: [101, 2054, 2003, 1996, 3462, 102]
+    large_input:
+      tokens: 128
+
+  t5:
+    enabled: false  # Disabled - encoder-decoder architecture needs special handling
+    category: nlp
+    axon_id: "hf/t5-small@latest"
+    description: "T5 small - Text-to-text transformer"
+    input_type: text
+    notes: "Requires encoder-decoder input format"
+    small_input:
+      tokens: 7
+      sequence: [101, 2054, 2003, 1996, 3462, 102]
+    large_input:
+      tokens: 128
+
+  # =============================================================================
+  # Vision Models (Image-based)
+  # =============================================================================
+  
+  resnet:
+    enabled: false  # Disabled - Axon nested namespace issue (see axon#41)
+    category: vision
+    axon_id: "hf/microsoft/resnet-50@latest"
+    description: "ResNet-50 - Image classification"
+    input_type: image
+    notes: "Blocked by Axon nested namespace bug"
+    small_input:
+      width: 32
+      height: 32
+      channels: 3
+    large_input:
+      width: 64
+      height: 64
+      channels: 3
+
+  vit:
+    enabled: false  # Not yet tested
+    category: vision
+    axon_id: "hf/google/vit-base-patch16-224@latest"
+    description: "Vision Transformer - Image classification"
+    input_type: image
+    small_input:
+      width: 32
+      height: 32
+      channels: 3
+    large_input:
+      width: 64
+      height: 64
+      channels: 3
+
+  # =============================================================================
+  # Multimodal Models
+  # =============================================================================
+  
+  clip:
+    enabled: false  # Not yet tested
+    category: multimodal
+    axon_id: "hf/openai/clip-vit-base-patch32@latest"
+    description: "CLIP - Image-text matching"
+    input_type: multimodal
+    notes: "Requires both image and text inputs"
+    small_input:
+      text_tokens: 7
+      image_width: 32
+      image_height: 32
+    large_input:
+      text_tokens: 77
+      image_width: 64
+      image_height: 64
+
+# =============================================================================
+# Quick reference for adding new models:
+# =============================================================================
+#
+# 1. Add entry under 'models:' section
+# 2. Set 'enabled: true' to include in tests
+# 3. Choose correct category: nlp, vision, or multimodal
+# 4. Provide the Axon model ID (run 'axon search <model>' to find it)
+# 5. Configure input sizes appropriate for the model
+#
+# Example:
+#   my_new_model:
+#     enabled: true
+#     category: nlp
+#     axon_id: "hf/my-org/my-model@latest"
+#     description: "My awesome model"
+#     input_type: text
+#     small_input:
+#       tokens: 10
+#     large_input:
+#       tokens: 128
+

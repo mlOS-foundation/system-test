@@ -6,9 +6,138 @@ Parses test.log to extract timing and status metrics.
 
 import json
 import os
+import platform
 import re
-from datetime import datetime
+import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
+
+
+def detect_hardware():
+    """Detect actual hardware specifications."""
+    hw = {
+        "os": platform.system(),
+        "os_version": "",
+        "arch": platform.machine(),
+        "cpu_model": "Unknown",
+        "cpu_cores": os.cpu_count() or 1,
+        "cpu_threads": os.cpu_count() or 1,
+        "memory_gb": 0,
+        "gpu_name": "None",
+        "gpu_count": 0,
+        "gpu_memory": "N/A",
+        "disk_total": "N/A",
+        "disk_available": "N/A"
+    }
+    
+    system = platform.system()
+    
+    if system == "Darwin":
+        # macOS
+        hw["os"] = "macOS"
+        try:
+            hw["os_version"] = subprocess.check_output(
+                ["sw_vers", "-productVersion"], text=True
+            ).strip()
+        except Exception:
+            hw["os_version"] = platform.mac_ver()[0]
+        
+        # CPU model
+        try:
+            hw["cpu_model"] = subprocess.check_output(
+                ["sysctl", "-n", "machdep.cpu.brand_string"], text=True
+            ).strip()
+        except Exception:
+            try:
+                # Apple Silicon fallback
+                chip = subprocess.check_output(
+                    ["sysctl", "-n", "hw.chip"], text=True, stderr=subprocess.DEVNULL
+                ).strip()
+                hw["cpu_model"] = f"Apple {chip}"
+            except Exception:
+                if platform.machine() == "arm64":
+                    hw["cpu_model"] = "Apple Silicon"
+        
+        # Memory
+        try:
+            mem_bytes = int(subprocess.check_output(
+                ["sysctl", "-n", "hw.memsize"], text=True
+            ).strip())
+            hw["memory_gb"] = round(mem_bytes / (1024**3))
+        except Exception:
+            pass
+        
+        # CPU cores/threads
+        try:
+            hw["cpu_cores"] = int(subprocess.check_output(
+                ["sysctl", "-n", "hw.physicalcpu"], text=True
+            ).strip())
+            hw["cpu_threads"] = int(subprocess.check_output(
+                ["sysctl", "-n", "hw.logicalcpu"], text=True
+            ).strip())
+        except Exception:
+            pass
+        
+        # Disk space
+        try:
+            df_output = subprocess.check_output(["df", "-h", "/"], text=True)
+            lines = df_output.strip().split("\n")
+            if len(lines) >= 2:
+                parts = lines[1].split()
+                hw["disk_total"] = parts[1]
+                hw["disk_available"] = parts[3]
+        except Exception:
+            pass
+    
+    elif system == "Linux":
+        # Linux
+        hw["os"] = "Linux"
+        try:
+            with open("/etc/os-release") as f:
+                for line in f:
+                    if line.startswith("PRETTY_NAME="):
+                        hw["os_version"] = line.split("=")[1].strip().strip('"')
+                        break
+        except Exception:
+            hw["os_version"] = platform.version()
+        
+        # CPU model
+        try:
+            with open("/proc/cpuinfo") as f:
+                for line in f:
+                    if "model name" in line:
+                        hw["cpu_model"] = line.split(":")[1].strip()
+                        break
+        except Exception:
+            pass
+        
+        # Memory
+        try:
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemTotal:"):
+                        mem_kb = int(line.split()[1])
+                        hw["memory_gb"] = round(mem_kb / (1024**2))
+                        break
+        except Exception:
+            pass
+        
+        # Disk space
+        try:
+            df_output = subprocess.check_output(["df", "-h", "/"], text=True)
+            lines = df_output.strip().split("\n")
+            if len(lines) >= 2:
+                parts = lines[1].split()
+                hw["disk_total"] = parts[1]
+                hw["disk_available"] = parts[3]
+        except Exception:
+            pass
+    
+    else:
+        # Windows or other
+        hw["os_version"] = platform.version()
+    
+    return hw
 
 
 def find_result_dir():
@@ -169,26 +298,13 @@ def main():
     
     # Build full metrics structure
     metrics = {
-        "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "test_dir": str(result_dir),
         "versions": {
             "axon": os.environ.get("AXON_RELEASE_VERSION", "N/A"),
             "core": os.environ.get("CORE_RELEASE_VERSION", "N/A")
         },
-        "hardware": {
-            "os": "Linux",
-            "os_version": "Ubuntu 22.04",
-            "arch": "x86_64",
-            "cpu_model": "GitHub Actions Runner",
-            "cpu_cores": 2,
-            "cpu_threads": 2,
-            "memory_gb": 7,
-            "gpu_name": "None",
-            "gpu_count": 0,
-            "gpu_memory": "N/A",
-            "disk_total": "N/A",
-            "disk_available": "N/A"
-        },
+        "hardware": detect_hardware(),
         "timings": {
             "axon_download_ms": parsed['timings'].get('axon_download_ms', 0),
             "core_download_ms": parsed['timings'].get('core_download_ms', 0),

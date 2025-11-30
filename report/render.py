@@ -21,6 +21,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
 
 class ReportRenderer:
     """Renders E2E test report from metrics JSON."""
@@ -433,6 +439,167 @@ class ReportRenderer:
         return True
 
 
+class ModelsPageRenderer:
+    """Renders models configuration page from YAML config."""
+    
+    def __init__(self, config_path: str, template_path: str, output_path: str):
+        self.config_path = Path(config_path)
+        self.template_path = Path(template_path)
+        self.output_path = Path(output_path)
+        self.config: Dict[str, Any] = {}
+    
+    def load_config(self) -> bool:
+        """Load config from YAML file."""
+        if not HAS_YAML:
+            print("⚠️ PyYAML not installed, skipping models page")
+            return False
+        
+        if not self.config_path.exists():
+            print(f"⚠️ Config file not found: {self.config_path}")
+            return False
+        
+        try:
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                self.config = yaml.safe_load(f)
+            print(f"✅ Loaded config from {self.config_path}")
+            return True
+        except Exception as e:
+            print(f"❌ Error loading config: {e}")
+            return False
+    
+    def load_template(self) -> Optional[str]:
+        """Load HTML template."""
+        if not self.template_path.exists():
+            print(f"⚠️ Models template not found: {self.template_path}")
+            return None
+        
+        with open(self.template_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    
+    def generate_model_card_html(self, name: str, data: Dict[str, Any]) -> str:
+        """Generate HTML for a single model card."""
+        enabled = data.get('enabled', False)
+        enabled_class = 'enabled' if enabled else 'disabled'
+        status_class = 'enabled' if enabled else 'disabled'
+        status_text = 'Enabled' if enabled else 'Disabled'
+        
+        description = data.get('description', 'No description')
+        axon_id = data.get('axon_id', 'N/A')
+        category = data.get('category', 'nlp')
+        input_type = data.get('input_type', 'text')
+        
+        # Input specs
+        small_input = data.get('small_input', {})
+        large_input = data.get('large_input', {})
+        
+        input_specs_html = ''
+        if input_type == 'text':
+            small_tokens = small_input.get('tokens', 7)
+            large_tokens = large_input.get('tokens', 128)
+            input_specs_html = f'''
+                <table class="input-table">
+                    <tr><td>Small Test</td><td>{small_tokens} tokens</td></tr>
+                    <tr><td>Large Test</td><td>{large_tokens} tokens</td></tr>
+                </table>
+            '''
+        elif input_type == 'image':
+            small_w = small_input.get('width', 32)
+            small_h = small_input.get('height', 32)
+            large_w = large_input.get('width', 64)
+            large_h = large_input.get('height', 64)
+            channels = small_input.get('channels', 3)
+            input_specs_html = f'''
+                <table class="input-table">
+                    <tr><td>Small Test</td><td>{small_w}x{small_h}x{channels}</td></tr>
+                    <tr><td>Large Test</td><td>{large_w}x{large_h}x{channels}</td></tr>
+                </table>
+            '''
+        elif input_type == 'multimodal':
+            input_specs_html = '<p style="font-size: 0.8rem; color: var(--text-muted);">Text + Image input</p>'
+        
+        # Notes section
+        notes_html = ''
+        notes = data.get('notes', '')
+        if notes:
+            notes_html = f'<div class="model-notes">⚠️ {notes}</div>'
+        
+        return f'''
+            <div class="model-card {enabled_class}">
+                <div class="model-header">
+                    <h3 class="model-name">{name.replace('_', ' ').title()}</h3>
+                    <span class="model-status {status_class}">{status_text}</span>
+                </div>
+                <p class="model-description">{description}</p>
+                <div class="model-axon-id">{axon_id}</div>
+                <div class="model-meta">
+                    <div class="meta-item">
+                        <div class="meta-label">Category</div>
+                        <div class="meta-value">{category.upper()}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Input Type</div>
+                        <div class="meta-value">{input_type.title()}</div>
+                    </div>
+                </div>
+                <div class="input-specs">
+                    <h4>Input Specifications</h4>
+                    {input_specs_html}
+                </div>
+                {notes_html}
+            </div>
+        '''
+    
+    def build_replacements(self) -> Dict[str, str]:
+        """Build all template replacements."""
+        models = self.config.get('models', {})
+        
+        # Count models by category
+        nlp_models = [(n, d) for n, d in models.items() if d.get('category') == 'nlp']
+        vision_models = [(n, d) for n, d in models.items() if d.get('category') == 'vision']
+        multimodal_models = [(n, d) for n, d in models.items() if d.get('category') == 'multimodal']
+        
+        enabled_count = sum(1 for d in models.values() if d.get('enabled', False))
+        
+        # Generate HTML for each category
+        nlp_html = '\n'.join(self.generate_model_card_html(n, d) for n, d in nlp_models) or '<p class="no-models">No NLP models configured</p>'
+        vision_html = '\n'.join(self.generate_model_card_html(n, d) for n, d in vision_models) or '<p class="no-models">No vision models configured</p>'
+        multimodal_html = '\n'.join(self.generate_model_card_html(n, d) for n, d in multimodal_models) or '<p class="no-models">No multimodal models configured</p>'
+        
+        return {
+            '{{TOTAL_MODELS}}': str(len(models)),
+            '{{ENABLED_MODELS}}': str(enabled_count),
+            '{{NLP_COUNT}}': str(len(nlp_models)),
+            '{{VISION_COUNT}}': str(len(vision_models)),
+            '{{MULTIMODAL_COUNT}}': str(len(multimodal_models)),
+            '{{NLP_MODELS_HTML}}': nlp_html,
+            '{{VISION_MODELS_HTML}}': vision_html,
+            '{{MULTIMODAL_MODELS_HTML}}': multimodal_html,
+            '{{TIMESTAMP}}': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        }
+    
+    def render(self) -> bool:
+        """Render the models page."""
+        if not self.load_config():
+            return False
+        
+        template = self.load_template()
+        if template is None:
+            return False
+        
+        replacements = self.build_replacements()
+        
+        content = template
+        for key, value in sorted(replacements.items(), key=lambda x: len(x[0]), reverse=True):
+            content = content.replace(key, str(value))
+        
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.output_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        print(f"✅ Models page generated: {self.output_path}")
+        return True
+
+
 def main():
     parser = argparse.ArgumentParser(description='Render MLOS E2E test report')
     parser.add_argument('--metrics', default='scripts/metrics/latest.json',
@@ -441,18 +608,34 @@ def main():
                         help='Path to HTML template')
     parser.add_argument('--output', default='output/index.html',
                         help='Path to output HTML file')
+    parser.add_argument('--models-only', action='store_true',
+                        help='Only render the models page')
     
     args = parser.parse_args()
     
     # Resolve paths relative to script location
     script_dir = Path(__file__).parent.parent
-    metrics_path = script_dir / args.metrics
-    template_path = script_dir / args.template
-    output_path = script_dir / args.output
     
-    renderer = ReportRenderer(str(metrics_path), str(template_path), str(output_path))
-    success = renderer.render()
+    success = True
     
+    # Render main report (unless --models-only)
+    if not args.models_only:
+        metrics_path = script_dir / args.metrics
+        template_path = script_dir / args.template
+        output_path = script_dir / args.output
+        
+        renderer = ReportRenderer(str(metrics_path), str(template_path), str(output_path))
+        success = renderer.render()
+    
+    # Also render models page
+    config_path = script_dir / 'config' / 'models.yaml'
+    models_template_path = script_dir / 'report' / 'models-template.html'
+    models_output_path = script_dir / 'output' / 'models.html'
+    
+    models_renderer = ModelsPageRenderer(str(config_path), str(models_template_path), str(models_output_path))
+    models_success = models_renderer.render()
+    
+    # Success if main report succeeded (models page is optional)
     sys.exit(0 if success else 1)
 
 

@@ -43,24 +43,32 @@ End-to-end testing framework for validating MLOS Core and Axon releases across p
 system-test/
 ├── .github/
 │   └── workflows/
-│       ├── e2e-test.yml      # On-demand E2E test workflow
-│       └── pages.yml         # Scheduled report generation & deploy
+│       ├── e2e-test.yml          # On-demand E2E test workflow
+│       └── pages.yml             # Scheduled report generation & deploy
+│
+├── config/
+│   └── models.yaml               # 📋 Model configuration (add models here!)
 │
 ├── scripts/
-│   ├── test-release-e2e.sh   # Main test runner (generates metrics.json)
-│   └── metrics/              # Stored metrics from test runs
-│       └── latest.json       # Most recent test metrics
+│   ├── test-release-e2e.sh.bash  # Main test runner
+│   ├── generate-metrics.py       # Metrics JSON generator
+│   ├── load-config.py            # YAML config loader
+│   └── metrics/                  # Stored metrics from test runs
+│       └── latest.json           # Most recent test metrics
 │
 ├── report/
-│   ├── render.py             # Python renderer (all business logic)
-│   ├── template.html         # HTML template (dumb, no logic)
-│   └── styles.css            # CSS styles
+│   ├── render.py                 # Python renderer (all business logic)
+│   ├── template.html             # Main report template
+│   ├── models-template.html      # Models page template
+│   └── styles.css                # CSS styles (shared)
 │
-├── output/                   # Generated reports
-│   └── index.html            # Final rendered HTML
+├── output/                       # Generated reports
+│   ├── index.html                # Main report
+│   ├── models.html               # Models configuration page
+│   └── styles.css                # Copied styles
 │
-├── Makefile                  # Build commands
-└── README.md                 # This file
+├── Makefile                      # Build commands
+└── README.md                     # This file
 ```
 
 ## 🔄 How Report Generation Works
@@ -213,43 +221,53 @@ make serve
 
 ## 🧪 Tested Models
 
+> 📋 Models are configured in `config/models.yaml`. View full details at **[models.html](https://mlos-foundation.github.io/system-test/models.html)**.
+
 | Category | Model | Status | Notes |
 |----------|-------|--------|-------|
-| **NLP** | GPT-2 | ✅ | Small & large inference |
-| | BERT | ✅ | Small & large inference |
-| | RoBERTa | ✅ | Small & large inference |
-| | T5 | ⏳ | ONNX export blocked |
-| **Vision** | ResNet-50 | ✅ | Image classification |
-| | VGG | ⏳ | Pending |
-| | ViT | ⏳ | Pending |
-| **Multi-Modal** | CLIP | ⏳ | Pending |
-| | Wav2Vec2 | ⏳ | Pending |
+| **NLP** | GPT-2 | ✅ Enabled | DistilGPT-2 - text generation |
+| | BERT | ✅ Enabled | BERT base - masked language model |
+| | RoBERTa | ✅ Enabled | RoBERTa base - robust BERT variant |
+| | T5 | ⏳ Disabled | Encoder-decoder needs special handling |
+| **Vision** | ResNet-50 | ⏳ Disabled | Blocked: Axon `--task` param needed |
+| | ViT | ⏳ Disabled | Pending Axon vision support |
+| **Multi-Modal** | CLIP | ⏳ Disabled | Pending - requires text+image input |
 
 ## 🛠️ Development
 
 ### Adding New Models
 
-1. **Add to test array** in `scripts/test-release-e2e.sh`:
-   ```bash
-   TEST_MODELS=(
-     "hf/new-model@latest:newmodel:single:nlp"
-   )
+Models are configured in `config/models.yaml`. Just add your model and run tests!
+
+1. **Edit `config/models.yaml`:**
+   ```yaml
+   models:
+     my_new_model:
+       enabled: true
+       category: nlp           # nlp, vision, or multimodal
+       axon_id: "hf/my-org/my-model@latest"
+       description: "My awesome model"
+       input_type: text        # text, image, or multimodal
+       small_input:
+         tokens: 7
+       large_input:
+         tokens: 128
    ```
 
-2. **Add test input generator**:
+2. **Verify config:**
    ```bash
-   get_test_input() {
-     case "$model_name" in
-       newmodel)
-         echo '{"input_ids": [1,2,3]}'
-         ;;
-     esac
-   }
+   make config       # Show summary
+   make config-list  # List enabled models
    ```
 
-3. **Update template** in `report/template.html`
+3. **Run tests:**
+   ```bash
+   make test         # Will automatically include new model
+   ```
 
-4. **Update renderer** in `report/render.py`
+4. **View reports:**
+   - Main report links to models page
+   - Models page shows all configured models with specs
 
 ### Modifying Report Style
 
@@ -272,9 +290,19 @@ grep -o '{{[A-Z_]*}}' output/index.html
 
 | Command | Description |
 |---------|-------------|
+| **Testing** | |
 | `make test` | Run full E2E tests and generate metrics |
+| `make test-quick` | Quick test (GPT-2 only) |
+| **Rendering** | |
 | `make render` | Render HTML from existing metrics |
+| `make render-example` | Render using example/mock data |
 | `make serve` | Start local HTTP server on :8080 |
+| **Configuration** | |
+| `make config` | Show model configuration summary |
+| `make config-list` | List enabled model names |
+| `make config-all` | Show full config as JSON |
+| `make config-edit` | Open models.yaml in editor |
+| **Maintenance** | |
 | `make clean` | Remove generated files |
 | `make lint` | Lint Python and bash scripts |
 
