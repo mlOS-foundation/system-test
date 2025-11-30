@@ -79,12 +79,12 @@ models:
   # =============================================================================
   
   resnet:
-    enabled: false  # Disabled - Axon nested namespace issue (see axon#41)
+    enabled: false  # Blocked: Axon needs --task param for vision models (see axon#42)
     category: vision
     axon_id: "hf/microsoft/resnet-50@latest"
     description: "ResNet-50 - Image classification"
     input_type: image
-    notes: "Blocked by Axon nested namespace bug"
+    notes: "Blocked: Axon converter needs --task param for vision (axon#42)"
     small_input:
       width: 32
       height: 32
