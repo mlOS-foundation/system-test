@@ -855,12 +855,15 @@ install_models() {
         local progress_pid=$!
         
         # Run with timeout and filter output to reduce noise
-        # Only show: start messages, 10%/20%/.../100% progress, errors, completion
-        # This dramatically reduces GitHub Actions log size
+        # First exclude noisy download progress, then only show important lines
+        # This dramatically reduces GitHub Actions log size (prevents truncation)
         if run_with_timeout 900 "$HOME/.local/bin/axon" install "$model_id" 2>&1 | \
             tee "$axon_output" | \
-            grep -E --line-buffered "Propagating|Using|Package will|✓|✅|❌|⚠️|ERROR|Error|failed|SUCCESS|success|Converting|Docker|ONNX|10\.0%|20\.0%|30\.0%|40\.0%|50\.0%|60\.0%|70\.0%|80\.0%|90\.0%|100\.0%|already installed" | \
-            head -100; then
+            grep -v --line-buffered "Downloading\.\.\." | \
+            grep -v --line-buffered "bytes)" | \
+            grep -v --line-buffered "^[0-9]*\.[0-9]*%" | \
+            grep -E --line-buffered "Propagating|Using|Package will|✓|✅|❌|⚠️|ERROR|Error|failed|SUCCESS|success|Converting|Docker|ONNX|Complete|Installed|already|Starting|Pulling|Layer" | \
+            head -50; then
             install_exit_code=0
         else
             install_exit_code=$?
