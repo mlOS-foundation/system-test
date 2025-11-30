@@ -37,16 +37,19 @@ TEST_MODELS=(
     "hf/distilgpt2@latest:gpt2:single:nlp"
     "hf/bert-base-uncased@latest:bert:multi:nlp"
     "hf/roberta-base@latest:roberta:single:nlp"
-    # Vision Models - Now working with Axon v3.0.1 (nested namespace fix)
-    "hf/microsoft/resnet-50@latest:resnet:single:vision"
     # Note: T5 ONNX conversion fails (encoder-decoder models require special handling)
 )
 
 # Additional models (tested if TEST_ALL_MODELS=1 or model already installed)
 ADDITIONAL_MODELS=(
+    # Vision Models - BLOCKED: Axon converter needs --task parameter for vision models
+    # See: VISION_MODEL_SUPPORT_PLAN.md
+    # Error: "Cannot infer the task from a local directory yet"
+    # "hf/microsoft/resnet-50@latest:resnet:single:vision"
+    
     # These models have known issues:
     # - T5: ONNX export fails (encoder-decoder model needs decoder_input_ids)
-    # - Vision: All HuggingFace vision models use nested namespaces (Axon bug)
+    # - Vision: Axon converter doesn't pass --task to Optimum export
     # - Multimodal: Requires complex inputs (text + image)
 )
 
@@ -837,20 +840,22 @@ install_models() {
         
         log "Running: axon install $model_id (timeout: 15 minutes)"
         
+        # Create a sentinel file for progress indicator
+        local sentinel_file=$(mktemp)
+        echo "running" > "$sentinel_file"
+        
         # Start progress indicator in background (shows every 60s to reduce log noise)
         (
             local count=0
-            while [ $count -lt 15 ]; do  # 15 * 60s = 15 minutes max
+            while [ $count -lt 15 ] && [ -f "$sentinel_file" ]; do  # 15 * 60s = 15 minutes max
                 sleep 60
-                # Check if axon process is still running
-                if ! pgrep -f "axon install.*$model_id" >/dev/null 2>&1; then
-                    break  # Process finished
+                # Check sentinel file still exists (deleted when install completes)
+                if [ ! -f "$sentinel_file" ]; then
+                    break
                 fi
                 count=$((count + 1))
-                # Use printf with \r for same-line update in terminal, but log file gets full line
-                printf "\r⏳ Installing %s... %dm elapsed" "$model_name" "$count" >&2
+                echo "⏳ Installing $model_name... ${count}m elapsed" >&2
             done
-            echo "" >&2  # Final newline
         ) &
         local progress_pid=$!
         
@@ -876,7 +881,8 @@ install_models() {
             fi
         fi
         
-        # Kill progress indicator
+        # Stop progress indicator by removing sentinel file and killing process
+        rm -f "$sentinel_file" 2>/dev/null || true
         kill $progress_pid 2>/dev/null || true
         wait $progress_pid 2>/dev/null || true
         
