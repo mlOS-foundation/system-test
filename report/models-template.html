@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Configuration - MLOS E2E Test</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Models page specific styles */
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .model-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .model-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .model-card.enabled {
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .model-card.disabled {
+            border-left: 4px solid var(--text-muted);
+            opacity: 0.7;
+        }
+        
+        .model-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .model-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .model-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .model-status.enabled {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success-color);
+        }
+        
+        .model-status.disabled {
+            background: rgba(156, 163, 175, 0.2);
+            color: var(--text-muted);
+        }
+        
+        .model-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .model-meta {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .meta-item {
+            background: var(--bg-secondary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+        }
+        
+        .meta-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .meta-value {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .model-axon-id {
+            background: var(--bg-secondary);
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent-primary);
+            word-break: break-all;
+            margin-bottom: 1rem;
+        }
+        
+        .input-specs {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .input-specs h4 {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+        
+        .input-table {
+            width: 100%;
+            font-size: 0.8rem;
+        }
+        
+        .input-table td {
+            padding: 0.25rem 0;
+        }
+        
+        .input-table td:first-child {
+            color: var(--text-muted);
+        }
+        
+        .input-table td:last-child {
+            text-align: right;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+        
+        .model-notes {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: rgba(251, 191, 36, 0.1);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: var(--warning-color);
+        }
+        
+        .category-section {
+            margin-top: 2rem;
+        }
+        
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .category-icon {
+            font-size: 1.5rem;
+        }
+        
+        .category-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .category-count {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .config-summary {
+            background: linear-gradient(135deg, var(--card-bg), var(--bg-secondary));
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .summary-stats {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--accent-primary);
+            text-decoration: none;
+            margin-bottom: 1rem;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .yaml-preview {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 2rem;
+            overflow-x: auto;
+        }
+        
+        .yaml-preview pre {
+            margin: 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .yaml-preview code {
+            color: var(--text-primary);
+        }
+        
+        .how-to-add {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .how-to-add h3 {
+            color: var(--accent-primary);
+            margin-bottom: 1rem;
+        }
+        
+        .how-to-add ol {
+            margin: 0;
+            padding-left: 1.5rem;
+            color: var(--text-secondary);
+        }
+        
+        .how-to-add li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .how-to-add code {
+            background: var(--bg-secondary);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">← Back to Test Report</a>
+        
+        <header class="header">
+            <h1>📦 Model Configuration</h1>
+            <p class="subtitle">Models available for E2E testing</p>
+        </header>
+        
+        <!-- Summary -->
+        <div class="config-summary">
+            <h2 style="margin-bottom: 1rem;">Configuration Summary</h2>
+            <div class="summary-stats">
+                <div class="stat-item">
+                    <div class="stat-value">{{TOTAL_MODELS}}</div>
+                    <div class="stat-label">Total Models</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ENABLED_MODELS}}</div>
+                    <div class="stat-label">Enabled</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{NLP_COUNT}}</div>
+                    <div class="stat-label">NLP</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{VISION_COUNT}}</div>
+                    <div class="stat-label">Vision</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{MULTIMODAL_COUNT}}</div>
+                    <div class="stat-label">Multimodal</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- NLP Models -->
+        <section class="category-section">
+            <div class="category-header">
+                <span class="category-icon">📝</span>
+                <h2 class="category-title">NLP Models</h2>
+                <span class="category-count">{{NLP_COUNT}} models</span>
+            </div>
+            <div class="model-grid">
+                {{NLP_MODELS_HTML}}
+            </div>
+        </section>
+        
+        <!-- Vision Models -->
+        <section class="category-section">
+            <div class="category-header">
+                <span class="category-icon">👁️</span>
+                <h2 class="category-title">Vision Models</h2>
+                <span class="category-count">{{VISION_COUNT}} models</span>
+            </div>
+            <div class="model-grid">
+                {{VISION_MODELS_HTML}}
+            </div>
+        </section>
+        
+        <!-- Multimodal Models -->
+        <section class="category-section">
+            <div class="category-header">
+                <span class="category-icon">🎭</span>
+                <h2 class="category-title">Multimodal Models</h2>
+                <span class="category-count">{{MULTIMODAL_COUNT}} models</span>
+            </div>
+            <div class="model-grid">
+                {{MULTIMODAL_MODELS_HTML}}
+            </div>
+        </section>
+        
+        <!-- How to Add -->
+        <div class="how-to-add">
+            <h3>➕ How to Add a New Model</h3>
+            <ol>
+                <li>Edit <code>config/models.yaml</code></li>
+                <li>Add your model under the appropriate category</li>
+                <li>Set <code>enabled: true</code> to include in tests</li>
+                <li>Run <code>make config</code> to verify</li>
+                <li>Run <code>make test</code> to test</li>
+            </ol>
+            
+            <div class="yaml-preview">
+                <h4 style="margin-bottom: 0.5rem; color: var(--text-muted);">Example:</h4>
+                <pre><code>my_model:
+  enabled: true
+  category: nlp
+  axon_id: "hf/my-org/my-model@latest"
+  description: "My awesome model"
+  input_type: text
+  small_input:
+    tokens: 7
+  large_input:
+    tokens: 128</code></pre>
+            </div>
+        </div>
+        
+        <footer class="footer">
+            <p>Generated: {{TIMESTAMP}}</p>
+            <p>Config: config/models.yaml</p>
+        </footer>
+    </div>
+</body>
+</html>
+

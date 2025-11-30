@@ -13,14 +13,16 @@ all: help
 ## test: Run full E2E test suite (generates metrics.json)
 test:
 	@echo "🧪 Running E2E tests..."
-	@chmod +x scripts/test-release-e2e.sh
-	@./scripts/test-release-e2e.sh
+	@chmod +x scripts/test-release-e2e.sh.bash
+	@cd scripts && ./test-release-e2e.sh.bash
+	@python3 scripts/generate-metrics.py
 	@echo "✅ Tests complete. Metrics saved to scripts/metrics/latest.json"
 
 ## test-quick: Run tests with only GPT-2 (fast validation)
 test-quick:
 	@echo "⚡ Running quick E2E test (GPT-2 only)..."
-	@QUICK_TEST=1 ./scripts/test-release-e2e.sh
+	@cd scripts && QUICK_TEST=1 ./test-release-e2e.sh.bash
+	@python3 scripts/generate-metrics.py
 	@echo "✅ Quick test complete."
 
 # =============================================================================
@@ -63,6 +65,26 @@ watch:
 	@ls report/*.py report/*.html report/*.css scripts/metrics/*.json | entr -c make render
 
 # =============================================================================
+# Configuration
+# =============================================================================
+
+## config: Show current model configuration
+config:
+	@python3 scripts/load-config.py
+
+## config-list: List enabled models
+config-list:
+	@python3 scripts/load-config.py --list
+
+## config-all: Show all model details (JSON)
+config-all:
+	@python3 scripts/load-config.py --all
+
+## config-edit: Open models.yaml in editor
+config-edit:
+	@$${EDITOR:-nano} config/models.yaml
+
+# =============================================================================
 # Maintenance
 # =============================================================================
 
@@ -77,7 +99,7 @@ clean:
 lint:
 	@echo "🔍 Linting..."
 	@python3 -m py_compile report/render.py && echo "  ✓ Python OK"
-	@bash -n scripts/test-release-e2e.sh 2>/dev/null && echo "  ✓ Bash OK" || echo "  ✗ Bash has issues"
+	@bash -n scripts/test-release-e2e.sh.bash 2>/dev/null && echo "  ✓ Bash OK" || echo "  ✗ Bash has issues"
 	@echo "✅ Lint complete"
 
 ## check: Verify metrics JSON is valid

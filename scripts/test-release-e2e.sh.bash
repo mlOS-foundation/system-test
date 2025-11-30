@@ -29,35 +29,73 @@ REPORT_FILE="$TEST_DIR/release-validation-report.html"
 METRICS_FILE="$TEST_DIR/metrics.json"
 LOG_FILE="$TEST_DIR/test.log"
 
-# Test models - Format: "repo/model@version:name:type:category"
-# Categories: nlp, vision, multimodal
-# Set TEST_ALL_MODELS=1 to test all models, otherwise only test essential models
-TEST_MODELS=(
-    # NLP Models - These all work with ONNX conversion
-    "hf/distilgpt2@latest:gpt2:single:nlp"
-    "hf/bert-base-uncased@latest:bert:multi:nlp"
-    "hf/roberta-base@latest:roberta:single:nlp"
-    # Note: T5 ONNX conversion fails (encoder-decoder models require special handling)
-)
+# Script directory (for finding config files)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
+CONFIG_FILE="$CONFIG_DIR/models.yaml"
+
+# Load models from config/models.yaml
+load_models_from_config() {
+    local config_loader="$SCRIPT_DIR/load-config.py"
+    
+    if [ -f "$config_loader" ] && [ -f "$CONFIG_FILE" ]; then
+        echo "📋 Loading models from config/models.yaml..."
+        
+        # Source the bash variables from config
+        eval "$(python3 "$config_loader" --bash 2>/dev/null)"
+        
+        # Build TEST_MODELS array from config
+        TEST_MODELS=()
+        for model_name in $CONFIG_ENABLED_MODELS; do
+            # Get model details using uppercase variable names
+            local upper_name=$(echo "$model_name" | tr '[:lower:]' '[:upper:]')
+            local axon_id_var="MODEL_${upper_name}_AXON_ID"
+            local category_var="MODEL_${upper_name}_CATEGORY"
+            local input_type_var="MODEL_${upper_name}_INPUT_TYPE"
+            
+            local axon_id="${!axon_id_var}"
+            local category="${!category_var:-nlp}"
+            local input_type="${!input_type_var:-text}"
+            
+            # Determine model type (single/multi) based on model
+            local model_type="single"
+            if [[ "$model_name" == "bert" ]]; then
+                model_type="multi"
+            fi
+            
+            if [ -n "$axon_id" ]; then
+                TEST_MODELS+=("${axon_id}:${model_name}:${model_type}:${category}")
+            fi
+        done
+        
+        echo "✅ Loaded ${#TEST_MODELS[@]} models from config"
+        return 0
+    else
+        echo "⚠️ Config not found, using default models"
+        return 1
+    fi
+}
+
+# Try to load from config, fallback to hardcoded defaults
+if ! load_models_from_config 2>/dev/null; then
+    # Fallback: Hardcoded models (for backward compatibility)
+    TEST_MODELS=(
+        "hf/distilgpt2@latest:gpt2:single:nlp"
+        "hf/bert-base-uncased@latest:bert:multi:nlp"
+        "hf/roberta-base@latest:roberta:single:nlp"
+    )
+fi
 
 # Additional models (tested if TEST_ALL_MODELS=1 or model already installed)
 ADDITIONAL_MODELS=(
     # Vision Models - BLOCKED: Axon converter needs --task parameter for vision models
-    # See: VISION_MODEL_SUPPORT_PLAN.md
-    # Error: "Cannot infer the task from a local directory yet"
     # "hf/microsoft/resnet-50@latest:resnet:single:vision"
-    
-    # These models have known issues:
-    # - T5: ONNX export fails (encoder-decoder model needs decoder_input_ids)
-    # - Vision: Axon converter doesn't pass --task to Optimum export
-    # - Multimodal: Requires complex inputs (text + image)
 )
 
 # Add additional models if TEST_ALL_MODELS is set or if they're already installed
 if [ "${TEST_ALL_MODELS:-0}" = "1" ]; then
     TEST_MODELS+=("${ADDITIONAL_MODELS[@]}")
 else
-    # Only add additional models if they're already installed (skip download)
     for model_spec in "${ADDITIONAL_MODELS[@]}"; do
         IFS=':' read -r model_id model_name model_type model_category <<< "$model_spec"
         model_path="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}/model.onnx"
