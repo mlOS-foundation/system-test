@@ -68,6 +68,20 @@ def parse_test_log(log_file):
     if match:
         metrics['timings']['total_duration_s'] = int(match.group(1))
     
+    # Extract resource usage - idle: "📊 Core idle: CPU=X%, Memory=XMB"
+    match = re.search(r'Core idle: CPU=([0-9.]+)%, Memory=([0-9.]+)MB', content)
+    if match:
+        metrics['core_idle_cpu'] = float(match.group(1))
+        metrics['core_idle_mem_mb'] = float(match.group(2))
+    
+    # Extract resource usage - load: "📊 Core load: CPU=X% (max:X%), Memory=XMB (max:XMB)"
+    match = re.search(r'Core load: CPU=([0-9.]+)% \(max:([0-9.]+)%\), Memory=([0-9.]+)MB \(max:([0-9.]+)MB\)', content)
+    if match:
+        metrics['core_load_cpu_avg'] = float(match.group(1))
+        metrics['core_load_cpu_max'] = float(match.group(2))
+        metrics['core_load_mem_avg'] = float(match.group(3))
+        metrics['core_load_mem_max'] = float(match.group(4))
+    
     # Extract model install times: "✅ Installed gpt2 (299417ms)"
     install_pattern = re.compile(r'✅\s*Installed\s+(\w+)\s+\((\d+)ms\)', re.IGNORECASE)
     total_install_time = 0
@@ -185,12 +199,12 @@ def main():
             "total_duration_s": parsed['timings'].get('total_duration_s', 0)
         },
         "resources": {
-            "core_idle_cpu": 0,
-            "core_idle_mem_mb": 0,
-            "core_load_cpu_avg": 0,
-            "core_load_cpu_max": 0,
-            "core_load_mem_avg_mb": 0,
-            "core_load_mem_max_mb": 0,
+            "core_idle_cpu": parsed.get('core_idle_cpu', 0),
+            "core_idle_mem_mb": parsed.get('core_idle_mem_mb', 0),
+            "core_load_cpu_avg": parsed.get('core_load_cpu_avg', 0),
+            "core_load_cpu_max": parsed.get('core_load_cpu_max', 0),
+            "core_load_mem_avg_mb": parsed.get('core_load_mem_avg', 0),
+            "core_load_mem_max_mb": parsed.get('core_load_mem_max', 0),
             "axon_cpu": 0,
             "axon_mem_mb": 0,
             "gpu_status": "Not used (CPU-only inference)"

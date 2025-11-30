@@ -1143,6 +1143,7 @@ start_mlos_core() {
                 source "$TEST_DIR/mlos_resources_idle.txt"
                 METRIC_core_idle_cpu_avg=$avg_cpu
                 METRIC_core_idle_mem_mb=$avg_mem
+                log "📊 Core idle: CPU=${avg_cpu}%, Memory=${avg_mem}MB"
             fi
             
             cd ..
@@ -1564,6 +1565,7 @@ run_inference_tests() {
                 METRIC_core_load_cpu_avg=$avg_cpu
                 METRIC_core_load_mem_max=$max_mem
                 METRIC_core_load_mem_avg=$avg_mem
+                log "📊 Core load: CPU=${avg_cpu}% (max:${max_cpu}%), Memory=${avg_mem}MB (max:${max_mem}MB)"
             fi
         fi
     fi
