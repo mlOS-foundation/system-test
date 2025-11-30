@@ -900,6 +900,14 @@ install_models() {
             log "✅ Installed $model_name (${install_time}ms)"
             ((model_count++))
             rm -f "$axon_output"
+            
+            # Clean up unnecessary files to save disk space (keep only model.onnx)
+            local model_dir=$(dirname "$model_path")
+            if [ -d "$model_dir" ]; then
+                # Remove large weight files that are redundant after ONNX conversion
+                rm -f "$model_dir/pytorch_model.bin" "$model_dir/tf_model.h5" "$model_dir/model.safetensors" 2>/dev/null || true
+                rm -f "$model_dir/flax_model.msgpack" 2>/dev/null || true
+            fi
         else
             # Model not found - output was already shown in real-time, but summarize key issues
             log_warn "Model file not found at expected location: $model_path"
