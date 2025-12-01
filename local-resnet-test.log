@@ -1,0 +1,91 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧪 Local E2E Test
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Axon: /Users/shaileshpant/src/mlOS-foundation/axon/bin/axon
+Docker Image: axon-converter:local
+Core Version: 3.1.6-alpha
+Test Model: resnet
+
+📁 Test directory: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/local-test-1764577347
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1️⃣  Testing Axon
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Axon Version: 3.0.0
+Build Type:   installed
+Git Commit:   23cb5aa
+Build Date:   2025-12-01T08:15:53Z
+Go Version:   go1.25.4
+OS/Arch:      darwin/arm64
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2️⃣  Downloading MLOS Core 3.1.6-alpha
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Downloading: mlos-core_3.1.6-alpha_darwin-arm64.tar.gz
+✅ Core downloaded
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2.5️⃣  Downloading ONNX Runtime
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Downloading: https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-osx-arm64-1.18.0.tgz
+✅ ONNX Runtime downloaded
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3️⃣  Starting MLOS Core
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HTTP bind failed: Address already in use
+✅ Core started (PID: 94633)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4️⃣  Installing resnet
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Installing: hf/microsoft/resnet-50@latest
+Using Docker image: axon-converter:local
+
+Docker images available:
+axon-converter                                  local        8a07f76ee597   5 minutes ago   2.03GB
+ghcr.io/mlos-foundation/axon-converter          3.0.3        6f28a042bc86   37 hours ago    6.93GB
+ghcr.io/mlos-foundation/axon-converter          latest       6f28a042bc86   37 hours ago    6.93GB
+ghcr.io/mlos-foundation/axon-converter          3.0.0        a9a5d09b0698   9 days ago      9.65GB
+axon-converter                                  test-local   ccf193627768   12 days ago     4.06GB
+
+Propagating hf/microsoft/resnet-50@latest...
+✓ Model hf/microsoft/resnet-50@latest already installed
+
+real	0m0.009s
+user	0m0.006s
+sys	0m0.005s
+
+✅ Installation complete
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5️⃣  Verifying Installation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Active pathways:
+
+  hf/bert-base-uncased@latest
+  hf/distilgpt2@latest
+  hf/microsoft/resnet-50@latest
+  hf/roberta-base@latest
+  hf/t5-small@latest
+
+⚠️  No ONNX file found in /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/local-test-1764577347/.axon
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6️⃣  Testing Inference
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Registering pathway: test-resnet
+⚠️  Could not determine model/ONNX path for inference test
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7️⃣  Cleanup
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Core stopped
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Test Complete!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Test directory: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/local-test-1764577347
+Install log: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/local-test-1764577347/install.log
+
+To clean up: rm -rf /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/local-test-1764577347

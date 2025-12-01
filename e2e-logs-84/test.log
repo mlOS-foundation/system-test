@@ -1,0 +1,275 @@
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m🚀 MLOS Release E2E Validation[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 13:18:34][0m Testing Axon v3.0.2 and MLOS Core 3.1.6-alpha
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m✅ Checking Prerequisites[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 13:18:34][0m ✅ GitHub CLI found: gh version 2.83.1 (2025-11-13)
+[0;32m[2025-11-30 13:18:34][0m ✅ GitHub CLI authenticated
+[0;32m[2025-11-30 13:18:34][0m ✅ curl found
+[0;32m[2025-11-30 13:18:34][0m ✅ sudo available
+[0;32m[2025-11-30 13:18:34][0m ✅ ~/.local/bin directory ready
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m🔧 Setting Up Test Environment[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 13:18:34][0m Creating test directory: /home/runner/work/system-test/system-test/scripts/release-test-1764508714
+[0;32m[2025-11-30 13:18:35][0m Test directory: /home/runner/work/system-test/system-test/scripts/release-test-1764508714
+[0;32m[2025-11-30 13:18:35][0m Report file: /home/runner/work/system-test/system-test/scripts/release-test-1764508714/release-validation-report.html
+[0;32m[2025-11-30 13:18:35][0m Metrics file: /home/runner/work/system-test/system-test/scripts/release-test-1764508714/metrics.json
+[0;32m[2025-11-30 13:18:35][0m Log file: /home/runner/work/system-test/system-test/scripts/release-test-1764508714/test.log
+[0;32m[2025-11-30 13:18:35][0m Collecting hardware specifications...
+[0;32m[2025-11-30 13:18:35][0m ✅ Hardware specs collected
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📦 Downloading Axon v3.0.2[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 13:18:35][0m Detected platform: linux/amd64
+[0;32m[2025-11-30 13:18:35][0m Downloading from: https://github.com/mlOS-foundation/axon/releases/download/v3.0.2/axon_3.0.2_linux_amd64.tar.gz
+[0;32m[2025-11-30 13:18:35][0m ✅ Downloaded: axon_3.0.2_linux_amd64.tar.gz
+[0;32m[2025-11-30 13:18:35][0m Extracting Axon binary...
+[0;32m[2025-11-30 13:18:35][0m ✅ Axon downloaded and extracted (307ms)
+[0;32m[2025-11-30 13:18:35][0m Installing Axon to ~/.local/bin/...
+[0;32m[2025-11-30 13:18:35][0m ✅ Axon installed to ~/.local/bin/axon
+[0;32m[2025-11-30 13:18:35][0m Axon version: Axon Version: v3.0.2
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📦 Downloading MLOS Core 3.1.6-alpha[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 13:18:35][0m Detected platform: linux/amd64
+[0;32m[2025-11-30 13:18:35][0m Downloading MLOS Core release via gh CLI...
+[0;32m[2025-11-30 13:18:35][0m Release: 3.1.6-alpha
+[0;32m[2025-11-30 13:18:35][0m Trying platform-specific download: mlos-core_3.1.6-alpha_linux-amd64.tar.gz
+GraphQL: Could not resolve to a Repository with the name 'mlOS-foundation/core'. (repository)
+[1;33m[2025-11-30 13:18:35] WARN:[0m Platform-specific archive not found, downloading all archives...
+GraphQL: Could not resolve to a Repository with the name 'mlOS-foundation/core'. (repository)
+[1;33m[2025-11-30 13:18:35] WARN:[0m gh download failed, trying curl for public release...
+[0;32m[2025-11-30 13:18:35][0m Trying curl download from: https://github.com/mlOS-foundation/core-releases/releases/download/v3.1.6-alpha/mlos-core_3.1.6-alpha_linux-amd64.tar.gz
+#=#=#                                                                          ######################################################################## 100.0%
+[0;32m[2025-11-30 13:18:36][0m ✅ Downloaded via curl
+[0;32m[2025-11-30 13:18:36][0m Extracting Core from: mlos-core_3.1.6-alpha_linux-amd64.tar.gz
+[0;32m[2025-11-30 13:18:36][0m ✅ Core archive extracted
+[0;32m[2025-11-30 13:18:36][0m Contents of extracted archive:
+total 12
+drwxr-xr-x 3 runner runner 4096 Nov 30 13:18 .
+drwxr-xr-x 3 runner runner 4096 Nov 30 13:18 ..
+drwxr-xr-x 3 runner runner 4096 Nov 27 17:39 mlos-core-3.1.6-alpha-linux-amd64
+[0;32m[2025-11-30 13:18:36][0m Found nested directory: ./mlos-core-3.1.6-alpha-linux-amd64, entering...
+[0;32m[2025-11-30 13:18:36][0m Contents of nested directory:
+total 120
+drwxr-xr-x 3 runner runner  4096 Nov 27 17:39 .
+drwxr-xr-x 3 runner runner  4096 Nov 30 13:18 ..
+-rw-r--r-- 1 runner runner  1079 Nov 27 17:39 LICENSE
+-rw-r--r-- 1 runner runner 16093 Nov 27 17:39 README.md
+drwxr-xr-x 2 runner runner  4096 Nov 27 17:39 docs
+-rwxr-xr-x 1 runner runner 88536 Nov 27 17:39 mlos_core
+[0;32m[2025-11-30 13:18:36][0m Searching for MLOS Core binary...
+./mlos_core
+[0;32m[2025-11-30 13:18:36][0m Found binary in current directory: mlos_core
+[0;32m[2025-11-30 13:18:36][0m ✅ Found pre-built MLOS Core binary at: mlos_core
+[0;32m[2025-11-30 13:18:36][0m Copied binary to build/mlos_core
+[0;32m[2025-11-30 13:18:36][0m ✅ Binary ready at: /home/runner/work/system-test/system-test/scripts/release-test-1764508714/mlos-core/mlos-core-3.1.6-alpha-linux-amd64/build/mlos_core
+[0;32m[2025-11-30 13:18:36][0m ✅ MLOS Core downloaded and extracted (701ms)
+[0;32m[2025-11-30 13:18:36][0m MLOS Core directory: /home/runner/work/system-test/system-test/scripts/release-test-1764508714/mlos-core/mlos-core-3.1.6-alpha-linux-amd64
+[0;32m[2025-11-30 13:18:36][0m Checking for MLOS Core binary...
+[0;32m[2025-11-30 13:18:36][0m ✅ MLOS Core binary found: /home/runner/work/system-test/system-test/scripts/release-test-1764508714/mlos-core/mlos-core-3.1.6-alpha-linux-amd64/build/mlos_core
+[0;32m[2025-11-30 13:18:36][0m MLOS Core version: 3.1.6-alpha
+[0;32m[2025-11-30 13:18:36][0m Installing MLOS Core to ~/.local/bin/...
+[0;32m[2025-11-30 13:18:36][0m ✅ MLOS Core installed to ~/.local/bin/mlos_core
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📥 Installing Test Models with Axon[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 13:18:36][0m Installing models using Axon release binary...
+[0;32m[2025-11-30 13:18:37][0m ✅ Docker available for ONNX conversion
+[0;32m[2025-11-30 13:18:37][0m Loading Axon converter image from release...
+[0;32m[2025-11-30 13:18:37][0m Downloading converter image: axon-converter-3.0.2-linux-amd64.tar.gz
+#=#=#                                                                                                                                                     0.0%                                                                           0.7%                                                                           1.2%#                                                                          2.0%#                                                                          2.5%##                                                                         3.2%##                                                                         3.7%###                                                                        4.3%###                                                                        4.9%####                                                                       5.6%####                                                                       6.2%####                                                                       6.8%#####                                                                      7.4%#####                                                                      8.3%######                                                                     8.6%######                                                                     9.3%#######                                                                    9.9%#######                                                                   10.1%#######                                                                   10.5%########                                                                  11.1%########                                                                  11.7%########                                                                  12.3%#########                                                                 13.0%#########                                                                 13.6%##########                                                                14.2%##########                                                                15.0%###########                                                               15.6%###########                                                               16.3%############                                                              17.1%############                                                              17.4%############                                                              17.9%#############                                                             18.5%#############                                                             19.3%##############                                                            19.8%##############                                                            20.1%##############                                                            20.4%###############                                                           21.0%###############                                                           21.6%################                                                          22.2%################                                                          22.8%################                                                          23.5%#################                                                         24.2%#################                                                         24.7%##################                                                        25.3%##################                                                        25.9%###################                                                       26.6%###################                                                       27.2%####################                                                      27.8%####################                                                      28.4%####################                                                      29.0%#####################                                                     29.6%#####################                                                     30.3%######################                                                    30.9%######################                                                    31.5%#######################                                                   32.1%#######################                                                   32.7%########################                                                  33.6%########################                                                  34.1%########################                                                  34.1%#########################                                                 34.8%#########################                                                 35.2%#########################                                                 35.8%##########################                                                36.6%##########################                                                37.0%###########################                                               37.7%###########################                                               38.5%############################                                              39.0%############################                                              39.5%############################                                              40.3%#############################                                             40.9%#############################                                             41.6%##############################                                            42.0%##############################                                            42.6%###############################                                           43.2%###############################                                           44.0%################################                                          44.7%################################                                          45.3%################################                                          45.7%#################################                                         46.3%#################################                                         46.9%##################################                                        47.5%##################################                                        48.6%###################################                                       48.8%###################################                                       49.6%####################################                                      50.0%####################################                                      50.6%####################################                                      51.3%#####################################                                     51.9%#####################################                                     52.5%######################################                                    53.1%######################################                                    53.7%#######################################                                   54.3%#######################################                                   55.0%########################################                                  55.8%########################################                                  56.3%########################################                                  56.8%#########################################                                 57.4%#########################################                                 58.0%##########################################                                58.7%##########################################                                59.3%###########################################                               59.9%###########################################                               60.5%############################################                              61.1%############################################                              61.8%############################################                              62.4%#############################################                             63.0%#############################################                             63.6%##############################################                            64.0%##############################################                            64.8%###############################################                           65.5%###############################################                           66.1%################################################                          66.7%################################################                          67.3%################################################                          67.9%#################################################                         68.7%#################################################                         69.2%##################################################                        69.8%##################################################                        70.6%###################################################                       71.1%###################################################                       71.8%####################################################                      72.2%####################################################                      72.9%####################################################                      73.5%#####################################################                     74.1%#####################################################                     74.7%######################################################                    75.3%######################################################                    76.1%#######################################################                   76.6%#######################################################                   77.2%########################################################                  77.8%########################################################                  78.4%########################################################                  79.0%#########################################################                 79.7%#########################################################                 80.3%##########################################################                80.9%##########################################################                81.3%##########################################################                81.5%###########################################################               82.1%###########################################################               82.7%############################################################              83.4%############################################################              84.0%############################################################              84.6%#############################################################             85.2%#############################################################             85.8%##############################################################            86.2%##############################################################            86.4%##############################################################            86.9%##############################################################            87.1%###############################################################           87.7%###############################################################           88.3%################################################################          88.9%################################################################          89.6%#################################################################         90.4%#################################################################         90.8%#################################################################         91.4%##################################################################        92.0%##################################################################        92.8%###################################################################       93.4%###################################################################       93.9%####################################################################      94.5%####################################################################      95.1%####################################################################      95.7%#####################################################################     96.3%#####################################################################     96.9%######################################################################    97.6%######################################################################    98.2%#######################################################################   98.8%#######################################################################   99.4%######################################################################## 100.0%
+[0;32m[2025-11-30 13:19:01][0m Loading converter image into Docker...
+Loaded image: ghcr.io/mlos-foundation/axon-converter:latest
+[0;32m[2025-11-30 13:20:03][0m ✅ Converter image loaded successfully
+[0;32m[2025-11-30 13:20:04][0m Installing model: hf/distilgpt2@latest (name: gpt2, type: single, category: nlp)
+[0;32m[2025-11-30 13:20:04][0m Running: axon install hf/distilgpt2@latest (timeout: 15 minutes)
+[0;32m[2025-11-30 13:20:34][0m ⏳ Still installing... (30s elapsed)
+[0;32m[2025-11-30 13:21:04][0m ⏳ Still installing... (60s elapsed)
+[0;32m[2025-11-30 13:21:34][0m ⏳ Still installing... (90s elapsed)
+[0;32m[2025-11-30 13:22:04][0m ⏳ Still installing... (120s elapsed)
+[0;32m[2025-11-30 13:22:34][0m ⏳ Still installing... (150s elapsed)
+[0;32m[2025-11-30 13:23:04][0m ⏳ Still installing... (180s elapsed)
+[0;32m[2025-11-30 13:23:34][0m ⏳ Still installing... (210s elapsed)
+[0;32m[2025-11-30 13:24:04][0m ⏳ Still installing... (240s elapsed)
+[0;32m[2025-11-30 13:24:34][0m ⏳ Still installing... (270s elapsed)
+[0;32m[2025-11-30 13:25:03][0m ✅ Model file verified at: /home/runner/.axon/cache/models/hf/distilgpt2/latest/model.onnx
+[0;32m[2025-11-30 13:25:03][0m ✅ Installed gpt2 (299417ms)
+[0;32m[2025-11-30 13:25:03][0m Installing model: hf/bert-base-uncased@latest (name: bert, type: multi, category: nlp)
+[0;32m[2025-11-30 13:25:03][0m Running: axon install hf/bert-base-uncased@latest (timeout: 15 minutes)
+[0;32m[2025-11-30 13:25:33][0m ⏳ Still installing... (30s elapsed)
+[0;32m[2025-11-30 13:26:03][0m ⏳ Still installing... (60s elapsed)
+[0;32m[2025-11-30 13:26:33][0m ⏳ Still installing... (90s elapsed)
+[0;32m[2025-11-30 13:27:03][0m ⏳ Still installing... (120s elapsed)
+[0;32m[2025-11-30 13:27:33][0m ⏳ Still installing... (150s elapsed)
+[0;32m[2025-11-30 13:28:03][0m ⏳ Still installing... (180s elapsed)
+[0;32m[2025-11-30 13:28:34][0m ⏳ Still installing... (210s elapsed)
+[0;32m[2025-11-30 13:29:04][0m ⏳ Still installing... (240s elapsed)
+[0;32m[2025-11-30 13:29:34][0m ⏳ Still installing... (270s elapsed)
+[0;32m[2025-11-30 13:29:59][0m ✅ Model file verified at: /home/runner/.axon/cache/models/hf/bert-base-uncased/latest/model.onnx
+[0;32m[2025-11-30 13:29:59][0m ✅ Installed bert (295400ms)
+[0;32m[2025-11-30 13:29:59][0m Installing model: hf/roberta-base@latest (name: roberta, type: single, category: nlp)
+[0;32m[2025-11-30 13:29:59][0m Running: axon install hf/roberta-base@latest (timeout: 15 minutes)
+[0;32m[2025-11-30 13:30:29][0m ⏳ Still installing... (30s elapsed)
+[0;32m[2025-11-30 13:30:59][0m ⏳ Still installing... (60s elapsed)
+[0;32m[2025-11-30 13:31:29][0m ⏳ Still installing... (90s elapsed)
+[0;32m[2025-11-30 13:31:59][0m ⏳ Still installing... (120s elapsed)
+[0;32m[2025-11-30 13:32:29][0m ⏳ Still installing... (150s elapsed)
+[0;32m[2025-11-30 13:32:59][0m ⏳ Still installing... (180s elapsed)
+[0;32m[2025-11-30 13:33:19][0m ✅ Model file verified at: /home/runner/.axon/cache/models/hf/roberta-base/latest/model.onnx
+[0;32m[2025-11-30 13:33:19][0m ✅ Installed roberta (200329ms)
+[0;32m[2025-11-30 13:33:19][0m Installing model: hf/microsoft/resnet-50@latest (name: resnet, type: single, category: vision)
+[0;32m[2025-11-30 13:33:19][0m Running: axon install hf/microsoft/resnet-50@latest (timeout: 15 minutes)
+[0;32m[2025-11-30 13:33:49][0m ⏳ Still installing... (30s elapsed)
+[1;33m[2025-11-30 13:33:57] WARN:[0m Model file not found at expected location: /home/runner/.axon/cache/models/hf/microsoft/resnet-50/latest/model.onnx
+[0;36m[2025-11-30 13:33:57] INFO:[0m ONNX conversion related output (from captured log):
+🐳 Converting model using Docker (ghcr.io/mlos-foundation/axon-converter:latest)...
+   Output: /home/runner/.axon/cache/models/hf/microsoft/resnet-50/latest/model.onnx
+⚠️  Docker conversion failed: docker conversion failed: exit status 1
+  File "/axon/scripts/convert_huggingface.py", line 241, in convert_huggingface_to_onnx
+safetensors_rust.SafetensorError: Error while deserializing header: invalid UTF-8 in header: invalid utf-8 sequence of 1 bytes from index 16377
+  File "/axon/scripts/convert_huggingface.py", line 249, in convert_huggingface_to_onnx
+    raise KeyError(key)
+KeyError: <class 'transformers.models.resnet.configuration_resnet.ResNetConfig'>
+🔄 Strategy 1: Trying Optimum ONNX export...
+⚠️  Optimum export failed: Cannot infer the task from a local directory yet, please specify the task manually (keypoint-detection, audio-classification, image-to-text, object-detection, image-segmentation, visual-question-answering, semantic-segmentation, multiple-choice, sentence-similarity, text-generation, audio-frame-classification, image-classification, text-to-audio, mask-generation, image-text-to-text, masked-im, audio-xvector, depth-estimation, token-classification, zero-shot-object-detection, text-classification, question-answering, document-question-answering, automatic-speech-recognition, zero-shot-image-classification, fill-mask, reinforcement-learning, inpainting, feature-extraction, text-to-image, text2text-generation, image-to-image, time-series-forecasting).
+❌ ERROR: <class 'transformers.models.resnet.configuration_resnet.ResNetConfig'>
+🔄 Converting model to ONNX format (framework: PyTorch)...
+   Target: /home/runner/.axon/cache/models/hf/microsoft/resnet-50/latest/model.onnx
+⚠️  ONNX conversion failed: conversion failed: exit status 1
+ModuleNotFoundError: No module named 'torch'
+[0;32m[2025-11-30 13:33:57][0m Searching in ~/.axon/cache/models/...
+[0;32m[2025-11-30 13:33:57][0m ✅ Found model at: /home/runner/.axon/cache/models/hf/bert-base-uncased/latest/model.onnx
+[0;32m[2025-11-30 13:33:57][0m ✅ Installed resnet (37801ms)
+[0;32m[2025-11-30 13:33:57][0m ✅ Installed 4 models (total: 833053ms)
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m🚀 Starting MLOS Core Server[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 13:33:57][0m Using MLOS Core from: /home/runner/work/system-test/system-test/scripts/release-test-1764508714/mlos-core/mlos-core-3.1.6-alpha-linux-amd64
+build/mlos_core: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=b59ae678fe1c65d1ff1b93a9be92c474552e4fc0, for GNU/Linux 3.2.0, stripped
+[0;32m[2025-11-30 13:33:57][0m ONNX Runtime not found, downloading...
+[0;32m[2025-11-30 13:33:57][0m Downloading ONNX Runtime from: https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-linux-x64-1.18.0.tgz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100 5606k  100 5606k    0     0  23.4M      0 --:--:-- --:--:-- --:--:-- 23.4M
+[0;32m[2025-11-30 13:33:57][0m ✅ Downloaded ONNX Runtime
+[0;32m[2025-11-30 13:33:57][0m ✅ ONNX Runtime installed
+[0;32m[2025-11-30 13:33:57][0m Starting MLOS Core server...
+[0;32m[2025-11-30 13:33:57][0m Using port 18080 (non-privileged, no sudo required)
+[0;32m[2025-11-30 13:33:57][0m Set LD_LIBRARY_PATH=/home/runner/work/system-test/system-test/scripts/release-test-1764508714/mlos-core/mlos-core-3.1.6-alpha-linux-amd64/build/onnxruntime/lib:/opt/hostedtoolcache/Python/3.11.14/x64/lib
+[0;32m[2025-11-30 13:33:57][0m MLOS Core server started (PID: 4973)
+[0;32m[2025-11-30 13:33:57][0m Core logs: stdout=/home/runner/work/system-test/system-test/scripts/release-test-1764508714/mlos-core-logs/core-stdout.log, stderr=/home/runner/work/system-test/system-test/scripts/release-test-1764508714/mlos-core-logs/core-stderr.log
+[0;32m[2025-11-30 13:33:57][0m Waiting for server to be ready...
+[0;32m[2025-11-30 13:33:57][0m ✅ MLOS Core ready (126ms)
+[0;32m[2025-11-30 13:33:57][0m Monitoring MLOS Core resource usage (idle)...
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📝 Registering Models with MLOS Core[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[1;33m[2025-11-30 13:34:01] WARN:[0m Manifest execution_format is 'null' but model.onnx exists
+[1;33m[2025-11-30 13:34:01] WARN:[0m Core may show framework as PyTorch but will use ONNX Runtime (this is expected)
+[0;36m[2025-11-30 13:34:01] INFO:[0m Note: Core may show 'framework: PyTorch' in logs, but will use ONNX Runtime (model.onnx detected)
+[0;32m[2025-11-30 13:34:01][0m Registering gpt2 using axon register...
+[0;32m[2025-11-30 13:34:02][0m ✅ Registered gpt2 (564ms)
+[1;33m[2025-11-30 13:34:02] WARN:[0m Manifest execution_format is 'null' but model.onnx exists
+[1;33m[2025-11-30 13:34:02] WARN:[0m Core may show framework as PyTorch but will use ONNX Runtime (this is expected)
+[0;36m[2025-11-30 13:34:02] INFO:[0m Note: Core may show 'framework: PyTorch' in logs, but will use ONNX Runtime (model.onnx detected)
+[0;32m[2025-11-30 13:34:02][0m Registering bert using axon register...
+[0;32m[2025-11-30 13:34:03][0m ✅ Registered bert (1417ms)
+[1;33m[2025-11-30 13:34:03] WARN:[0m Manifest execution_format is 'null' but model.onnx exists
+[1;33m[2025-11-30 13:34:03] WARN:[0m Core may show framework as PyTorch but will use ONNX Runtime (this is expected)
+[0;36m[2025-11-30 13:34:03] INFO:[0m Note: Core may show 'framework: PyTorch' in logs, but will use ONNX Runtime (model.onnx detected)
+[0;32m[2025-11-30 13:34:03][0m Registering roberta using axon register...
+[0;32m[2025-11-30 13:34:04][0m ✅ Registered roberta (880ms)
+[1;33m[2025-11-30 13:34:04] WARN:[0m Model file not found at: /home/runner/.axon/cache/models/hf/microsoft/resnet-50/latest/model.onnx, searching...
+[1;33m[2025-11-30 13:34:04] WARN:[0m Manifest execution_format is 'null' but model.onnx exists
+[1;33m[2025-11-30 13:34:04] WARN:[0m Core may show framework as PyTorch but will use ONNX Runtime (this is expected)
+[0;36m[2025-11-30 13:34:04] INFO:[0m Note: Core may show 'framework: PyTorch' in logs, but will use ONNX Runtime (model.onnx detected)
+[0;32m[2025-11-30 13:34:04][0m Registering resnet using axon register...
+[0;32m[2025-11-30 13:34:04][0m ✅ Registered resnet (61ms)
+[0;32m[2025-11-30 13:34:04][0m ✅ Registered 4 models
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m🧪 Running Inference Tests[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 13:34:04][0m Testing gpt2 inference (small request) [model_id: hf/distilgpt2@latest]...
+[0;32m[2025-11-30 13:34:04][0m ✅ gpt2 inference successful (89ms)
+[0;32m[2025-11-30 13:34:04][0m Testing gpt2 with large inference request (128 tokens)...
+[0;32m[2025-11-30 13:34:04][0m ✅ gpt2 large inference successful (169ms)
+[0;32m[2025-11-30 13:34:04][0m Testing bert inference (small request) [model_id: hf/bert-base-uncased@latest]...
+[0;32m[2025-11-30 13:34:04][0m ✅ bert inference successful (123ms)
+[0;32m[2025-11-30 13:34:04][0m Testing bert with large inference request (128 tokens)...
+[0;32m[2025-11-30 13:34:05][0m ✅ bert large inference successful (705ms)
+[0;32m[2025-11-30 13:34:05][0m Testing roberta inference (small request) [model_id: hf/roberta-base@latest]...
+[0;32m[2025-11-30 13:34:05][0m ✅ roberta inference successful (104ms)
+[0;32m[2025-11-30 13:34:05][0m Testing roberta with large inference request (128 tokens)...
+[0;32m[2025-11-30 13:34:06][0m ✅ roberta large inference successful (221ms)
+[0;32m[2025-11-30 13:34:06][0m Testing resnet inference (small request) [model_id: hf/microsoft/resnet-50@latest]...
+[0;31m[2025-11-30 13:34:06] ERROR:[0m resnet inference failed (HTTP 400)
+[0;31m[2025-11-30 13:34:06] ERROR:[0m Response: {"status":"error","model_id":"hf/microsoft/resnet-50@latest","message":"Inference execution failed"}
+[0;32m[2025-11-30 13:34:06][0m Monitoring MLOS Core resource usage (under load)...
+[0;32m[2025-11-30 13:34:11][0m ✅ Completed 6/7 inference tests
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📊 Generating HTML Report[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 13:34:11][0m Generating HTML report: /home/runner/work/system-test/system-test/scripts/release-test-1764508714/release-validation-report.html
+[0;32m[2025-11-30 13:34:11][0m Running Python replacement script...
+[0;32m[2025-11-30 13:34:11][0m   REPORT_FILE_PATH=/home/runner/work/system-test/system-test/scripts/release-test-1764508714/release-validation-report.html
+[0;32m[2025-11-30 13:34:11][0m   TEMP_HTML_PATH=/tmp/tmp.ZYhLLXIkgT
+[0;32m[2025-11-30 13:34:11][0m ✅ HTML report generated: /home/runner/work/system-test/system-test/scripts/release-test-1764508714/release-validation-report.html
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📊 Test Summary[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 13:34:11][0m Test completed in 937s
+[0;32m[2025-11-30 13:34:11][0m 
+[0;32m[2025-11-30 13:34:11][0m Release Versions:
+[0;32m[2025-11-30 13:34:11][0m   - Axon: Axon Version: v3.0.2
+[0;32m[2025-11-30 13:34:11][0m   - Core: 3.1.6-alpha
+[0;32m[2025-11-30 13:34:11][0m 
+[0;32m[2025-11-30 13:34:11][0m Installation:
+[0;32m[2025-11-30 13:34:11][0m   - Axon download: 307ms
+[0;32m[2025-11-30 13:34:11][0m   - Core download: 701ms
+[0;32m[2025-11-30 13:34:11][0m   - Core startup: 126ms
+[0;32m[2025-11-30 13:34:11][0m   - Models installed: 4
+[0;32m[2025-11-30 13:34:11][0m 
+[0;32m[2025-11-30 13:34:11][0m Binaries Installed:
+[0;32m[2025-11-30 13:34:11][0m   - Axon: ~/.local/bin/axon
+[0;32m[2025-11-30 13:34:11][0m   - Core: ~/.local/bin/mlos_core
+[0;32m[2025-11-30 13:34:11][0m 
+[0;32m[2025-11-30 13:34:11][0m Inference:
+[0;32m[2025-11-30 13:34:11][0m   - Total tests: 7
+[0;32m[2025-11-30 13:34:11][0m   - Successful: 6
+[0;32m[2025-11-30 13:34:11][0m   - GPT-2 (7 tokens): 89ms
+[0;32m[2025-11-30 13:34:11][0m   - GPT-2 (16 tokens): N/Ams
+[0;32m[2025-11-30 13:34:11][0m   - BERT (3 tokens): 123ms
+[0;32m[2025-11-30 13:34:11][0m 
+[0;32m[2025-11-30 13:34:11][0m 📄 Report: /home/runner/work/system-test/system-test/scripts/release-test-1764508714/release-validation-report.html
+[0;32m[2025-11-30 13:34:11][0m 📋 Log: /home/runner/work/system-test/system-test/scripts/release-test-1764508714/test.log
+[0;32m[2025-11-30 13:34:11][0m 
+[0;32m[2025-11-30 13:34:11][0m ❌ [0;31mSOME TESTS FAILED[0m
+[1;33m[2025-11-30 13:34:11] WARN:[0m Cleaning up...
+[0;32m[2025-11-30 13:34:11][0m Stopping MLOS Core (PID: 4973)...

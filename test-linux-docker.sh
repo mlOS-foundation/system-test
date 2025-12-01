@@ -3,8 +3,8 @@
 
 set -e
 
-echo "🐳 Building Linux test environment..."
-docker build -f Dockerfile.test -t mlos-test-linux .
+echo "🐳 Building Linux test environment (linux/amd64)..."
+docker build --platform linux/amd64 -f Dockerfile.test -t mlos-test-linux .
 
 echo ""
 echo "🚀 Running E2E test in Linux container..."
@@ -12,15 +12,15 @@ echo ""
 
 # Run container with Docker socket mounted (for Axon converter)
 # and bind mount the repo
-docker run --rm -it \
+docker run --rm --platform linux/amd64 \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v "$(pwd):/workspace" \
     -w /workspace \
     -e GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
     mlos-test-linux \
     bash -c '
-        echo "📦 Installing Go 1.21..."
-        curl -fsSL https://go.dev/dl/go1.21.13.linux-amd64.tar.gz | tar -C /usr/local -xz
+        echo "📦 Installing Go 1.22 (linux/amd64)..."
+        curl -fsSL https://go.dev/dl/go1.22.6.linux-amd64.tar.gz | tar -C /usr/local -xz
         export PATH=$PATH:/usr/local/go/bin
         export GOPATH=/root/go
         export PATH=$PATH:$GOPATH/bin

@@ -66,7 +66,7 @@ func Install(modelSpec string, testAllModels bool) (bool, error) {
 	
 	// Download and load Axon converter image from release artifacts
 	fmt.Printf("   Loading Axon converter image from release...\n")
-	if err := loadConverterImage("v3.1.0"); err != nil {
+	if err := loadConverterImage("v3.1.1"); err != nil {
 		fmt.Printf("⚠️  Failed to load converter image: %v\n", err)
 		fmt.Printf("   Axon may still try to pull it automatically\n")
 	} else {

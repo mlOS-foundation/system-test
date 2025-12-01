@@ -224,7 +224,7 @@ make serve
 > 📋 Models are configured in `config/models.yaml`. View full details at **[models.html](https://mlos-foundation.github.io/system-test/models.html)**.
 
 ### Current Tested Versions
-- **Axon**: v3.1.0 (Vision model support)
+- **Axon**: v3.1.1 (Vision model support, Docker base image fix)
 - **Core**: v3.2.0-alpha (Large input handling, shape inference)
 
 | Category | Model | Status | Notes |

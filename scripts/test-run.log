@@ -1,0 +1,224 @@
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m🚀 MLOS Release E2E Validation[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 21:45:20][0m Testing Axon v3.0.1 and MLOS Core 3.1.6-alpha
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m✅ Checking Prerequisites[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 21:45:20][0m ✅ GitHub CLI found: gh version 2.83.1 (2025-11-13)
+[0;32m[2025-11-30 21:45:21][0m ✅ GitHub CLI authenticated
+[0;32m[2025-11-30 21:45:21][0m ✅ curl found
+[0;32m[2025-11-30 21:45:21][0m ✅ sudo available
+[0;32m[2025-11-30 21:45:21][0m ✅ ~/.local/bin directory ready
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m🔧 Setting Up Test Environment[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 21:45:21][0m Creating test directory: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320
+[0;32m[2025-11-30 21:45:21][0m Test directory: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320
+[0;32m[2025-11-30 21:45:21][0m Report file: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/release-validation-report.html
+[0;32m[2025-11-30 21:45:21][0m Metrics file: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/metrics.json
+[0;32m[2025-11-30 21:45:21][0m Log file: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/test.log
+[0;32m[2025-11-30 21:45:21][0m Collecting hardware specifications...
+[0;32m[2025-11-30 21:45:21][0m ✅ Hardware specs collected
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📦 Downloading Axon v3.0.1[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 21:45:21][0m Detected platform: darwin/arm64
+[0;32m[2025-11-30 21:45:21][0m Downloading from: https://github.com/mlOS-foundation/axon/releases/download/v3.0.1/axon_3.0.1_darwin_arm64.tar.gz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100 5459k  100 5459k    0     0  4051k      0  0:00:01  0:00:01 --:--:-- 4051k
+[0;32m[2025-11-30 21:45:23][0m ✅ Downloaded: axon_3.0.1_darwin_arm64.tar.gz
+[0;32m[2025-11-30 21:45:23][0m Extracting Axon binary...
+[0;32m[2025-11-30 21:45:23][0m ✅ Axon downloaded and extracted (1436ms)
+[0;32m[2025-11-30 21:45:23][0m Installing Axon to ~/.local/bin/...
+[0;32m[2025-11-30 21:45:23][0m ✅ Axon installed to ~/.local/bin/axon
+Axon Version: v3.0.1
+Build Type:   local
+Git Commit:   unknown
+Build Date:   unknown
+Go Version:   go1.24.0
+OS/Arch:      darwin/arm64
+[0;32m[2025-11-30 21:45:24][0m Axon version: Axon Version: v3.0.1
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📦 Downloading MLOS Core 3.1.6-alpha[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 21:45:24][0m Detected platform: darwin/arm64
+[0;32m[2025-11-30 21:45:24][0m Downloading MLOS Core release via gh CLI...
+[0;32m[2025-11-30 21:45:24][0m Release: 3.1.6-alpha
+[0;32m[2025-11-30 21:45:24][0m Trying platform-specific download: mlos-core_3.1.6-alpha_darwin-arm64.tar.gz
+[1;33m[2025-11-30 21:45:25] WARN:[0m Platform-specific archive not found, downloading all archives...
+[1;33m[2025-11-30 21:45:25] WARN:[0m gh download failed, trying curl for public release...
+[0;32m[2025-11-30 21:45:25][0m Trying curl download from: https://github.com/mlOS-foundation/core-releases/releases/download/v3.1.6-alpha/mlos-core_3.1.6-alpha_darwin-arm64.tar.gz
+[0;32m[2025-11-30 21:45:26][0m ✅ Downloaded via curl
+[0;32m[2025-11-30 21:45:26][0m Extracting Core from: mlos-core_3.1.6-alpha_darwin-arm64.tar.gz
+[0;32m[2025-11-30 21:45:26][0m ✅ Core archive extracted
+[0;32m[2025-11-30 21:45:26][0m Contents of extracted archive:
+[0;32m[2025-11-30 21:45:26][0m Found nested directory: ./mlos-core-3.1.6-alpha-darwin-arm64, entering...
+[0;32m[2025-11-30 21:45:26][0m Contents of nested directory:
+[0;32m[2025-11-30 21:45:26][0m Searching for MLOS Core binary...
+[0;32m[2025-11-30 21:45:26][0m Found binary in current directory: mlos_core
+[0;32m[2025-11-30 21:45:26][0m ✅ Found pre-built MLOS Core binary at: mlos_core
+[0;32m[2025-11-30 21:45:26][0m Copied binary to build/mlos_core
+[0;32m[2025-11-30 21:45:26][0m ✅ Binary ready at: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/mlos-core/mlos-core-3.1.6-alpha-darwin-arm64/build/mlos_core
+[0;32m[2025-11-30 21:45:26][0m ✅ MLOS Core downloaded and extracted (2414ms)
+[0;32m[2025-11-30 21:45:26][0m MLOS Core directory: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/mlos-core/mlos-core-3.1.6-alpha-darwin-arm64
+[0;32m[2025-11-30 21:45:26][0m Checking for MLOS Core binary...
+[0;32m[2025-11-30 21:45:26][0m ✅ MLOS Core binary found: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/mlos-core/mlos-core-3.1.6-alpha-darwin-arm64/build/mlos_core
+[0;32m[2025-11-30 21:45:26][0m MLOS Core version: 3.1.6-alpha
+[0;32m[2025-11-30 21:45:26][0m Installing MLOS Core to ~/.local/bin/...
+[0;32m[2025-11-30 21:45:26][0m ✅ MLOS Core installed to ~/.local/bin/mlos_core
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📥 Installing Test Models with Axon[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 21:45:26][0m ✅ Model already installed: gpt2 at /Users/shaileshpant/.axon/cache/models/hf/distilgpt2/latest/model.onnx
+[0;32m[2025-11-30 21:45:26][0m ✅ Model already installed: bert at /Users/shaileshpant/.axon/cache/models/hf/bert-base-uncased/latest/model.onnx
+[0;32m[2025-11-30 21:45:26][0m ✅ Model already installed: roberta at /Users/shaileshpant/.axon/cache/models/hf/roberta-base/latest/model.onnx
+[0;32m[2025-11-30 21:45:26][0m All 3 models already installed, skipping installation
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m🚀 Starting MLOS Core Server[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 21:45:26][0m Using MLOS Core from: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/mlos-core/mlos-core-3.1.6-alpha-darwin-arm64
+[0;32m[2025-11-30 21:45:26][0m Checking binary dependencies...
+[0;32m[2025-11-30 21:45:26][0m ONNX Runtime not found, downloading...
+[0;32m[2025-11-30 21:45:26][0m Downloading ONNX Runtime from: https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-osx-arm64-1.18.0.tgz
+[0;32m[2025-11-30 21:45:28][0m ✅ Downloaded ONNX Runtime
+[0;32m[2025-11-30 21:45:29][0m ✅ ONNX Runtime installed
+[0;32m[2025-11-30 21:45:29][0m Starting MLOS Core server...
+[0;32m[2025-11-30 21:45:29][0m Using port 18080 (non-privileged, no sudo required)
+[0;32m[2025-11-30 21:45:29][0m MLOS Core server started (PID: 66126)
+[0;32m[2025-11-30 21:45:29][0m Core logs: stdout=/Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/mlos-core-logs/core-stdout.log, stderr=/Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/mlos-core-logs/core-stderr.log
+[0;32m[2025-11-30 21:45:29][0m Waiting for server to be ready...
+[0;32m[2025-11-30 21:45:31][0m ✅ MLOS Core ready (2203ms)
+[0;32m[2025-11-30 21:45:31][0m Monitoring MLOS Core resource usage (idle)...
+[0;32m[2025-11-30 21:45:34][0m 📊 Core idle: CPU=0.07%, Memory=15.80MB
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📝 Registering Models with MLOS Core[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 21:45:34][0m ✅ Manifest execution_format is set to onnx
+[0;36m[2025-11-30 21:45:34] INFO:[0m Note: Core may show 'framework: PyTorch' in logs, but will use ONNX Runtime (model.onnx detected)
+[0;32m[2025-11-30 21:45:34][0m Registering gpt2 using axon register...
+[0;32m[2025-11-30 21:45:34][0m ✅ Registered gpt2 (131ms)
+[0;32m[2025-11-30 21:45:34][0m ✅ Manifest execution_format is set to onnx
+[0;36m[2025-11-30 21:45:34] INFO:[0m Note: Core may show 'framework: PyTorch' in logs, but will use ONNX Runtime (model.onnx detected)
+[0;32m[2025-11-30 21:45:34][0m Registering bert using axon register...
+[0;32m[2025-11-30 21:45:35][0m ✅ Registered bert (271ms)
+[0;32m[2025-11-30 21:45:35][0m ✅ Manifest execution_format is set to onnx
+[0;36m[2025-11-30 21:45:35] INFO:[0m Note: Core may show 'framework: PyTorch' in logs, but will use ONNX Runtime (model.onnx detected)
+[0;32m[2025-11-30 21:45:35][0m Registering roberta using axon register...
+[0;32m[2025-11-30 21:45:35][0m ✅ Registered roberta (140ms)
+[0;32m[2025-11-30 21:45:35][0m ✅ Registered 3 models
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m🧪 Running Inference Tests[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 21:45:35][0m Testing gpt2 inference (small request) [model_id: hf/distilgpt2@latest]...
+[0;32m[2025-11-30 21:45:35][0m ✅ gpt2 inference successful (75ms)
+[0;32m[2025-11-30 21:45:35][0m Testing gpt2 with large inference request (128 tokens)...
+[0;32m[2025-11-30 21:45:35][0m ✅ gpt2 large inference successful (99ms)
+[0;32m[2025-11-30 21:45:35][0m Testing bert inference (small request) [model_id: hf/bert-base-uncased@latest]...
+[0;32m[2025-11-30 21:45:35][0m ✅ bert inference successful (93ms)
+[0;32m[2025-11-30 21:45:35][0m Testing bert with large inference request (128 tokens)...
+[0;32m[2025-11-30 21:45:36][0m ✅ bert large inference successful (498ms)
+[0;32m[2025-11-30 21:45:36][0m Testing roberta inference (small request) [model_id: hf/roberta-base@latest]...
+[0;32m[2025-11-30 21:45:36][0m ✅ roberta inference successful (91ms)
+[0;32m[2025-11-30 21:45:36][0m Testing roberta with large inference request (128 tokens)...
+[0;32m[2025-11-30 21:45:36][0m ✅ roberta large inference successful (100ms)
+[0;32m[2025-11-30 21:45:36][0m Monitoring MLOS Core resource usage (under load)...
+[0;32m[2025-11-30 21:45:41][0m 📊 Core load: CPU=17.34% (max:83.8%), Memory=1637.16MB (max:1637.16MB)
+[0;32m[2025-11-30 21:45:41][0m ✅ Completed 6/6 inference tests
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📊 Generating HTML Report[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 21:45:41][0m Generating HTML report: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/release-validation-report.html
+[0;32m[2025-11-30 21:45:41][0m Running Python replacement script...
+[0;32m[2025-11-30 21:45:41][0m   REPORT_FILE_PATH=/Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/release-validation-report.html
+[0;32m[2025-11-30 21:45:41][0m   TEMP_HTML_PATH=/var/folders/fl/_4lv9sg922gfg6cn1t82kq480000gn/T/tmp.baPHPAwMxj
+🐍 Python script starting...
+  report_file=/Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/release-validation-report.html
+  temp_html=/var/folders/fl/_4lv9sg922gfg6cn1t82kq480000gn/T/tmp.baPHPAwMxj
+  Read 25067 bytes from report file
+  Read 1600 bytes from temp HTML
+  Replaced MULTIMODAL_STATUS_CLASS: 1 occurrence(s)
+  Replaced INFERENCE_METRICS_HTML: 1 occurrence(s)
+  Replaced TOTAL_INFERENCE_TIME: 1 occurrence(s)
+  Replaced VISION_STATUS_CLASS: 1 occurrence(s)
+  Replaced TOTAL_REGISTER_TIME: 1 occurrence(s)
+  Replaced MULTIMODAL_STATUS: 1 occurrence(s)
+  Replaced INFERENCE_LABELS: 1 occurrence(s)
+  Replaced INFERENCE_COLORS: 1 occurrence(s)
+  Replaced NLP_STATUS_CLASS: 1 occurrence(s)
+  Replaced INFERENCE_DATA: 1 occurrence(s)
+  Replaced VISION_STATUS: 1 occurrence(s)
+  Replaced NLP_STATUS: 1 occurrence(s)
+  Replaced TIMESTAMP: 1 occurrence(s)
+  Replaced TEST_DIR: 1 occurrence(s)
+✅ Python replacement complete
+[0;32m[2025-11-30 21:45:41][0m ✅ HTML report generated: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/release-validation-report.html
+
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;35m📊 Test Summary[0m
+[0;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+
+[0;32m[2025-11-30 21:45:41][0m Test completed in 21s
+[0;32m[2025-11-30 21:45:41][0m 
+[0;32m[2025-11-30 21:45:41][0m Release Versions:
+[0;32m[2025-11-30 21:45:41][0m   - Axon: Axon Version: v3.0.1
+[0;32m[2025-11-30 21:45:41][0m   - Core: 3.1.6-alpha
+[0;32m[2025-11-30 21:45:41][0m 
+[0;32m[2025-11-30 21:45:41][0m Installation:
+[0;32m[2025-11-30 21:45:41][0m   - Axon download: 1436ms
+[0;32m[2025-11-30 21:45:41][0m   - Core download: 2414ms
+[0;32m[2025-11-30 21:45:41][0m   - Core startup: 2203ms
+[0;32m[2025-11-30 21:45:41][0m   - Models installed: 3
+[0;32m[2025-11-30 21:45:41][0m 
+[0;32m[2025-11-30 21:45:41][0m Binaries Installed:
+[0;32m[2025-11-30 21:45:41][0m   - Axon: ~/.local/bin/axon
+[0;32m[2025-11-30 21:45:41][0m   - Core: ~/.local/bin/mlos_core
+[0;32m[2025-11-30 21:45:41][0m 
+[0;32m[2025-11-30 21:45:41][0m Inference:
+[0;32m[2025-11-30 21:45:41][0m   - Total tests: 6
+[0;32m[2025-11-30 21:45:41][0m   - Successful: 6
+[0;32m[2025-11-30 21:45:41][0m   - GPT-2 (7 tokens): 75ms
+[0;32m[2025-11-30 21:45:41][0m   - GPT-2 (16 tokens): N/Ams
+[0;32m[2025-11-30 21:45:41][0m   - BERT (3 tokens): 93ms
+[0;32m[2025-11-30 21:45:41][0m 
+[0;32m[2025-11-30 21:45:41][0m 📄 Report: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/release-validation-report.html
+[0;32m[2025-11-30 21:45:41][0m 📋 Log: /Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/test.log
+[0;32m[2025-11-30 21:45:41][0m 
+[0;32m[2025-11-30 21:45:41][0m ✅ [0;32mALL TESTS PASSED![0m
+[0;32m[2025-11-30 21:45:41][0m 
+[0;32m[2025-11-30 21:45:41][0m ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[2025-11-30 21:45:41][0m ✅ [0;32mRelease E2E validation completed successfully![0m
+[0;32m[2025-11-30 21:45:41][0m ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[2025-11-30 21:45:41][0m 
+[0;32m[2025-11-30 21:45:41][0m 📊 Open the report in your browser:
+[0;32m[2025-11-30 21:45:41][0m    file:///Users/shaileshpant/src/mlOS-foundation/system-test/scripts/release-test-1764519320/release-validation-report.html
+[0;32m[2025-11-30 21:45:42][0m 
+[0;32m[2025-11-30 21:45:42][0m 🎉 Binaries installed and ready to use:
+[0;32m[2025-11-30 21:45:42][0m    axon --help
+[0;32m[2025-11-30 21:45:42][0m    mlos_core --help
+[0;32m[2025-11-30 21:45:42][0m 
+[1;33m[2025-11-30 21:45:42] WARN:[0m Cleaning up...
+[0;32m[2025-11-30 21:45:42][0m Stopping MLOS Core (PID: 66126)...
+./test-release-e2e.sh.bash: line 351: 66126 Killed: 9               $core_cmd >> "$core_stdout" 2>> "$core_stderr"  (wd: ~/src/mlOS-foundation/system-test/scripts/release-test-1764519320/mlos-core/mlos-core-3.1.6-alpha-darwin-arm64)

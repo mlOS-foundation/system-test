@@ -6,7 +6,7 @@ on:
       axon_version:
         description: 'Axon version to test'
         required: false
-        default: 'v3.1.0'
+        default: 'v3.1.1'
       core_version:
         description: 'Core version to test'
         required: false
