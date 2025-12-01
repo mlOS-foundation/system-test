@@ -1496,9 +1496,13 @@ run_inference_tests() {
         fi
         
         local start_time=$(get_timestamp_ms)
+        # Write input to temp file to avoid "Argument list too long" for large inputs (images)
+        local tmp_input="/tmp/inference_input_$$.json"
+        echo "$test_input" > "$tmp_input"
         local response=$(curl -s -w "\n%{http_code}" -X POST "http://127.0.0.1:18080/models/${encoded_model_id}/inference" \
             -H "Content-Type: application/json" \
-            -d "$test_input")
+            -d "@$tmp_input")
+        rm -f "$tmp_input"
         
         local http_code=$(echo "$response" | tail -n 1)
         local body=$(echo "$response" | sed '$d')
@@ -1525,9 +1529,13 @@ run_inference_tests() {
                 local large_input=$(get_test_input "$model_name" "$model_type" "$model_category" "large")
                 
                 local start_time_large=$(get_timestamp_ms)
+                # Write input to temp file to avoid "Argument list too long"
+                local tmp_large_input="/tmp/inference_large_input_$$.json"
+                echo "$large_input" > "$tmp_large_input"
                 local response_large=$(curl -s -w "\n%{http_code}" -X POST "http://127.0.0.1:18080/models/${encoded_model_id}/inference" \
                     -H "Content-Type: application/json" \
-                    -d "$large_input")
+                    -d "@$tmp_large_input")
+                rm -f "$tmp_large_input"
                 
                 local http_code_large=$(echo "$response_large" | tail -n 1)
                 local end_time_large=$(get_timestamp_ms)
