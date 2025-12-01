@@ -53,6 +53,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y curl tar jq
+          pip install pyyaml
       
       - name: Ensure Docker is accessible
         run: |
@@ -126,7 +127,7 @@ jobs:
               cp "$LEGACY" output/index.html
             else
               echo "<html><body><h1>E2E Report</h1><p>Pending...</p></body></html>" > output/index.html
-            fi
+          fi
           fi
           
           ls -la output/
