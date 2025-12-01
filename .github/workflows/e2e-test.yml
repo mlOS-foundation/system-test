@@ -6,11 +6,11 @@ on:
       axon_version:
         description: 'Axon version to test'
         required: false
-        default: 'v3.0.2'
+        default: 'v3.1.0'
       core_version:
         description: 'Core version to test'
         required: false
-        default: '3.1.6-alpha'
+        default: '3.2.0-alpha'
   # schedule:
   #   - cron: '0 0 * * 0'  # Weekly on Sunday
 
@@ -88,6 +88,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y curl tar jq
+          pip install pyyaml
       
       - name: Ensure Docker is accessible
         run: |
