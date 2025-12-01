@@ -1,12 +1,14 @@
 # MLOS E2E Test - Model Configuration
 # Add new models here to include them in test runs
+# 
+# Updated: 2024-12-01 - Added validated vision models (Axon v3.1.0, Core v3.2.0-alpha)
 
 # Test runner settings
 settings:
   # Maximum time (seconds) to wait for model installation
   install_timeout: 600
   # Maximum time (seconds) to wait for inference
-  inference_timeout: 60
+  inference_timeout: 120  # Increased for vision models (larger inputs)
   # Run large inference tests (more tokens/larger inputs)
   run_large_tests: true
 
@@ -75,38 +77,119 @@ models:
       tokens: 128
 
   # =============================================================================
-  # Vision Models (Image-based)
+  # Vision Models (Image-based) - Validated with Axon v3.1.0 + Core v3.2.0-alpha
   # =============================================================================
   
   resnet:
-    enabled: false  # Disabled - Axon needs --task param for vision models (see axon#42)
+    enabled: true
     category: vision
     axon_id: "hf/microsoft/resnet-50@latest"
-    description: "ResNet-50 - Image classification"
+    description: "ResNet-50 - Image classification (1000 classes)"
     input_type: image
-    notes: "Blocked: Axon converter needs --task param for vision models (axon#42). Nested namespace fix in v3.0.3."
+    notes: "Validated: ONNX conversion + inference working"
     small_input:
-      width: 32
-      height: 32
-      channels: 3
-    large_input:
       width: 64
       height: 64
+      channels: 3
+    large_input:
+      width: 224
+      height: 224
       channels: 3
 
   vit:
-    enabled: false  # Not yet tested
+    enabled: true
     category: vision
     axon_id: "hf/google/vit-base-patch16-224@latest"
-    description: "Vision Transformer - Image classification"
+    description: "Vision Transformer (ViT) - Image classification"
     input_type: image
+    notes: "Validated: ONNX conversion + inference working"
     small_input:
-      width: 32
-      height: 32
-      channels: 3
-    large_input:
       width: 64
       height: 64
+      channels: 3
+    large_input:
+      width: 224
+      height: 224
+      channels: 3
+
+  convnext:
+    enabled: true
+    category: vision
+    axon_id: "hf/facebook/convnext-tiny-224@latest"
+    description: "ConvNeXt Tiny - Modern CNN architecture"
+    input_type: image
+    notes: "Validated: ONNX conversion + inference working"
+    small_input:
+      width: 64
+      height: 64
+      channels: 3
+    large_input:
+      width: 224
+      height: 224
+      channels: 3
+
+  mobilenet:
+    enabled: true
+    category: vision
+    axon_id: "hf/google/mobilenet_v2_1.0_224@latest"
+    description: "MobileNetV2 - Efficient mobile architecture"
+    input_type: image
+    notes: "Validated: ONNX conversion + inference working"
+    small_input:
+      width: 64
+      height: 64
+      channels: 3
+    large_input:
+      width: 224
+      height: 224
+      channels: 3
+
+  deit:
+    enabled: true
+    category: vision
+    axon_id: "hf/facebook/deit-small-patch16-224@latest"
+    description: "DeiT Small - Data-efficient Image Transformer"
+    input_type: image
+    notes: "Validated: ONNX conversion + inference working"
+    small_input:
+      width: 64
+      height: 64
+      channels: 3
+    large_input:
+      width: 224
+      height: 224
+      channels: 3
+
+  # Additional vision models (not yet validated)
+  swin:
+    enabled: false  # Known issue: PyTorch-to-ONNX export fails with dynamic shapes
+    category: vision
+    axon_id: "hf/microsoft/swin-tiny-patch4-window7-224@latest"
+    description: "Swin Transformer - Shifted window attention"
+    input_type: image
+    notes: "Known PyTorch-to-ONNX conversion issues"
+    small_input:
+      width: 64
+      height: 64
+      channels: 3
+    large_input:
+      width: 224
+      height: 224
+      channels: 3
+
+  efficientnet:
+    enabled: false  # Not yet tested
+    category: vision
+    axon_id: "hf/google/efficientnet-b0@latest"
+    description: "EfficientNet-B0 - Compound scaling CNN"
+    input_type: image
+    small_input:
+      width: 64
+      height: 64
+      channels: 3
+    large_input:
+      width: 224
+      height: 224
       channels: 3
 
   # =============================================================================
@@ -114,20 +197,20 @@ models:
   # =============================================================================
   
   clip:
-    enabled: false  # Not yet tested
+    enabled: false  # Requires special multimodal input handling
     category: multimodal
     axon_id: "hf/openai/clip-vit-base-patch32@latest"
     description: "CLIP - Image-text matching"
     input_type: multimodal
-    notes: "Requires both image and text inputs"
+    notes: "Requires both image and text inputs - special handling needed"
     small_input:
       text_tokens: 7
       image_width: 32
       image_height: 32
     large_input:
       text_tokens: 77
-      image_width: 64
-      image_height: 64
+      image_width: 224
+      image_height: 224
 
 # =============================================================================
 # Quick reference for adding new models:
@@ -138,6 +221,12 @@ models:
 # 3. Choose correct category: nlp, vision, or multimodal
 # 4. Provide the Axon model ID (run 'axon search <model>' to find it)
 # 5. Configure input sizes appropriate for the model
+#
+# Vision model notes:
+# - Most vision models expect 224x224 inputs (standard ImageNet size)
+# - Use smaller sizes (64x64) for quick smoke tests
+# - ONNX conversion via Axon v3.1.0+ handles task detection automatically
+# - Core v3.2.0-alpha+ supports large image payloads (up to 16MB)
 #
 # Example:
 #   my_new_model:

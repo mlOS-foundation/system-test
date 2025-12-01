@@ -223,15 +223,32 @@ make serve
 
 > 📋 Models are configured in `config/models.yaml`. View full details at **[models.html](https://mlos-foundation.github.io/system-test/models.html)**.
 
+### Current Tested Versions
+- **Axon**: v3.1.0 (Vision model support)
+- **Core**: v3.2.0-alpha (Large input handling, shape inference)
+
 | Category | Model | Status | Notes |
 |----------|-------|--------|-------|
 | **NLP** | GPT-2 | ✅ Enabled | DistilGPT-2 - text generation |
 | | BERT | ✅ Enabled | BERT base - masked language model |
 | | RoBERTa | ✅ Enabled | RoBERTa base - robust BERT variant |
 | | T5 | ⏳ Disabled | Encoder-decoder needs special handling |
-| **Vision** | ResNet-50 | ⏳ Disabled | Blocked: Axon `--task` param needed |
-| | ViT | ⏳ Disabled | Pending Axon vision support |
+| **Vision** | ResNet-50 | ✅ Enabled | Image classification (1000 classes) |
+| | ViT | ✅ Enabled | Vision Transformer - patch-based |
+| | ConvNeXt | ✅ Enabled | Modern CNN architecture |
+| | MobileNetV2 | ✅ Enabled | Efficient mobile architecture |
+| | DeiT | ✅ Enabled | Data-efficient Image Transformer |
+| | Swin | ⏳ Disabled | PyTorch-to-ONNX export issues |
+| | EfficientNet | ⏳ Disabled | Not yet tested |
 | **Multi-Modal** | CLIP | ⏳ Disabled | Pending - requires text+image input |
+
+### Vision Model Support (New in v3.1.0)
+
+Vision models are now fully supported via:
+- **Axon v3.1.0**: Automatic task detection from model config (50+ architectures)
+- **Core v3.2.0-alpha**: Large input handling (up to 16MB), dynamic shape inference
+
+Standard ImageNet input (224×224×3 RGB) works out of the box.
 
 ## 🛠️ Development
 
