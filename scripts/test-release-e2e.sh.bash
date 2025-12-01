@@ -22,8 +22,8 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-AXON_RELEASE_VERSION="v3.0.1"
-CORE_RELEASE_VERSION="3.1.6-alpha"
+AXON_RELEASE_VERSION="v3.1.0"
+CORE_RELEASE_VERSION="3.2.0-alpha"
 TEST_DIR="$(pwd)/release-test-$(date +%s)"
 REPORT_FILE="$TEST_DIR/release-validation-report.html"
 METRICS_FILE="$TEST_DIR/metrics.json"
@@ -79,11 +79,11 @@ load_models_from_config() {
 # Try to load from config, fallback to hardcoded defaults
 if ! load_models_from_config 2>/dev/null; then
     # Fallback: Hardcoded models (for backward compatibility)
-    TEST_MODELS=(
-        "hf/distilgpt2@latest:gpt2:single:nlp"
-        "hf/bert-base-uncased@latest:bert:multi:nlp"
+TEST_MODELS=(
+    "hf/distilgpt2@latest:gpt2:single:nlp"
+    "hf/bert-base-uncased@latest:bert:multi:nlp"
         "hf/roberta-base@latest:roberta:single:nlp"
-    )
+)
 fi
 
 # Additional models (tested if TEST_ALL_MODELS=1 or model already installed)
@@ -2714,9 +2714,9 @@ try:
         print(f"❌ Report file not found: {report_file}", flush=True)
         sys.exit(1)
 
-    # Read the report file
+# Read the report file
     with open(report_file, 'r', encoding='utf-8') as f:
-        content = f.read()
+    content = f.read()
 
     print(f"  Read {len(content)} bytes from report file", flush=True)
     
@@ -2724,7 +2724,7 @@ try:
     html_content = ""
     if temp_html and os.path.exists(temp_html):
         with open(temp_html, 'r', encoding='utf-8') as f:
-            html_content = f.read()
+    html_content = f.read()
         print(f"  Read {len(html_content)} bytes from temp HTML", flush=True)
     else:
         print(f"  No temp HTML file, using empty string", flush=True)
@@ -2804,9 +2804,9 @@ try:
             content = content.replace(key, val)
             print(f"  Replaced {key}: {count} occurrence(s)", flush=True)
 
-    # Write back
+# Write back
     with open(report_file, 'w', encoding='utf-8') as f:
-        f.write(content)
+    f.write(content)
 
     print(f"✅ Python replacement complete", flush=True)
 
