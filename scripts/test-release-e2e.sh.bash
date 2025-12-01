@@ -1373,17 +1373,13 @@ get_test_input() {
         vision)
             # Vision models need image tensor (batch, channels, height, width)
             # ResNet/VGG/ViT expect (1, 3, 224, 224) normalized images
+            # Core expects flat JSON format: {"pixel_values": [data...]}
             case "$model_name" in
-                resnet|vgg|vit|alexnet)
-                    # Generate a small test image tensor for validation
-                    # Using 64x64 instead of 224x224 to avoid "Argument list too long" error
-                    # This is sufficient for E2E validation (model loading, inference pipeline)
-                    if [ "$size" = "large" ]; then
-                        local img_size=64
-                    else
-                        local img_size=32
-                    fi
-                    # Generate pixel data using Python
+                resnet|vgg|vit|alexnet|convnext|mobilenet|deit)
+                    # Generate image tensor for validation
+                    # Using 224x224 (standard ImageNet size) - Core v3.2.1+ supports large payloads
+                    local img_size=224
+                    # Generate pixel data using Python - flat format for Core
                     local pixel_data=$(python3 -c "
 import random
 import json
@@ -1393,26 +1389,20 @@ channels = 3
 height = $img_size
 width = $img_size
 # Generate normalized random values (ImageNet normalization range)
-data = [[[[random.gauss(0, 1) for _ in range(width)] for _ in range(height)] for _ in range(channels)] for _ in range(batch)]
-# Flatten for JSON
-flat = []
-for b in data:
-    for c in b:
-        for h in c:
-            flat.extend(h)
-print(json.dumps({'pixel_values': flat, 'shape': [batch, channels, height, width]}))
+data = [random.gauss(0, 1) for _ in range(batch * channels * height * width)]
+# Core expects flat JSON: {\"tensor_name\": [data...]}
+print(json.dumps({'pixel_values': data}))
 ")
                     echo "$pixel_data"
                     ;;
                 *)
-                    # Generic vision model - use same format
+                    # Generic vision model - flat format for Core
                     local pixel_data=$(python3 -c "
 import random
 import json
 random.seed(42)
-data = [[[[random.gauss(0, 1) for _ in range(224)] for _ in range(224)] for _ in range(3)]]
-flat = [x for b in data for c in b for h in c for x in h]
-print(json.dumps({'pixel_values': flat, 'shape': [1, 3, 224, 224]}))
+data = [random.gauss(0, 1) for _ in range(1 * 3 * 224 * 224)]
+print(json.dumps({'pixel_values': data}))
 ")
                     echo "$pixel_data"
                     ;;
