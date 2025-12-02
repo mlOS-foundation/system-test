@@ -178,10 +178,11 @@ models:
       channels: 3
 
   efficientnet:
-    enabled: false  # Not yet tested
+    enabled: true  # Validated and enabled
     category: vision
     axon_id: "hf/google/efficientnet-b0@latest"
     description: "EfficientNet-B0 - Compound scaling CNN"
+    notes: "Validated: ONNX conversion + inference working"
     input_type: image
     small_input:
       width: 64

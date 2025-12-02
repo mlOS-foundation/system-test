@@ -145,6 +145,17 @@ models:
       std: [0.229, 0.224, 0.225]
     test_seed: 42
 
+  efficientnet:
+    category: vision
+    preprocessor: "google/efficientnet-b0"
+    input_name: "pixel_values"
+    image_size: 224
+    channels: 3
+    normalization:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    test_seed: 42
+
   # ═══════════════════════════════════════════════════════════════════════════
   # Multi-Modal Models (Future)
   # ═══════════════════════════════════════════════════════════════════════════
