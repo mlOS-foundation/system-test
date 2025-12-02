@@ -47,14 +47,19 @@ system-test/
 │       └── pages.yml             # Scheduled report generation & deploy
 │
 ├── config/
-│   └── models.yaml               # 📋 Model configuration (add models here!)
+│   ├── models.yaml               # 📋 Model configuration (add models here!)
+│   └── test-inputs.yaml          # 🧪 Test input configuration per model
 │
 ├── scripts/
 │   ├── test-release-e2e.sh.bash  # Main test runner
+│   ├── generate-test-input.py    # 🆕 Test input generator
 │   ├── generate-metrics.py       # Metrics JSON generator
 │   ├── load-config.py            # YAML config loader
 │   └── metrics/                  # Stored metrics from test runs
 │       └── latest.json           # Most recent test metrics
+│
+├── docs/
+│   └── E2E_TESTING_GUIDE.md      # 📖 Detailed testing documentation
 │
 ├── report/
 │   ├── render.py                 # Python renderer (all business logic)
@@ -249,6 +254,35 @@ Vision models are now fully supported via:
 - **Core v3.2.1-alpha**: Large input handling (up to 16MB), dynamic shape inference
 
 Standard ImageNet input (224×224×3 RGB) works out of the box.
+
+## 📖 Documentation
+
+For detailed information about the E2E testing system:
+
+- **[E2E Testing Guide](docs/E2E_TESTING_GUIDE.md)** - Comprehensive guide on how the system works
+- **[Test Input Configuration](config/test-inputs.yaml)** - Per-model input specifications
+- **[Model Configuration](config/models.yaml)** - Model definitions and settings
+
+### Quick Reference: Test Input Generation
+
+```bash
+# Generate test input for any model
+python3 scripts/generate-test-input.py bert small
+python3 scripts/generate-test-input.py resnet
+python3 scripts/generate-test-input.py gpt2 large --pretty
+```
+
+Each model's required inputs are defined in `config/test-inputs.yaml`:
+
+```yaml
+models:
+  bert:
+    required_inputs: ["input_ids", "attention_mask", "token_type_ids"]
+  gpt2:
+    required_inputs: ["input_ids"]  # Single input only
+  resnet:
+    input_name: "pixel_values"
+```
 
 ## 🛠️ Development
 
