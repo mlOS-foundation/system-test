@@ -1,0 +1,159 @@
+# Test Input Configuration for E2E Tests
+# This file defines test inputs for each model category and specific models
+# Inputs are generated using tokenizers/preprocessors for transparency
+
+defaults:
+  nlp:
+    # Default test sentences for NLP models
+    small_text: "Hello world."
+    medium_text: "The quick brown fox jumps over the lazy dog. This sentence contains common English words."
+    large_text: "Machine learning is a subset of artificial intelligence that enables systems to learn from data. Deep learning models have revolutionized natural language processing and computer vision tasks."
+    
+  vision:
+    # Default image settings for vision models
+    image_size: 224
+    channels: 3
+    normalization: "imagenet"  # mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+
+models:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # NLP Models
+  # ═══════════════════════════════════════════════════════════════════════════
+  
+  gpt2:
+    category: nlp
+    tokenizer: "distilgpt2"
+    test_text:
+      small: "Hello, I am a language model."
+      medium: "The quick brown fox jumps over the lazy dog. This is a longer sentence for testing."
+      large: "Machine learning has transformed how we interact with technology. Language models can now generate human-like text, translate between languages, and answer complex questions."
+    max_length:
+      small: 16
+      medium: 64
+      large: 128
+    padding: "max_length"
+    truncation: true
+    # GPT2 ONNX model only needs input_ids (no attention_mask required)
+    required_inputs: ["input_ids"]
+    
+  bert:
+    category: nlp
+    tokenizer: "bert-base-uncased"
+    test_text:
+      small: "Hello world."
+      medium: "The quick brown fox jumps over the lazy dog. BERT is great at understanding context."
+      large: "BERT (Bidirectional Encoder Representations from Transformers) is a transformer-based model that has achieved state-of-the-art results on many NLP benchmarks."
+    max_length:
+      small: 16
+      medium: 64
+      large: 128
+    padding: "max_length"
+    truncation: true
+    # BERT requires: input_ids, attention_mask, token_type_ids
+    required_inputs: ["input_ids", "attention_mask", "token_type_ids"]
+    
+  roberta:
+    category: nlp
+    tokenizer: "roberta-base"
+    test_text:
+      small: "Hello world."
+      medium: "RoBERTa is a robustly optimized BERT pretraining approach."
+      large: "RoBERTa builds on BERT's language masking strategy and modifies key hyperparameters, removing the next-sentence prediction objective and training with much larger mini-batches."
+    max_length:
+      small: 16
+      medium: 64
+      large: 128
+    padding: "max_length"
+    truncation: true
+    # RoBERTa ONNX model only needs input_ids
+    required_inputs: ["input_ids"]
+    
+  t5:
+    category: nlp
+    tokenizer: "t5-small"
+    test_text:
+      small: "translate English to German: Hello"
+      medium: "summarize: The quick brown fox jumps over the lazy dog multiple times."
+      large: "summarize: Machine learning is transforming industries worldwide."
+    max_length:
+      small: 16
+      medium: 64
+      large: 128
+    padding: "max_length"
+    truncation: true
+    required_inputs: ["input_ids", "attention_mask", "decoder_input_ids"]
+    decoder_start_token_id: 0
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Vision Models
+  # ═══════════════════════════════════════════════════════════════════════════
+  
+  resnet:
+    category: vision
+    preprocessor: "microsoft/resnet-50"
+    input_name: "pixel_values"
+    image_size: 224
+    channels: 3
+    # ImageNet normalization
+    normalization:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    # Generate random normalized image data
+    test_seed: 42  # For reproducibility
+    
+  vit:
+    category: vision
+    preprocessor: "google/vit-base-patch16-224"
+    input_name: "pixel_values"
+    image_size: 224
+    channels: 3
+    normalization:
+      mean: [0.5, 0.5, 0.5]
+      std: [0.5, 0.5, 0.5]
+    test_seed: 42
+    
+  convnext:
+    category: vision
+    preprocessor: "facebook/convnext-tiny-224"
+    input_name: "pixel_values"
+    image_size: 224
+    channels: 3
+    normalization:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    test_seed: 42
+    
+  mobilenet:
+    category: vision
+    preprocessor: "google/mobilenet_v2_1.0_224"
+    input_name: "pixel_values"
+    image_size: 224
+    channels: 3
+    normalization:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    test_seed: 42
+    
+  deit:
+    category: vision
+    preprocessor: "facebook/deit-small-patch16-224"
+    input_name: "pixel_values"
+    image_size: 224
+    channels: 3
+    normalization:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    test_seed: 42
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Multi-Modal Models (Future)
+  # ═══════════════════════════════════════════════════════════════════════════
+  
+  clip:
+    category: multimodal
+    enabled: false
+    text_tokenizer: "openai/clip-vit-base-patch32"
+    image_preprocessor: "openai/clip-vit-base-patch32"
+    test_text: "a photo of a cat"
+    image_size: 224
+

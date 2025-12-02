@@ -1304,59 +1304,66 @@ register_models() {
 }
 
 # Generate test input for a model based on its type and category
+# Uses config/test-inputs.yaml for configuration when available
 get_test_input() {
     local model_name=$1
     local model_type=$2
     local model_category=$3
     local size=${4:-small}  # small, medium, large
     
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local generator="$script_dir/generate-test-input.py"
+    
+    # Try to use the configurable generator first
+    if [ -f "$generator" ]; then
+        local result=$(python3 "$generator" "$model_name" "$size" 2>/dev/null)
+        if [ -n "$result" ] && [ "$result" != "{}" ]; then
+            echo "$result"
+            return 0
+        fi
+    fi
+    
+    # Fallback to inline generation if generator fails
     case "$model_category" in
         nlp)
             case "$model_name" in
                 gpt2)
-                    if [ "$size" = "large" ]; then
-                        # Large request: 128 tokens
-                        echo '{"input_ids": [15496, 11, 337, 43, 48, 2640, 0, 314, 716, 257, 2746, 2746, 2746, 2746, 2746, 2746, 15496, 11, 337, 43, 48, 2640, 0, 314, 716, 257, 2746, 2746, 2746, 2746, 2746, 2746, 15496, 11, 337, 43, 48, 2640, 0, 314, 716, 257, 2746, 2746, 2746, 2746, 2746, 2746, 15496, 11, 337, 43, 48, 2640, 0, 314, 716, 257, 2746, 2746, 2746, 2746, 2746, 2746, 15496, 11, 337, 43, 48, 2640, 0, 314, 716, 257, 2746, 2746, 2746, 2746, 2746, 2746, 15496, 11, 337, 43, 48, 2640, 0, 314, 716, 257, 2746, 2746, 2746, 2746, 2746, 2746, 15496, 11, 337, 43, 48, 2640, 0, 314, 716, 257, 2746, 2746, 2746, 2746, 2746, 2746, 15496, 11, 337, 43, 48, 2640, 0, 314, 716, 257, 2746, 2746, 2746, 2746, 2746, 2746]}'
-                    elif [ "$size" = "medium" ]; then
-                        # Medium request: 32 tokens
-                        echo '{"input_ids": [15496, 11, 337, 43, 48, 2640, 0, 314, 716, 257, 2746, 2746, 2746, 2746, 2746, 2746, 15496, 11, 337, 43, 48, 2640, 0, 314, 716, 257, 2746, 2746, 2746, 2746, 2746, 2746]}'
-                    else
-                        # Small request: 7 tokens
-                        echo '{"input_ids": [15496, 11, 337, 43, 48, 2640, 0]}'
-                    fi
+                    # Fallback GPT2 input - only input_ids (ONNX model has single input)
+                    local max_len=16
+                    [ "$size" = "medium" ] && max_len=64
+                    [ "$size" = "large" ] && max_len=128
+                    python3 -c "
+import json
+# GPT2 token IDs: 15496='Hello', 11=',', 314='I', 716='am', etc.
+ids = [15496, 11, 314, 716, 257, 3303] + [2746] * ($max_len - 6)
+print(json.dumps({'input_ids': ids[:$max_len]}))
+"
                     ;;
                 bert)
-                    if [ "$size" = "large" ]; then
-                        # Large request: 128 tokens - generate array using Python
-                        local large_ids=$(python3 -c "ids = [101] + [7592] * 126 + [102]; print(str(ids).replace(' ', ''))")
-                        local large_mask=$(python3 -c "print(str([1] * 128).replace(' ', ''))")
-                        local large_types=$(python3 -c "print(str([0] * 128).replace(' ', ''))")
-                        echo "{\"input_ids\": $large_ids, \"attention_mask\": $large_mask, \"token_type_ids\": $large_types}"
-                    elif [ "$size" = "medium" ]; then
-                        # Medium request: 32 tokens
-                        local med_ids=$(python3 -c "ids = [101] + [7592] * 30 + [102]; print(str(ids).replace(' ', ''))")
-                        local med_mask=$(python3 -c "print(str([1] * 32).replace(' ', ''))")
-                        local med_types=$(python3 -c "print(str([0] * 32).replace(' ', ''))")
-                        echo "{\"input_ids\": $med_ids, \"attention_mask\": $med_mask, \"token_type_ids\": $med_types}"
-                    else
-                        # Small request: 3 tokens
-                        echo '{"input_ids": [101, 7592, 102], "attention_mask": [1, 1, 1], "token_type_ids": [0, 0, 0]}'
-                    fi
+                    # Fallback BERT input - requires 3 inputs
+                    local max_len=16
+                    [ "$size" = "medium" ] && max_len=64
+                    [ "$size" = "large" ] && max_len=128
+                    python3 -c "
+import json
+# BERT tokens: 101=[CLS], 7592='hello', 102=[SEP]
+ids = [101] + [7592] * ($max_len - 2) + [102]
+mask = [1] * $max_len
+types = [0] * $max_len
+print(json.dumps({'input_ids': ids, 'attention_mask': mask, 'token_type_ids': types}))
+"
                     ;;
                 roberta)
-                    # RoBERTa only uses input_ids (single input model)
-                    if [ "$size" = "large" ]; then
-                        # Large request: 128 tokens - RoBERTa tokens (starts with 0, ends with 2)
-                        local large_ids=$(python3 -c "ids = [0] + [31414] * 126 + [2]; print(str(ids).replace(' ', ''))")
-                        echo "{\"input_ids\": $large_ids}"
-                    elif [ "$size" = "medium" ]; then
-                        # Medium request: 32 tokens
-                        local med_ids=$(python3 -c "ids = [0] + [31414] * 30 + [2]; print(str(ids).replace(' ', ''))")
-                        echo "{\"input_ids\": $med_ids}"
-                    else
-                        # Small request: 3 tokens
-                        echo '{"input_ids": [0, 31414, 2]}'
-                    fi
+                    # Fallback RoBERTa input - only input_ids (ONNX model has single input)
+                    local max_len=16
+                    [ "$size" = "medium" ] && max_len=64
+                    [ "$size" = "large" ] && max_len=128
+                    python3 -c "
+import json
+# RoBERTa tokens: 0=<s>, 31414='hello', 2=</s>
+ids = [0] + [31414] * ($max_len - 2) + [2]
+print(json.dumps({'input_ids': ids}))
+"
                     ;;
                 t5)
                     if [ "$size" = "large" ]; then
