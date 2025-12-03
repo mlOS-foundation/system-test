@@ -216,30 +216,56 @@ jobs:
         id: test
         run: |
           MODELS="${{ steps.get-models.outputs.models }}"
-          # Default to 1 (sequential) to avoid disk space issues on GitHub Actions
-          # The cleanup after each model helps, but parallel installs still risk filling disk
-          PARALLEL="${{ github.event.inputs.parallel_jobs || '1' }}"
           
           mkdir -p model-results
           chmod +x scripts/test-single-model.sh
-          
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🧪 Testing $MODELS (parallel: $PARALLEL)"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
-          # Ensure axon is in PATH
           export PATH="$HOME/.local/bin:$PATH"
           
-          # Run models with controlled parallelism using xargs
-          echo "$MODELS" | tr ' ' '\n' | xargs -P "$PARALLEL" -I {} bash -c '
-            export PATH="$HOME/.local/bin:$PATH"
-            echo "🔄 Starting test for: {}"
-            ./scripts/test-single-model.sh "{}" \
+          # Separate NLP (smaller, parallel OK) from Vision (larger, need sequential)
+          NLP_MODELS=""
+          VISION_MODELS=""
+          for model in $MODELS; do
+            case "$model" in
+              gpt2|bert|roberta|t5) NLP_MODELS="$NLP_MODELS $model" ;;
+              *) VISION_MODELS="$VISION_MODELS $model" ;;
+            esac
+          done
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧪 Phase 1: NLP models (parallel:3) -$NLP_MODELS"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # Run NLP models in parallel (smaller models, less disk usage)
+          if [ -n "$NLP_MODELS" ]; then
+            echo "$NLP_MODELS" | tr ' ' '\n' | grep -v '^$' | xargs -P 3 -I {} bash -c '
+              export PATH="$HOME/.local/bin:$PATH"
+              echo "🔄 [NLP] Starting: {}"
+              ./scripts/test-single-model.sh "{}" \
+                --output-dir model-results \
+                --core-url http://127.0.0.1:18080 \
+                || echo "⚠️ {} had issues"
+            '
+          fi
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧪 Phase 2: Vision models (sequential) -$VISION_MODELS"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # Run Vision models sequentially (large models, need disk cleanup between)
+          for model in $VISION_MODELS; do
+            [ -z "$model" ] && continue
+            echo "🔄 [Vision] Starting: $model"
+            ./scripts/test-single-model.sh "$model" \
               --output-dir model-results \
               --core-url http://127.0.0.1:18080 \
-              || echo "⚠️ {} test had issues"
-          '
+              || echo "⚠️ $model had issues"
+            
+            # Show disk space after each vision model
+            echo "📊 Disk after $model: $(df -h / | tail -1 | awk '{print $4}') free"
+          done
           
+          echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "✅ All model tests completed"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
