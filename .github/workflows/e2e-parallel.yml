@@ -125,7 +125,7 @@ jobs:
           esac
           
           ARTIFACT="mlos-core_v${VERSION}_${OS}-${ARCH}.tar.gz"
-          URL="https://github.com/mlOS-foundation/core/releases/download/v${VERSION}/${ARTIFACT}"
+          URL="https://github.com/mlOS-foundation/core-releases/releases/download/v${VERSION}/${ARTIFACT}"
           
           echo "📥 Downloading Core from: $URL"
           mkdir -p ~/mlos-core
