@@ -38,7 +38,29 @@ def load_result_files(results_dir: str) -> list:
 
 
 def aggregate_results(results: list) -> dict:
-    """Aggregate individual model results into a summary."""
+    """Aggregate individual model results into a summary.
+    
+    Output format is compatible with report/render.py which expects:
+    - models.{name}.tested (bool)
+    - models.{name}.inference_status ('success'|'failed')
+    - models.{name}.install_time_ms (int)
+    - models.{name}.register_time_ms (int)
+    - models.{name}.inference_time_ms (int)
+    - models.{name}.category ('nlp'|'vision'|'multimodal')
+    """
+    
+    # Model categories (from config)
+    MODEL_CATEGORIES = {
+        'gpt2': 'nlp', 'bert': 'nlp', 'roberta': 'nlp', 't5': 'nlp',
+        'resnet': 'vision', 'vit': 'vision', 'convnext': 'vision',
+        'mobilenet': 'vision', 'deit': 'vision', 'efficientnet': 'vision', 'swin': 'vision',
+        'clip': 'multimodal'
+    }
+    
+    total_inferences = 0
+    successful_inferences = 0
+    total_install_time = 0
+    total_register_time = 0
     
     summary = {
         "generated_at": datetime.utcnow().isoformat() + "Z",
@@ -46,14 +68,43 @@ def aggregate_results(results: list) -> dict:
         "successful_models": 0,
         "partial_models": 0,
         "failed_models": 0,
-        "phases": {
-            "install": {"success": 0, "failed": 0, "total_time_ms": 0},
-            "register": {"success": 0, "failed": 0, "total_time_ms": 0},
-            "inference_small": {"success": 0, "failed": 0, "total_time_ms": 0},
-            "inference_large": {"success": 0, "failed": 0, "total_time_ms": 0}
-        },
+        "total_inferences": 0,
+        "successful_inferences": 0,
         "models": {},
-        "total_time_ms": 0
+        "total_time_ms": 0,
+        # Add version info (will be overwritten if available)
+        "axon_version": "v3.1.1",
+        "core_version": "3.2.5-alpha",
+        # Hardware placeholders (render.py expects these)
+        "hardware": {
+            "os": "Linux",
+            "arch": "x86_64",
+            "cpu": "GitHub Actions Runner",
+            "cpu_cores": 2,
+            "cpu_threads": 2,
+            "memory_gb": 7,
+            "gpu_count": 0,
+            "gpu_name": "None",
+            "gpu_memory": "N/A"
+        },
+        # Resource metrics placeholders
+        "resource_usage": {
+            "core_idle_cpu": 0,
+            "core_idle_mem": 0,
+            "core_load_cpu": 0,
+            "core_load_cpu_max": 0,
+            "core_load_mem": 0,
+            "core_load_mem_max": 0,
+            "axon_cpu": 0,
+            "axon_mem": 0
+        },
+        # Timing metrics
+        "timing": {
+            "axon_download_ms": 0,
+            "core_download_ms": 0,
+            "core_startup_ms": 0,
+            "total_model_install_ms": 0
+        }
     }
     
     for result in results:
@@ -69,35 +120,74 @@ def aggregate_results(results: list) -> dict:
         else:
             summary["failed_models"] += 1
         
-        # Aggregate phase metrics
+        # Get version info from first result
+        if result.get("axon_version"):
+            summary["axon_version"] = result["axon_version"]
+        if result.get("core_version"):
+            summary["core_version"] = result["core_version"]
+        
+        # Build model entry in format render.py expects
+        install_phase = phases.get("install", {})
+        register_phase = phases.get("register", {})
+        inference_small = phases.get("inference_small", {})
+        inference_large = phases.get("inference_large", {})
+        
+        install_time = install_phase.get("time_ms", 0)
+        register_time = register_phase.get("time_ms", 0)
+        inference_time = inference_small.get("time_ms", 0)
+        inference_large_time = inference_large.get("time_ms", 0)
+        
+        total_install_time += install_time
+        total_register_time += register_time
+        
+        # Determine inference status
+        inference_status = inference_small.get("status", "not_tested")
+        inference_large_status = inference_large.get("status", "not_tested")
+        
+        # Count inferences
+        if inference_small.get("status"):
+            total_inferences += 1
+            if inference_status == "success":
+                successful_inferences += 1
+        if inference_large.get("status"):
+            total_inferences += 1
+            if inference_large_status == "success":
+                successful_inferences += 1
+        
         model_summary = {
+            # Fields expected by render.py
+            "tested": install_phase.get("status") == "success",
+            "category": MODEL_CATEGORIES.get(model_name, "nlp"),
+            "install_time_ms": install_time,
+            "register_time_ms": register_time,
+            "inference_time_ms": inference_time,
+            "inference_large_time_ms": inference_large_time,
+            "inference_status": inference_status,
+            "inference_large_status": inference_large_status,
+            "inference_large_tested": inference_large.get("status") is not None,
             "status": status,
+            # Also keep phases for detailed view
             "phases": {}
         }
         
         for phase_name, phase_data in phases.items():
-            phase_status = phase_data.get("status", "unknown")
-            phase_time = phase_data.get("time_ms", 0)
-            
             model_summary["phases"][phase_name] = {
-                "status": phase_status,
-                "time_ms": phase_time
+                "status": phase_data.get("status", "unknown"),
+                "time_ms": phase_data.get("time_ms", 0)
             }
-            
             if phase_data.get("error"):
                 model_summary["phases"][phase_name]["error"] = phase_data["error"]
-            
-            # Update summary counters
-            if phase_name in summary["phases"]:
-                if phase_status == "success":
-                    summary["phases"][phase_name]["success"] += 1
-                elif phase_status == "failed":
-                    summary["phases"][phase_name]["failed"] += 1
-                summary["phases"][phase_name]["total_time_ms"] += phase_time
         
         model_summary["total_time_ms"] = result.get("total_time_ms", 0)
         summary["models"][model_name] = model_summary
         summary["total_time_ms"] += result.get("total_time_ms", 0)
+    
+    # Update inference counts
+    summary["total_inferences"] = total_inferences
+    summary["successful_inferences"] = successful_inferences
+    
+    # Update timing
+    summary["timing"]["total_model_install_ms"] = total_install_time
     
     # Calculate success rates
     if summary["total_models"] > 0:
@@ -106,16 +196,6 @@ def aggregate_results(results: list) -> dict:
         )
     else:
         summary["success_rate"] = 0
-    
-    # Calculate phase success rates
-    for phase_name, phase_data in summary["phases"].items():
-        total = phase_data["success"] + phase_data["failed"]
-        if total > 0:
-            phase_data["success_rate"] = round((phase_data["success"] / total) * 100, 2)
-            phase_data["avg_time_ms"] = round(phase_data["total_time_ms"] / total, 2)
-        else:
-            phase_data["success_rate"] = 0
-            phase_data["avg_time_ms"] = 0
     
     return summary
 
