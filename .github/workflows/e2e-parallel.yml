@@ -87,7 +87,10 @@ jobs:
           echo "📋 Models to test: $MODELS"
       
       - name: Download Axon release
+        id: axon-download
         run: |
+          START_TIME=$(date +%s%3N)
+          
           VERSION="${{ github.event.inputs.axon_version || 'v3.1.1' }}"
           OS="linux"
           ARCH=$(uname -m)
@@ -105,6 +108,11 @@ jobs:
           tar -xzf "/tmp/${ARTIFACT}" -C ~/.local/bin
           chmod +x ~/.local/bin/axon
           ~/.local/bin/axon version
+          
+          END_TIME=$(date +%s%3N)
+          AXON_DOWNLOAD_MS=$((END_TIME - START_TIME))
+          echo "axon_download_ms=$AXON_DOWNLOAD_MS" >> $GITHUB_OUTPUT
+          echo "⏱️ Axon download: ${AXON_DOWNLOAD_MS}ms"
       
       - name: Download converter image (ONCE)
         run: |
@@ -128,9 +136,12 @@ jobs:
           fi
       
       - name: Download Core release (ONCE)
+        id: core-download
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          START_TIME=$(date +%s%3N)
+          
           VERSION="${{ github.event.inputs.core_version || '3.2.5-alpha' }}"
           OS="linux"
           ARCH=$(uname -m)
@@ -169,9 +180,17 @@ jobs:
           mkdir -p ~/mlos-core/build
           tar -xzf /tmp/onnx.tgz -C ~/mlos-core/build
           mv ~/mlos-core/build/onnxruntime-* ~/mlos-core/build/onnxruntime
+          
+          END_TIME=$(date +%s%3N)
+          CORE_DOWNLOAD_MS=$((END_TIME - START_TIME))
+          echo "core_download_ms=$CORE_DOWNLOAD_MS" >> $GITHUB_OUTPUT
+          echo "⏱️ Core download: ${CORE_DOWNLOAD_MS}ms"
       
       - name: Start Core server (ONCE)
+        id: core-startup
         run: |
+          START_TIME=$(date +%s%3N)
+          
           cd ~/mlos-core
           BINARY=$(find . -name "mlos_core" -o -name "mlos-server" 2>/dev/null | head -1)
           if [ -z "$BINARY" ]; then
@@ -211,6 +230,11 @@ jobs:
             cat /tmp/core.log
             exit 1
           fi
+          
+          END_TIME=$(date +%s%3N)
+          CORE_STARTUP_MS=$((END_TIME - START_TIME))
+          echo "core_startup_ms=$CORE_STARTUP_MS" >> $GITHUB_OUTPUT
+          echo "⏱️ Core startup: ${CORE_STARTUP_MS}ms"
       
       - name: Run all model tests
         id: test
@@ -284,6 +308,44 @@ jobs:
           echo "📋 Core logs:"
           cat /tmp/core.log 2>/dev/null | tail -100 || true
       
+      - name: Collect hardware and timing info
+        if: always()
+        run: |
+          mkdir -p model-results
+          
+          # Collect actual hardware info from runner
+          cat > model-results/hardware-info.json << EOF
+          {
+            "os": "$(uname -s)",
+            "os_version": "$(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2 || uname -r)",
+            "arch": "$(uname -m)",
+            "cpu_model": "$(lscpu 2>/dev/null | grep 'Model name' | cut -d':' -f2 | xargs || echo 'Unknown')",
+            "cpu_cores": $(nproc --all 2>/dev/null || echo 2),
+            "cpu_threads": $(nproc 2>/dev/null || echo 2),
+            "memory_gb": $(free -g 2>/dev/null | awk '/^Mem:/{print $2}' || echo 7),
+            "gpu_count": $(nvidia-smi -L 2>/dev/null | wc -l || echo 0),
+            "gpu_name": "$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1 || echo 'None')",
+            "gpu_memory": "$(nvidia-smi --query-gpu=memory.total --format=csv,noheader 2>/dev/null | head -1 || echo 'N/A')",
+            "disk_total": "$(df -h / | tail -1 | awk '{print $2}')",
+            "disk_available": "$(df -h / | tail -1 | awk '{print $4}')"
+          }
+          EOF
+          
+          # Collect timing info from previous steps
+          cat > model-results/timings-info.json << EOF
+          {
+            "axon_download_ms": ${{ steps.axon-download.outputs.axon_download_ms || 0 }},
+            "core_download_ms": ${{ steps.core-download.outputs.core_download_ms || 0 }},
+            "core_startup_ms": ${{ steps.core-startup.outputs.core_startup_ms || 0 }}
+          }
+          EOF
+          
+          echo "📊 Hardware Info:"
+          cat model-results/hardware-info.json
+          echo ""
+          echo "⏱️ Timing Info:"
+          cat model-results/timings-info.json
+      
       - name: Aggregate results
         if: always()
         run: |
@@ -293,6 +355,8 @@ jobs:
             --results-dir model-results \
             --output metrics/latest.json \
             --markdown output/RESULTS.md \
+            --hardware-info model-results/hardware-info.json \
+            --timings-info model-results/timings-info.json \
             --github-summary || echo "⚠️ Aggregation had issues"
           
           echo "📊 Metrics:"

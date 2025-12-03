@@ -37,7 +37,7 @@ def load_result_files(results_dir: str) -> list:
     return results
 
 
-def aggregate_results(results: list) -> dict:
+def aggregate_results(results: list, hardware: dict = None, setup_timings: dict = None) -> dict:
     """Aggregate individual model results into a summary.
     
     Output format is compatible with report/render.py which expects:
@@ -63,6 +63,31 @@ def aggregate_results(results: list) -> dict:
     total_register_time = 0
     total_inference_time = 0
     
+    # Use provided hardware info or defaults
+    if hardware is None:
+        hardware = {
+            "os": "Linux",
+            "os_version": "Unknown",
+            "arch": "x86_64",
+            "cpu_model": "Unknown",
+            "cpu_cores": 2,
+            "cpu_threads": 2,
+            "memory_gb": 7,
+            "gpu_count": 0,
+            "gpu_name": "None",
+            "gpu_memory": "N/A",
+            "disk_total": "N/A",
+            "disk_available": "N/A"
+        }
+    
+    # Use provided setup timings or defaults
+    if setup_timings is None:
+        setup_timings = {
+            "axon_download_ms": 0,
+            "core_download_ms": 0,
+            "core_startup_ms": 0
+        }
+    
     summary = {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "total_models": len(results),
@@ -78,21 +103,8 @@ def aggregate_results(results: list) -> dict:
             "axon": "v3.1.1",
             "core": "3.2.5-alpha"
         },
-        # Hardware - render.py expects these fields
-        "hardware": {
-            "os": "Linux",
-            "os_version": "Ubuntu 22.04",
-            "arch": "x86_64",
-            "cpu_model": "GitHub Actions Runner (AMD EPYC)",
-            "cpu_cores": 2,
-            "cpu_threads": 2,
-            "memory_gb": 7,
-            "gpu_count": 0,
-            "gpu_name": "None",
-            "gpu_memory": "N/A",
-            "disk_total": "14 GB",
-            "disk_available": "~10 GB"
-        },
+        # Hardware - from actual runner
+        "hardware": hardware,
         # Resources - render.py expects these exact field names
         "resources": {
             "core_idle_cpu": 0,
@@ -105,11 +117,11 @@ def aggregate_results(results: list) -> dict:
             "axon_mem_mb": 0,
             "gpu_status": "Not used (CPU-only inference)"
         },
-        # Timings - render.py expects these exact field names
+        # Timings - merge setup timings with model timings
         "timings": {
-            "axon_download_ms": 0,
-            "core_download_ms": 0,
-            "core_startup_ms": 0,
+            "axon_download_ms": setup_timings.get("axon_download_ms", 0),
+            "core_download_ms": setup_timings.get("core_download_ms", 0),
+            "core_startup_ms": setup_timings.get("core_startup_ms", 0),
             "total_model_install_ms": 0,
             "total_register_ms": 0,
             "total_inference_ms": 0,
@@ -254,14 +266,81 @@ def generate_markdown_report(summary: dict) -> str:
     return "\n".join(lines)
 
 
+def load_hardware_info(hardware_file: str) -> dict:
+    """Load hardware info from JSON file."""
+    default_hardware = {
+        "os": "Linux",
+        "os_version": "Unknown",
+        "arch": "x86_64",
+        "cpu_model": "Unknown",
+        "cpu_cores": 2,
+        "cpu_threads": 2,
+        "memory_gb": 7,
+        "gpu_count": 0,
+        "gpu_name": "None",
+        "gpu_memory": "N/A",
+        "disk_total": "N/A",
+        "disk_available": "N/A"
+    }
+    
+    if not hardware_file or not os.path.exists(hardware_file):
+        return default_hardware
+    
+    try:
+        with open(hardware_file) as f:
+            hardware = json.load(f)
+            # Merge with defaults for any missing fields
+            for key, value in default_hardware.items():
+                if key not in hardware:
+                    hardware[key] = value
+            return hardware
+    except Exception as e:
+        print(f"Warning: Could not load hardware info: {e}")
+        return default_hardware
+
+
+def load_timings_info(timings_file: str) -> dict:
+    """Load timing info from JSON file."""
+    default_timings = {
+        "axon_download_ms": 0,
+        "core_download_ms": 0,
+        "core_startup_ms": 0
+    }
+    
+    if not timings_file or not os.path.exists(timings_file):
+        return default_timings
+    
+    try:
+        with open(timings_file) as f:
+            timings = json.load(f)
+            # Merge with defaults for any missing fields
+            for key, value in default_timings.items():
+                if key not in timings:
+                    timings[key] = value
+            return timings
+    except Exception as e:
+        print(f"Warning: Could not load timings info: {e}")
+        return default_timings
+
+
 def main():
     parser = argparse.ArgumentParser(description="Aggregate parallel model test results")
     parser.add_argument("--results-dir", required=True, help="Directory containing result JSON files")
     parser.add_argument("--output", default="aggregated-metrics.json", help="Output JSON file")
     parser.add_argument("--markdown", help="Optional markdown report output")
+    parser.add_argument("--hardware-info", help="JSON file with hardware information")
+    parser.add_argument("--timings-info", help="JSON file with setup timing information")
     parser.add_argument("--github-summary", action="store_true", help="Write to GITHUB_STEP_SUMMARY")
     
     args = parser.parse_args()
+    
+    # Load hardware info
+    hardware = load_hardware_info(args.hardware_info)
+    print(f"Hardware: {hardware.get('cpu_model', 'Unknown')} ({hardware.get('cpu_cores', '?')} cores)")
+    
+    # Load timings info
+    setup_timings = load_timings_info(args.timings_info)
+    print(f"Setup timings: Axon={setup_timings.get('axon_download_ms', 0)}ms, Core={setup_timings.get('core_download_ms', 0)}ms")
     
     # Load results
     print(f"Loading results from: {args.results_dir}")
@@ -279,11 +358,12 @@ def main():
             "success_rate": 0,
             "phases": {},
             "models": {},
+            "hardware": hardware,
             "error": "No results found"
         }
     else:
         print(f"Found {len(results)} model results")
-        summary = aggregate_results(results)
+        summary = aggregate_results(results, hardware, setup_timings)
     
     # Write JSON output
     with open(args.output, 'w') as f:
