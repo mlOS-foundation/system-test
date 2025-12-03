@@ -1,0 +1,428 @@
+name: E2E Parallel Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      axon_version:
+        description: 'Axon version to test'
+        required: false
+        default: 'v3.1.1'
+      core_version:
+        description: 'Core version to test'
+        required: false
+        default: '3.2.5-alpha'
+      models:
+        description: 'Comma-separated model names (empty = all enabled)'
+        required: false
+        default: ''
+      max_parallel:
+        description: 'Maximum parallel model jobs'
+        required: false
+        default: '4'
+  # schedule:
+  #   - cron: '0 0 * * 0'  # Weekly on Sunday
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  packages: read
+
+jobs:
+  # ============================================================================
+  # SETUP: Download releases and start Core server (shared across model tests)
+  # ============================================================================
+  setup:
+    name: Setup Environment
+    runs-on: ubuntu-latest
+    outputs:
+      models: ${{ steps.get-models.outputs.models }}
+      core_ready: ${{ steps.core.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Free up disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo apt-get clean
+          echo "Disk space after cleanup:"
+          df -h
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+          sudo apt-get update && sudo apt-get install -y curl tar jq
+      
+      - name: Get enabled models
+        id: get-models
+        run: |
+          # Get models from config or use input
+          if [ -n "${{ github.event.inputs.models }}" ]; then
+            # Convert comma-separated to JSON array
+            MODELS=$(echo '${{ github.event.inputs.models }}' | python3 -c "
+          import sys, json
+          models = [m.strip() for m in sys.stdin.read().split(',') if m.strip()]
+          print(json.dumps(models))
+          ")
+          else
+            # Get all enabled models from config
+            MODELS=$(python3 -c "
+          import yaml, json
+          with open('config/models.yaml') as f:
+              config = yaml.safe_load(f)
+          models = [name for name, m in config.get('models', {}).items() if m.get('enabled', False)]
+          print(json.dumps(models))
+          ")
+          fi
+          echo "models=$MODELS" >> $GITHUB_OUTPUT
+          echo "📋 Models to test: $MODELS"
+      
+      - name: Download Axon release
+        run: |
+          VERSION="${{ github.event.inputs.axon_version || 'v3.1.1' }}"
+          OS="linux"
+          ARCH=$(uname -m)
+          case $ARCH in
+            x86_64) ARCH="amd64" ;;
+            aarch64) ARCH="arm64" ;;
+          esac
+          
+          ARTIFACT="axon_${VERSION#v}_${OS}_${ARCH}.tar.gz"
+          URL="https://github.com/mlOS-foundation/axon/releases/download/${VERSION}/${ARTIFACT}"
+          
+          echo "📥 Downloading Axon from: $URL"
+          mkdir -p ~/.local/bin
+          curl -L -f -o "/tmp/${ARTIFACT}" "$URL"
+          tar -xzf "/tmp/${ARTIFACT}" -C ~/.local/bin
+          chmod +x ~/.local/bin/axon
+          ~/.local/bin/axon version
+          
+          # Also download converter image
+          CONVERTER="axon-converter-${VERSION#v}-${OS}-${ARCH}.tar.gz"
+          CONV_URL="https://github.com/mlOS-foundation/axon/releases/download/${VERSION}/${CONVERTER}"
+          if curl -L -f -o "/tmp/${CONVERTER}" "$CONV_URL" 2>/dev/null; then
+            docker load -i "/tmp/${CONVERTER}"
+            docker tag "ghcr.io/mlos-foundation/axon-converter:${VERSION#v}" "ghcr.io/mlos-foundation/axon-converter:latest" || true
+            echo "✅ Converter image loaded"
+          fi
+      
+      - name: Download Core release
+        run: |
+          VERSION="${{ github.event.inputs.core_version || '3.2.5-alpha' }}"
+          OS="linux"
+          ARCH=$(uname -m)
+          case $ARCH in
+            x86_64) ARCH="amd64" ;;
+            aarch64) ARCH="arm64" ;;
+          esac
+          
+          ARTIFACT="mlos-core_v${VERSION}_${OS}-${ARCH}.tar.gz"
+          URL="https://github.com/mlOS-foundation/core/releases/download/v${VERSION}/${ARTIFACT}"
+          
+          echo "📥 Downloading Core from: $URL"
+          mkdir -p ~/mlos-core
+          curl -L -f -o "/tmp/core.tar.gz" "$URL"
+          tar -xzf "/tmp/core.tar.gz" -C ~/mlos-core
+          
+          # Download ONNX Runtime
+          ONNX_ARCH="x64"
+          [ "$(uname -m)" = "aarch64" ] && ONNX_ARCH="aarch64"
+          curl -L -f -o /tmp/onnx.tgz "https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-linux-${ONNX_ARCH}-1.18.0.tgz"
+          mkdir -p ~/mlos-core/build
+          tar -xzf /tmp/onnx.tgz -C ~/mlos-core/build
+          mv ~/mlos-core/build/onnxruntime-* ~/mlos-core/build/onnxruntime
+      
+      - name: Cache Axon binary
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.local/bin/axon
+          key: axon-${{ github.event.inputs.axon_version || 'v3.1.1' }}-${{ runner.os }}-${{ runner.arch }}
+      
+      - name: Cache Core binary
+        uses: actions/cache/save@v4
+        with:
+          path: ~/mlos-core
+          key: core-${{ github.event.inputs.core_version || '3.2.5-alpha' }}-${{ runner.os }}-${{ runner.arch }}
+      
+      - name: Test Core startup
+        id: core
+        run: |
+          cd ~/mlos-core
+          BINARY=$(find . -name "mlos_core" -o -name "mlos-server" | head -1)
+          if [ -z "$BINARY" ]; then
+            echo "❌ Core binary not found"
+            echo "ready=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:$LD_LIBRARY_PATH"
+          $BINARY --http-port 18080 &
+          PID=$!
+          sleep 5
+          
+          if curl -s http://127.0.0.1:18080/health; then
+            echo "✅ Core server healthy"
+            echo "ready=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Core server not responding"
+            echo "ready=false" >> $GITHUB_OUTPUT
+          fi
+          
+          kill $PID 2>/dev/null || true
+
+  # ============================================================================
+  # PARALLEL MODEL TESTS: Each model runs install → register → inference
+  # ============================================================================
+  test-model:
+    name: Test ${{ matrix.model }}
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 4  # Limit parallel jobs to avoid resource exhaustion
+      matrix:
+        model: ${{ fromJson(needs.setup.outputs.models) }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install pyyaml
+      
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo docker image prune --all --force
+      
+      - name: Restore Axon binary
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.local/bin/axon
+          key: axon-${{ github.event.inputs.axon_version || 'v3.1.1' }}-${{ runner.os }}-${{ runner.arch }}
+      
+      - name: Restore Core binary
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/mlos-core
+          key: core-${{ github.event.inputs.core_version || '3.2.5-alpha' }}-${{ runner.os }}-${{ runner.arch }}
+      
+      - name: Download converter image
+        run: |
+          VERSION="${{ github.event.inputs.axon_version || 'v3.1.1' }}"
+          OS="linux"
+          ARCH=$(uname -m)
+          case $ARCH in
+            x86_64) ARCH="amd64" ;;
+            aarch64) ARCH="arm64" ;;
+          esac
+          
+          CONVERTER="axon-converter-${VERSION#v}-${OS}-${ARCH}.tar.gz"
+          URL="https://github.com/mlOS-foundation/axon/releases/download/${VERSION}/${CONVERTER}"
+          if curl -L -f -o "/tmp/${CONVERTER}" "$URL" 2>/dev/null; then
+            docker load -i "/tmp/${CONVERTER}"
+            docker tag "ghcr.io/mlos-foundation/axon-converter:${VERSION#v}" "ghcr.io/mlos-foundation/axon-converter:latest" || true
+          fi
+      
+      - name: Start Core server
+        run: |
+          cd ~/mlos-core
+          BINARY=$(find . -name "mlos_core" -o -name "mlos-server" | head -1)
+          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:$LD_LIBRARY_PATH"
+          $BINARY --http-port 18080 &
+          echo $! > /tmp/core.pid
+          
+          # Wait for server
+          for i in {1..30}; do
+            if curl -s http://127.0.0.1:18080/health >/dev/null 2>&1; then
+              echo "✅ Core server ready"
+              break
+            fi
+            sleep 1
+          done
+      
+      - name: Run model pipeline
+        id: test
+        run: |
+          mkdir -p model-results
+          chmod +x scripts/test-single-model.sh
+          
+          # Run the single model pipeline
+          ./scripts/test-single-model.sh "${{ matrix.model }}" \
+            --output-dir model-results \
+            --core-url http://127.0.0.1:18080 \
+            --axon-version "${{ github.event.inputs.axon_version || 'v3.1.1' }}"
+          
+          # Capture result status
+          if [ -f "model-results/${{ matrix.model }}-result.json" ]; then
+            STATUS=$(python3 -c "import json; print(json.load(open('model-results/${{ matrix.model }}-result.json'))['status'])")
+            echo "status=$STATUS" >> $GITHUB_OUTPUT
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+      
+      - name: Stop Core server
+        if: always()
+        run: |
+          if [ -f /tmp/core.pid ]; then
+            kill $(cat /tmp/core.pid) 2>/dev/null || true
+          fi
+      
+      - name: Upload model result
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: result-${{ matrix.model }}
+          path: model-results/
+          retention-days: 30
+      
+      - name: Model test summary
+        if: always()
+        run: |
+          echo "## 🧪 ${{ matrix.model }} Test Result" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "model-results/${{ matrix.model }}-result.json" ]; then
+            python3 -c "
+          import json
+          with open('model-results/${{ matrix.model }}-result.json') as f:
+              r = json.load(f)
+          
+          status_emoji = {'success': '✅', 'partial': '⚠️', 'failed': '❌'}.get(r['status'], '❓')
+          print(f\"Status: {status_emoji} **{r['status']}**\")
+          print()
+          print('| Phase | Status | Time |')
+          print('|-------|--------|------|')
+          for phase, data in r.get('phases', {}).items():
+              emoji = '✅' if data.get('status') == 'success' else '❌'
+              print(f\"| {phase} | {emoji} {data.get('status', 'N/A')} | {data.get('time_ms', 0)}ms |\")
+          " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ No result file found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================================================
+  # AGGREGATE: Collect all results and generate report
+  # ============================================================================
+  aggregate:
+    name: Aggregate Results
+    needs: [setup, test-model]
+    runs-on: ubuntu-latest
+    if: always()
+    environment:
+      name: github-pages
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install pyyaml
+      
+      - name: Download all results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: result-*
+          path: all-results/
+          merge-multiple: true
+      
+      - name: Aggregate results
+        run: |
+          mkdir -p output metrics
+          
+          python3 scripts/aggregate-results.py \
+            --results-dir all-results \
+            --output metrics/latest.json \
+            --markdown output/RESULTS.md \
+            --github-summary
+          
+          cat metrics/latest.json
+      
+      - name: Generate HTML report
+        run: |
+          python3 report/render.py \
+            --metrics metrics/latest.json \
+            --template report/template.html \
+            --output output/index.html || echo "⚠️ Renderer failed, using fallback"
+          
+          cp report/styles.css output/ 2>/dev/null || true
+          
+          # Fallback if render failed
+          if [ ! -f output/index.html ]; then
+            cat output/RESULTS.md | python3 -c "
+          import sys
+          import html
+          content = sys.stdin.read()
+          print(f'''<!DOCTYPE html>
+          <html><head><title>E2E Results</title>
+          <style>body{{font-family:system-ui;max-width:800px;margin:0 auto;padding:20px}}
+          table{{border-collapse:collapse;width:100%}}
+          th,td{{border:1px solid #ddd;padding:8px;text-align:left}}</style>
+          </head><body><pre>{html.escape(content)}</pre></body></html>''')
+          " > output/index.html
+          fi
+          
+          ls -la output/
+      
+      - name: Upload aggregated metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-metrics-${{ github.run_number }}
+          path: metrics/
+          retention-days: 90
+      
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report-${{ github.run_number }}
+          path: output/
+          retention-days: 90
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./output
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      
+      - name: Final Summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Final Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🌐 **Report**: https://mlos-foundation.github.io/system-test/" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          python3 -c "
+          import json
+          with open('metrics/latest.json') as f:
+              m = json.load(f)
+          print(f\"✅ Successful: {m['successful_models']}/{m['total_models']}\")
+          print(f\"⚠️ Partial: {m['partial_models']}\")
+          print(f\"❌ Failed: {m['failed_models']}\")
+          print(f\"📈 Success Rate: {m['success_rate']}%\")
+          " >> $GITHUB_STEP_SUMMARY
+
