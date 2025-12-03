@@ -72,10 +72,12 @@ def aggregate_results(results: list) -> dict:
         "successful_inferences": 0,
         "models": {},
         "total_time_ms": 0,
-        # Add version info (will be overwritten if available)
-        "axon_version": "v3.1.1",
-        "core_version": "3.2.5-alpha",
-        # Hardware placeholders (render.py expects these)
+        # Versions - render.py expects versions.axon and versions.core
+        "versions": {
+            "axon": "v3.1.1",
+            "core": "3.2.5-alpha"
+        },
+        # Hardware - render.py expects these fields
         "hardware": {
             "os": "Linux",
             "arch": "x86_64",
@@ -87,8 +89,8 @@ def aggregate_results(results: list) -> dict:
             "gpu_name": "None",
             "gpu_memory": "N/A"
         },
-        # Resource metrics placeholders
-        "resource_usage": {
+        # Resources - render.py expects these fields
+        "resources": {
             "core_idle_cpu": 0,
             "core_idle_mem": 0,
             "core_load_cpu": 0,
@@ -98,12 +100,13 @@ def aggregate_results(results: list) -> dict:
             "axon_cpu": 0,
             "axon_mem": 0
         },
-        # Timing metrics
-        "timing": {
+        # Timings - render.py expects 'timings' not 'timing'
+        "timings": {
             "axon_download_ms": 0,
             "core_download_ms": 0,
             "core_startup_ms": 0,
-            "total_model_install_ms": 0
+            "total_model_install_ms": 0,
+            "total_duration_s": 0
         }
     }
     
@@ -122,9 +125,9 @@ def aggregate_results(results: list) -> dict:
         
         # Get version info from first result
         if result.get("axon_version"):
-            summary["axon_version"] = result["axon_version"]
+            summary["versions"]["axon"] = result["axon_version"]
         if result.get("core_version"):
-            summary["core_version"] = result["core_version"]
+            summary["versions"]["core"] = result["core_version"]
         
         # Build model entry in format render.py expects
         install_phase = phases.get("install", {})
@@ -186,8 +189,9 @@ def aggregate_results(results: list) -> dict:
     summary["total_inferences"] = total_inferences
     summary["successful_inferences"] = successful_inferences
     
-    # Update timing
-    summary["timing"]["total_model_install_ms"] = total_install_time
+    # Update timings
+    summary["timings"]["total_model_install_ms"] = total_install_time
+    summary["timings"]["total_duration_s"] = round(summary["total_time_ms"] / 1000, 1)
     
     # Calculate success rates
     if summary["total_models"] > 0:
@@ -202,6 +206,9 @@ def aggregate_results(results: list) -> dict:
 
 def generate_markdown_report(summary: dict) -> str:
     """Generate a markdown summary report."""
+    total_inferences = summary.get('total_inferences', 0)
+    successful_inferences = summary.get('successful_inferences', 0)
+    
     lines = [
         "# E2E Test Results Summary",
         "",
@@ -213,41 +220,25 @@ def generate_markdown_report(summary: dict) -> str:
         f"|--------|-------|",
         f"| Total Models | {summary['total_models']} |",
         f"| Successful | {summary['successful_models']} |",
-        f"| Partial | {summary['partial_models']} |",
-        f"| Failed | {summary['failed_models']} |",
-        f"| Success Rate | {summary['success_rate']}% |",
-        f"| Total Time | {summary['total_time_ms']}ms |",
-        "",
-        "## Phase Breakdown",
-        "",
-        "| Phase | Success | Failed | Avg Time |",
-        "|-------|---------|--------|----------|",
-    ]
-    
-    for phase_name, phase_data in summary["phases"].items():
-        lines.append(
-            f"| {phase_name} | {phase_data['success']} | {phase_data['failed']} | {phase_data['avg_time_ms']}ms |"
-        )
-    
-    lines.extend([
+        f"| Partial | {summary.get('partial_models', 0)} |",
+        f"| Failed | {summary.get('failed_models', 0)} |",
+        f"| Success Rate | {summary.get('success_rate', 0)}% |",
+        f"| Total Inferences | {successful_inferences}/{total_inferences} |",
+        f"| Total Time | {summary.get('total_time_ms', 0)}ms |",
         "",
         "## Model Details",
         "",
-    ])
+    ]
     
     for model_name, model_data in summary.get("models", {}).items():
-        status_emoji = "✅" if model_data["status"] == "success" else "⚠️" if model_data["status"] == "partial" else "❌"
-        lines.append(f"### {status_emoji} {model_name}")
+        status_emoji = "✅" if model_data.get("status") == "success" else "⚠️" if model_data.get("status") == "partial" else "❌"
+        lines.append(f"### {status_emoji} {model_name.upper()}")
         lines.append("")
-        lines.append(f"- **Status**: {model_data['status']}")
-        lines.append(f"- **Total Time**: {model_data['total_time_ms']}ms")
-        lines.append("")
-        
-        for phase_name, phase_data in model_data.get("phases", {}).items():
-            phase_emoji = "✅" if phase_data["status"] == "success" else "❌"
-            error_info = f" - {phase_data['error']}" if phase_data.get("error") else ""
-            lines.append(f"  - {phase_emoji} {phase_name}: {phase_data['time_ms']}ms{error_info}")
-        
+        lines.append(f"- **Category**: {model_data.get('category', 'unknown')}")
+        lines.append(f"- **Install**: {model_data.get('install_time_ms', 0)}ms")
+        lines.append(f"- **Register**: {model_data.get('register_time_ms', 0)}ms")
+        lines.append(f"- **Inference (small)**: {model_data.get('inference_time_ms', 0)}ms - {model_data.get('inference_status', 'N/A')}")
+        lines.append(f"- **Inference (large)**: {model_data.get('inference_large_time_ms', 0)}ms - {model_data.get('inference_large_status', 'N/A')}")
         lines.append("")
     
     return "\n".join(lines)
