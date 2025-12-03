@@ -115,6 +115,8 @@ jobs:
           fi
       
       - name: Download Core release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ github.event.inputs.core_version || '3.2.5-alpha' }}"
           OS="linux"
@@ -124,13 +126,31 @@ jobs:
             aarch64) ARCH="arm64" ;;
           esac
           
-          ARTIFACT="mlos-core_v${VERSION}_${OS}-${ARCH}.tar.gz"
-          URL="https://github.com/mlOS-foundation/core-releases/releases/download/v${VERSION}/${ARTIFACT}"
-          
-          echo "📥 Downloading Core from: $URL"
           mkdir -p ~/mlos-core
-          curl -L -f -o "/tmp/core.tar.gz" "$URL"
-          tar -xzf "/tmp/core.tar.gz" -C ~/mlos-core
+          
+          # Try gh CLI first (from core repo)
+          ARTIFACT="mlos-core_${VERSION}_${OS}-${ARCH}.tar.gz"
+          echo "📥 Trying gh download: $ARTIFACT from mlOS-foundation/core"
+          if gh release download "${VERSION}" --pattern "$ARTIFACT" --repo mlOS-foundation/core -D /tmp 2>/dev/null; then
+            echo "✅ Downloaded via gh CLI"
+            tar -xzf "/tmp/$ARTIFACT" -C ~/mlos-core
+          else
+            # Fallback to core-releases with v prefix in tag
+            RELEASE_TAG="v${VERSION}"
+            [[ "$VERSION" =~ ^v ]] && RELEASE_TAG="$VERSION"
+            URL="https://github.com/mlOS-foundation/core-releases/releases/download/${RELEASE_TAG}/${ARTIFACT}"
+            echo "📥 Trying curl from: $URL"
+            if curl -L -f -o "/tmp/core.tar.gz" "$URL" 2>/dev/null; then
+              echo "✅ Downloaded via curl"
+              tar -xzf "/tmp/core.tar.gz" -C ~/mlos-core
+            else
+              echo "❌ Failed to download Core release"
+              echo "Tried:"
+              echo "  - gh: mlOS-foundation/core release ${VERSION}"
+              echo "  - curl: $URL"
+              exit 1
+            fi
+          fi
           
           # Download ONNX Runtime
           ONNX_ARCH="x64"
