@@ -207,6 +207,39 @@ print(json.dumps({
 " 2>/dev/null
 }
 
+# Clean up large intermediate files after ONNX conversion to save disk space
+# This is critical for parallel model installation on GitHub Actions
+cleanup_model_files() {
+    local onnx_path="$1"
+    local model_dir=$(dirname "$onnx_path")
+    
+    if [ -d "$model_dir" ]; then
+        # Remove large weight files that are redundant after ONNX conversion
+        local removed_size=0
+        for file in "$model_dir/pytorch_model.bin" \
+                    "$model_dir/tf_model.h5" \
+                    "$model_dir/model.safetensors" \
+                    "$model_dir/flax_model.msgpack" \
+                    "$model_dir/rust_model.ot" \
+                    "$model_dir"/*.tflite \
+                    "$model_dir"/*.mlmodel; do
+            if [ -f "$file" ]; then
+                local size=$(du -k "$file" 2>/dev/null | cut -f1)
+                rm -f "$file" 2>/dev/null && removed_size=$((removed_size + size))
+            fi
+        done
+        
+        # Also clean up coreml directory if exists
+        if [ -d "$model_dir/coreml" ]; then
+            rm -rf "$model_dir/coreml" 2>/dev/null
+        fi
+        
+        if [ $removed_size -gt 0 ]; then
+            log "  🧹 Cleaned up $((removed_size / 1024))MB of intermediate files"
+        fi
+    fi
+}
+
 # Generate test input based on model type
 # IMPORTANT: Core expects FLAT arrays, not nested batch dimensions
 generate_test_input() {
@@ -399,6 +432,8 @@ install_model() {
         if [ -f "$model_path" ]; then
             log "✅ Model installed successfully (${install_time}ms)"
             update_result "install" "success" "$install_time"
+            # Clean up large intermediate files to save disk space
+            cleanup_model_files "$model_path"
             return 0
         else
             # Search for model - use the model name (without hf/ prefix and @version suffix)
@@ -412,6 +447,8 @@ install_model() {
                 log "✅ Model found at: $found_model (${install_time}ms)"
                 model_path="$found_model"
                 update_result "install" "success" "$install_time"
+                # Clean up large intermediate files to save disk space
+                cleanup_model_files "$found_model"
                 return 0
             fi
             log_error "Model file not found after installation"

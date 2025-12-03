@@ -216,7 +216,9 @@ jobs:
         id: test
         run: |
           MODELS="${{ steps.get-models.outputs.models }}"
-          PARALLEL="${{ github.event.inputs.parallel_jobs || '3' }}"
+          # Default to 1 (sequential) to avoid disk space issues on GitHub Actions
+          # The cleanup after each model helps, but parallel installs still risk filling disk
+          PARALLEL="${{ github.event.inputs.parallel_jobs || '1' }}"
           
           mkdir -p model-results
           chmod +x scripts/test-single-model.sh
