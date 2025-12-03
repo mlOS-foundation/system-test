@@ -208,47 +208,71 @@ print(json.dumps({
 }
 
 # Generate test input based on model type
+# IMPORTANT: Core expects FLAT arrays, not nested batch dimensions
 generate_test_input() {
     local model_name="$1"
     local input_type="$2"
     local category="$3"
     local size="$4"  # small or large
     
-    python3 -c "
-import yaml
+    # Use model-specific input formats that Core expects
+    case "$category" in
+        nlp)
+            case "$model_name" in
+                gpt2)
+                    # GPT2: only input_ids, flat array
+                    local max_len=16
+                    [ "$size" = "large" ] && max_len=128
+                    python3 -c "
 import json
+ids = [15496, 11, 314, 716, 257, 3303] + [2746] * ($max_len - 6)
+print(json.dumps({'input_ids': ids[:$max_len]}))
+"
+                    ;;
+                bert)
+                    # BERT: input_ids, attention_mask, token_type_ids - flat arrays
+                    local max_len=16
+                    [ "$size" = "large" ] && max_len=128
+                    python3 -c "
+import json
+ids = [101] + [7592] * ($max_len - 2) + [102]
+mask = [1] * $max_len
+types = [0] * $max_len
+print(json.dumps({'input_ids': ids, 'attention_mask': mask, 'token_type_ids': types}))
+"
+                    ;;
+                roberta)
+                    # RoBERTa: only input_ids, flat array
+                    local max_len=16
+                    [ "$size" = "large" ] && max_len=128
+                    python3 -c "
+import json
+ids = [0] + [31414] * ($max_len - 2) + [2]
+print(json.dumps({'input_ids': ids}))
+"
+                    ;;
+                *)
+                    # Generic NLP fallback
+                    echo '{"input_ids": [101, 7592, 102]}'
+                    ;;
+            esac
+            ;;
+        vision)
+            # Vision: flat 1D array of pixel values (batch*channels*height*width)
+            local img_size=224
+            python3 -c "
 import random
-
-with open('$CONFIG_FILE') as f:
-    config = yaml.safe_load(f)
-
-model = config.get('models', {}).get('$model_name', {})
-category = model.get('category', '$category')
-input_config = model.get('${size}_input', {})
-
-if category == 'vision':
-    # Generate image tensor [batch, channels, height, width]
-    width = input_config.get('width', 64 if '$size' == 'small' else 224)
-    height = input_config.get('height', 64 if '$size' == 'small' else 224)
-    channels = input_config.get('channels', 3)
-    
-    # Random normalized pixel values
-    tensor = [[[[random.random() for _ in range(width)] 
-                for _ in range(height)] 
-               for _ in range(channels)]]
-    
-    print(json.dumps({'pixel_values': tensor}))
-else:
-    # NLP: Generate token sequence
-    tokens = input_config.get('tokens', 7 if '$size' == 'small' else 128)
-    sequence = input_config.get('sequence', [101] + [random.randint(1000, 30000) for _ in range(tokens-2)] + [102])
-    
-    # BERT-style input
-    print(json.dumps({
-        'input_ids': [sequence],
-        'attention_mask': [[1] * len(sequence)]
-    }))
-" 2>/dev/null
+import json
+random.seed(42)
+# Core expects flat array: batch * channels * height * width
+data = [random.gauss(0, 1) for _ in range(1 * 3 * $img_size * $img_size)]
+print(json.dumps({'pixel_values': data}))
+"
+            ;;
+        *)
+            echo '{"input_ids": [101, 7592, 102]}'
+            ;;
+    esac
 }
 
 # Initialize result structure
