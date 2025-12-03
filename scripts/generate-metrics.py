@@ -276,7 +276,7 @@ def parse_test_log(log_file):
         metrics['total_inferences'] = int(match.group(2))
     
     # Set model categories
-    vision_models = ['resnet', 'vgg', 'vit', 'convnext', 'mobilenet', 'deit', 'efficientnet', 'swin']
+    vision_models = ['resnet', 'vgg', 'vit']
     multimodal_models = ['clip', 'wav2vec']
     for model_name in metrics['models']:
         if model_name in vision_models:
@@ -328,29 +328,15 @@ def main():
         "models": {}
     }
     
-    # Add all models from parsed data (dynamically discovered from test log)
-    # Also include default models to ensure they appear even if not in log
+    # Add default models and merge with parsed data
     default_models = {
-        # NLP models
         "gpt2": {"category": "nlp"},
         "bert": {"category": "nlp"},
         "roberta": {"category": "nlp"},
-        # Vision models  
-        "resnet": {"category": "vision"},
-        "vit": {"category": "vision"},
-        "convnext": {"category": "vision"},
-        "mobilenet": {"category": "vision"},
-        "deit": {"category": "vision"},
-        "efficientnet": {"category": "vision"},
+        "resnet": {"category": "vision"}
     }
     
-    # Merge parsed models with defaults - parsed data takes priority
-    all_models = {**default_models}
-    for model_name, model_data in parsed['models'].items():
-        if model_name not in all_models:
-            all_models[model_name] = {"category": model_data.get('category', 'nlp')}
-    
-    for model_name, defaults in all_models.items():
+    for model_name, defaults in default_models.items():
         model_data = parsed['models'].get(model_name, {})
         metrics["models"][model_name] = {
             "category": model_data.get('category', defaults['category']),
