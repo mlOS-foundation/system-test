@@ -418,49 +418,41 @@ register_model() {
         return 1
     fi
     
-    # Find model path
-    local model_path="$HOME/.axon/cache/models/${AXON_ID%@*}/${AXON_ID##*@}/model.onnx"
-    if [ ! -f "$model_path" ]; then
-        model_path=$(find "$HOME/.axon/cache/models" -name "model.onnx" -path "*${AXON_ID%%/*}*" 2>/dev/null | head -1)
-    fi
-    
-    if [ ! -f "$model_path" ]; then
-        log_error "Cannot find model to register"
-        update_result "register" "failed" 0 "Model file not found"
-        return 1
-    fi
-    
-    log "  Model path: $model_path"
-    
     local start_time=$(get_timestamp_ms)
     
-    # Register with Core
-    local register_payload=$(cat <<EOF
-{
-    "model_id": "$AXON_ID",
-    "model_path": "$model_path",
-    "runtime": "onnx"
-}
-EOF
-)
+    # Use axon register command (proper flow: install -> register -> inference)
+    # axon register uses MLOS_CORE_ENDPOINT environment variable
+    local register_output=$(mktemp)
+    local register_errors=$(mktemp)
     
-    local response=$(curl -s -w "\n%{http_code}" -X POST "$CORE_URL/models" \
-        -H "Content-Type: application/json" \
-        -d "$register_payload" 2>&1)
+    log "  Running: axon register $AXON_ID"
     
-    local http_code=$(echo "$response" | tail -n 1)
-    local body=$(echo "$response" | sed '$d')
+    if MLOS_CORE_ENDPOINT="$CORE_URL" "$AXON_BIN" register "$AXON_ID" > "$register_output" 2> "$register_errors"; then
+        local register_exit_code=0
+    else
+        local register_exit_code=$?
+    fi
     
     local end_time=$(get_timestamp_ms)
     local register_time=$(measure_time $start_time $end_time)
     
-    if [ "$http_code" = "200" ] || [ "$http_code" = "201" ] || echo "$body" | grep -qi "already registered"; then
+    # Check result
+    if [ $register_exit_code -eq 0 ]; then
         log "✅ Model registered (${register_time}ms)"
         update_result "register" "success" "$register_time"
+        rm -f "$register_output" "$register_errors"
+        return 0
+    elif grep -qi "already registered" "$register_output" "$register_errors" 2>/dev/null; then
+        log "✅ Model already registered (${register_time}ms)"
+        update_result "register" "success" "$register_time"
+        rm -f "$register_output" "$register_errors"
         return 0
     else
-        log_error "Registration failed (HTTP $http_code): $body"
-        update_result "register" "failed" "$register_time" "HTTP $http_code"
+        log_error "Registration failed (exit code $register_exit_code)"
+        [ -s "$register_errors" ] && log_error "Errors: $(cat "$register_errors")"
+        [ -s "$register_output" ] && log_error "Output: $(cat "$register_output")"
+        update_result "register" "failed" "$register_time" "Exit code $register_exit_code"
+        rm -f "$register_output" "$register_errors"
         return 1
     fi
 }
