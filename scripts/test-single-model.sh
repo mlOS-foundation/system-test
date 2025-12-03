@@ -377,8 +377,13 @@ install_model() {
             update_result "install" "success" "$install_time"
             return 0
         else
-            # Search for model
-            local found_model=$(find "$HOME/.axon/cache/models" -name "model.onnx" -path "*${AXON_ID%%/*}*" 2>/dev/null | head -1)
+            # Search for model - use the model name (without hf/ prefix and @version suffix)
+            # For hf/google/vit-base-patch16-224@latest, search for *vit-base-patch16-224*
+            local model_name_for_search="${AXON_ID#hf/}"        # Remove hf/ prefix
+            model_name_for_search="${model_name_for_search%@*}"  # Remove @version suffix  
+            model_name_for_search="${model_name_for_search##*/}" # Get last component (actual model name)
+            
+            local found_model=$(find "$HOME/.axon/cache/models" -name "model.onnx" -path "*${model_name_for_search}*" 2>/dev/null | head -1)
             if [ -n "$found_model" ]; then
                 log "✅ Model found at: $found_model (${install_time}ms)"
                 model_path="$found_model"
@@ -386,6 +391,8 @@ install_model() {
                 return 0
             fi
             log_error "Model file not found after installation"
+            log_error "Expected: $model_path"
+            log_error "Searched for: *${model_name_for_search}*"
             update_result "install" "failed" "$install_time" "Model file not found"
             return 1
         fi
