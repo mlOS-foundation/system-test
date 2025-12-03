@@ -230,7 +230,7 @@ make serve
 
 ### Current Tested Versions
 - **Axon**: v3.1.1 (Vision model support, Docker base image fix)
-- **Core**: v3.2.1-alpha (Large input handling, shape inference)
+- **Core**: v3.2.5-alpha (Linux tensor name fix, large input handling)
 
 | Category | Model | Status | Notes |
 |----------|-------|--------|-------|
@@ -251,7 +251,7 @@ make serve
 
 Vision models are now fully supported via:
 - **Axon v3.1.0**: Automatic task detection from model config (50+ architectures)
-- **Core v3.2.1-alpha**: Large input handling (up to 16MB), dynamic shape inference
+- **Core v3.2.5-alpha**: Linux tensor name fix, large input handling (16MB), shape inference
 
 Standard ImageNet input (224×224×3 RGB) works out of the box.
 
