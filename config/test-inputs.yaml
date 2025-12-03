@@ -33,7 +33,6 @@ models:
       large: 128
     padding: "max_length"
     truncation: true
-    # GPT2 ONNX model only needs input_ids (no attention_mask required)
     required_inputs: ["input_ids"]
     
   bert:

@@ -392,14 +392,26 @@ class ReportRenderer:
             '{{MODEL_DETAILS_HTML}}': self.generate_model_details_html(),
             
             # Model-specific status (for Model Support section)
+            # NLP Models
             '{{GPT2_STATUS}}': self.get_model_status('gpt2')['status'],
             '{{GPT2_STATUS_CLASS}}': self.get_model_status('gpt2')['status_class'],
             '{{BERT_STATUS}}': self.get_model_status('bert')['status'],
             '{{BERT_STATUS_CLASS}}': self.get_model_status('bert')['status_class'],
             '{{ROBERTA_STATUS}}': self.get_model_status('roberta')['status'],
             '{{ROBERTA_STATUS_CLASS}}': self.get_model_status('roberta')['status_class'],
+            # Vision Models
             '{{RESNET_STATUS}}': self.get_model_status('resnet')['status'],
             '{{RESNET_STATUS_CLASS}}': self.get_model_status('resnet')['status_class'],
+            '{{VIT_STATUS}}': self.get_model_status('vit')['status'],
+            '{{VIT_STATUS_CLASS}}': self.get_model_status('vit')['status_class'],
+            '{{CONVNEXT_STATUS}}': self.get_model_status('convnext')['status'],
+            '{{CONVNEXT_STATUS_CLASS}}': self.get_model_status('convnext')['status_class'],
+            '{{MOBILENET_STATUS}}': self.get_model_status('mobilenet')['status'],
+            '{{MOBILENET_STATUS_CLASS}}': self.get_model_status('mobilenet')['status_class'],
+            '{{DEIT_STATUS}}': self.get_model_status('deit')['status'],
+            '{{DEIT_STATUS_CLASS}}': self.get_model_status('deit')['status_class'],
+            '{{EFFICIENTNET_STATUS}}': self.get_model_status('efficientnet')['status'],
+            '{{EFFICIENTNET_STATUS_CLASS}}': self.get_model_status('efficientnet')['status_class'],
             
             # Metadata
             '{{TIMESTAMP}}': self.metrics.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
