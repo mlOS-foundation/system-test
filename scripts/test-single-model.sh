@@ -418,6 +418,12 @@ register_model() {
         return 1
     fi
     
+    # Find axon binary (same logic as install phase)
+    local axon_cmd="${HOME}/.local/bin/axon"
+    if [ ! -f "$axon_cmd" ]; then
+        axon_cmd="axon"
+    fi
+    
     local start_time=$(get_timestamp_ms)
     
     # Use axon register command (proper flow: install -> register -> inference)
@@ -425,9 +431,9 @@ register_model() {
     local register_output=$(mktemp)
     local register_errors=$(mktemp)
     
-    log "  Running: axon register $AXON_ID"
+    log "  Running: $axon_cmd register $AXON_ID"
     
-    if MLOS_CORE_ENDPOINT="$CORE_URL" "$AXON_BIN" register "$AXON_ID" > "$register_output" 2> "$register_errors"; then
+    if MLOS_CORE_ENDPOINT="$CORE_URL" "$axon_cmd" register "$AXON_ID" > "$register_output" 2> "$register_errors"; then
         local register_exit_code=0
     else
         local register_exit_code=$?
