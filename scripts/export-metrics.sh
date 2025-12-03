@@ -89,8 +89,8 @@ export_metrics_json() {
                 models: {}
             }' > "$output_file"
         
-        # Add model data
-        for model in gpt2 bert roberta resnet; do
+        # Add model data - include all enabled models from config
+        for model in gpt2 bert roberta resnet vit convnext mobilenet deit efficientnet; do
             eval "install_time=\${METRIC_model_${model}_install_time_ms:-0}"
             eval "register_time=\${METRIC_model_${model}_register_time_ms:-0}"
             eval "inference_status=\${METRIC_model_${model}_inference_status:-unknown}"
@@ -101,7 +101,7 @@ export_metrics_json() {
             # Determine category
             case "$model" in
                 gpt2|bert|roberta|t5) category="nlp" ;;
-                resnet|vgg|vit) category="vision" ;;
+                resnet|vgg|vit|convnext|mobilenet|deit|efficientnet|swin) category="vision" ;;
                 *) category="multimodal" ;;
             esac
             
@@ -197,9 +197,9 @@ metrics = {
     "models": {}
 }
 
-# Add model data
-for model in ["gpt2", "bert", "roberta", "resnet"]:
-    category = "nlp" if model in ["gpt2", "bert", "roberta", "t5"] else "vision" if model in ["resnet", "vgg", "vit"] else "multimodal"
+# Add model data - include all enabled models from config
+for model in ["gpt2", "bert", "roberta", "resnet", "vit", "convnext", "mobilenet", "deit", "efficientnet"]:
+    category = "nlp" if model in ["gpt2", "bert", "roberta", "t5"] else "vision" if model in ["resnet", "vgg", "vit", "convnext", "mobilenet", "deit", "efficientnet", "swin"] else "multimodal"
     
     def get_metric(suffix, default=0):
         val = os.environ.get(f"METRIC_model_{model}_{suffix}", default)
