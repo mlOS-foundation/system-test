@@ -61,6 +61,7 @@ def aggregate_results(results: list) -> dict:
     successful_inferences = 0
     total_install_time = 0
     total_register_time = 0
+    total_inference_time = 0
     
     summary = {
         "generated_at": datetime.utcnow().isoformat() + "Z",
@@ -80,32 +81,38 @@ def aggregate_results(results: list) -> dict:
         # Hardware - render.py expects these fields
         "hardware": {
             "os": "Linux",
+            "os_version": "Ubuntu 22.04",
             "arch": "x86_64",
-            "cpu": "GitHub Actions Runner",
+            "cpu_model": "GitHub Actions Runner (AMD EPYC)",
             "cpu_cores": 2,
             "cpu_threads": 2,
             "memory_gb": 7,
             "gpu_count": 0,
             "gpu_name": "None",
-            "gpu_memory": "N/A"
+            "gpu_memory": "N/A",
+            "disk_total": "14 GB",
+            "disk_available": "~10 GB"
         },
-        # Resources - render.py expects these fields
+        # Resources - render.py expects these exact field names
         "resources": {
             "core_idle_cpu": 0,
-            "core_idle_mem": 0,
-            "core_load_cpu": 0,
+            "core_idle_mem_mb": 0,
+            "core_load_cpu_avg": 0,
             "core_load_cpu_max": 0,
-            "core_load_mem": 0,
-            "core_load_mem_max": 0,
+            "core_load_mem_avg_mb": 0,
+            "core_load_mem_max_mb": 0,
             "axon_cpu": 0,
-            "axon_mem": 0
+            "axon_mem_mb": 0,
+            "gpu_status": "Not used (CPU-only inference)"
         },
-        # Timings - render.py expects 'timings' not 'timing'
+        # Timings - render.py expects these exact field names
         "timings": {
             "axon_download_ms": 0,
             "core_download_ms": 0,
             "core_startup_ms": 0,
             "total_model_install_ms": 0,
+            "total_register_ms": 0,
+            "total_inference_ms": 0,
             "total_duration_s": 0
         }
     }
@@ -142,6 +149,7 @@ def aggregate_results(results: list) -> dict:
         
         total_install_time += install_time
         total_register_time += register_time
+        total_inference_time += inference_time + inference_large_time
         
         # Determine inference status
         inference_status = inference_small.get("status", "not_tested")
@@ -191,6 +199,8 @@ def aggregate_results(results: list) -> dict:
     
     # Update timings
     summary["timings"]["total_model_install_ms"] = total_install_time
+    summary["timings"]["total_register_ms"] = total_register_time
+    summary["timings"]["total_inference_ms"] = total_inference_time
     summary["timings"]["total_duration_s"] = round(summary["total_time_ms"] / 1000, 1)
     
     # Calculate success rates
