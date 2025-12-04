@@ -546,6 +546,10 @@ class ReportRenderer:
             '{{BERT_STATUS_CLASS}}': self.get_model_status('bert')['status_class'],
             '{{ROBERTA_STATUS}}': self.get_model_status('roberta')['status'],
             '{{ROBERTA_STATUS_CLASS}}': self.get_model_status('roberta')['status_class'],
+            '{{T5_STATUS}}': self.get_model_status('t5')['status'],
+            '{{T5_STATUS_CLASS}}': self.get_model_status('t5')['status_class'],
+            '{{T5_STATUS}}': self.get_model_status('t5')['status'],
+            '{{T5_STATUS_CLASS}}': self.get_model_status('t5')['status_class'],
             # Vision Models
             '{{RESNET_STATUS}}': self.get_model_status('resnet')['status'],
             '{{RESNET_STATUS_CLASS}}': self.get_model_status('resnet')['status_class'],
