@@ -192,11 +192,12 @@ models:
   # =============================================================================
   
   clip:
-    enabled: true
+    enabled: false  # Blocked: Multi-encoder ONNX export (text_model.onnx + vision_model.onnx)
     category: multimodal
     axon_id: "hf/openai/clip-vit-base-patch32@latest"
     description: "CLIP - Image-text matching and zero-shot classification"
     input_type: multimodal
+    notes: "Optimum exports separate files (text_model.onnx, vision_model.onnx) - need Axon/Core multi-encoder support"
     small_input:
       text_tokens: 77
       image_width: 224
@@ -207,7 +208,7 @@ models:
       image_height: 224
 
   wav2vec2:
-    enabled: false  # Pending: Audio support in Core
+    enabled: false  # Blocked: Audio model support in Core
     category: multimodal
     axon_id: "hf/facebook/wav2vec2-base-960h@latest"
     description: "Wav2Vec2 - Speech recognition"
@@ -219,6 +220,22 @@ models:
     large_input:
       duration_seconds: 5.0
       sample_rate: 16000
+
+# =============================================================================
+# Multi-Encoder / Encoder-Decoder Support Roadmap
+# =============================================================================
+# The following models require multi-ONNX-file support in Axon and Core:
+#
+# 1. CLIP (Multi-Encoder):
+#    - Exports: text_model.onnx + vision_model.onnx
+#    - Requires: Combined inference orchestration
+#
+# 2. T5/BART (Encoder-Decoder):
+#    - Exports: encoder_model.onnx + decoder_model.onnx + decoder_with_past_model.onnx
+#    - Requires: Cross-attention between encoder/decoder
+#
+# Tracking: https://github.com/mlOS-foundation/axon/issues/TBD
+#
 
 # =============================================================================
 # Quick reference for adding new models:
