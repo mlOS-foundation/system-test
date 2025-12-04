@@ -136,8 +136,7 @@ body {
     color: var(--text-primary);
 }
 
-/* Metrics Grid */
-.metrics-grid {
+/* Category Section */
 .category-section {
     margin-bottom: 1.5rem;
 }
@@ -151,6 +150,8 @@ body {
     margin-top: 1.5rem;
 }
 
+/* Metrics Grid */
+.metrics-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;

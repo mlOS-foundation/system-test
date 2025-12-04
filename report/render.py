@@ -263,8 +263,6 @@ class ReportRenderer:
                 display_name = model_name.upper()
                 time_small = model_data.get('inference_time_ms', 0)
                 time_large = model_data.get('inference_large_time_ms', 0)
-                status_small = self.get_model_status(model_name, 'small')
-                status_large = self.get_model_status(model_name, 'large')
                 overall_status = self.get_model_status(model_name)
                 
                 html_parts.append(f'''
@@ -295,8 +293,6 @@ class ReportRenderer:
                 display_name = model_name.upper()
                 time_small = model_data.get('inference_time_ms', 0)
                 time_large = model_data.get('inference_large_time_ms', 0)
-                status_small = self.get_model_status(model_name, 'small')
-                status_large = self.get_model_status(model_name, 'large')
                 overall_status = self.get_model_status(model_name)
                 
                 html_parts.append(f'''
