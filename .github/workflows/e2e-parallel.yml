@@ -259,8 +259,8 @@ jobs:
           # Start resource monitoring in background (captures max during tests)
           CORE_PID=$(cat /tmp/core.pid 2>/dev/null || echo "")
           if [ -n "$CORE_PID" ]; then
-            echo "$CORE_PID" > /tmp/monitor_core_pid.txt
-            python3 << 'PYTHON_SCRIPT' &
+            # Write Python monitoring script to file
+            cat > /tmp/monitor_resources.py << 'EOF'
 import time
 import subprocess
 
@@ -319,11 +319,13 @@ while True:
                         f.write(f"{avg_cpu:.1f}")
                     with open('/tmp/core_avg_mem.txt', 'w') as f:
                         f.write(f"{avg_mem:.0f}")
-    except Exception as e:
+    except Exception:
         pass
     
     time.sleep(0.5)
-PYTHON_SCRIPT
+EOF
+            echo "$CORE_PID" > /tmp/monitor_core_pid.txt
+            python3 /tmp/monitor_resources.py &
             MONITOR_PID=$!
             echo "📊 Resource monitor started (PID: $MONITOR_PID) for Core PID: $CORE_PID"
           fi
