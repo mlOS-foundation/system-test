@@ -546,6 +546,17 @@ jobs:
         if: always()
         uses: actions/configure-pages@v4
       
+      - name: Prepare Pages artifact
+        if: always()
+        run: |
+          # Remove symlinks and ensure no hard links
+          find ./output -type l -delete
+          # Remove large files that might cause issues
+          find ./output -type f -size +50M -delete
+          # Ensure output directory exists and is clean
+          ls -lah ./output/ || echo "Output directory not found"
+          du -sh ./output/ || echo "Cannot check size"
+
       - name: Upload Pages artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -568,8 +579,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ -f metrics/latest.json ]; then
-          printf 'import json\ntry:\n    with open(\'metrics/latest.json\') as f:\n        m = json.load(f)\n        print(f"| Metric | Value |")\n        print(f"|--------|-------|")\n        print(f"| Models Tested | {m.get(\'total_models\', \'N/A\')} |")\n        print(f"| Successful | {m.get(\'successful_models\', \'N/A\')} |")\n        print(f"| Success Rate | {m.get(\'success_rate\', \'N/A\')}% |")\nexcept:\n    print(\'Results not available\')\n' > /tmp/summary_metrics.py
-          python3 /tmp/summary_metrics.py >> $GITHUB_STEP_SUMMARY
+          echo -e "import json\ntry:\n    m=json.load(open(\"metrics/latest.json\"))\n    print(f\"| Metric | Value |\")\n    print(f\"|--------|-------|\")\n    print(f\"| Models Tested | {m.get(\\\"total_models\\\", \\\"N/A\\\")} |\")\n    print(f\"| Successful | {m.get(\\\"successful_models\\\", \\\"N/A\\\")} |\")\n    print(f\"| Success Rate | {m.get(\\\"success_rate\\\", \\\"N/A\\\")}% |\")\nexcept:\n    print(\"Results not available\")" > /tmp/summary.py && python3 /tmp/summary.py >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
