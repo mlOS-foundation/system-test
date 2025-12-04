@@ -117,6 +117,7 @@ jobs:
       - name: Download converter image (ONCE)
         run: |
           VERSION="${{ github.event.inputs.axon_version || 'v3.1.2' }}"
+          VERSION_NO_V=${VERSION#v}
           OS="linux"
           ARCH=$(uname -m)
           case $ARCH in
@@ -124,15 +125,27 @@ jobs:
             aarch64) ARCH="arm64" ;;
           esac
           
-          CONVERTER="axon-converter-${VERSION#v}-${OS}-${ARCH}.tar.gz"
+          CONVERTER="axon-converter-${VERSION_NO_V}-${OS}-${ARCH}.tar.gz"
           URL="https://github.com/mlOS-foundation/axon/releases/download/${VERSION}/${CONVERTER}"
+          IMAGE_TAG="ghcr.io/mlos-foundation/axon-converter:${VERSION_NO_V}"
+          
           echo "📥 Downloading converter image (once for all models)..."
+          echo "   Trying release artifact: ${URL}"
+          
+          # Try downloading from release first
           if curl -L -f -o "/tmp/${CONVERTER}" "$URL" 2>/dev/null; then
             docker load -i "/tmp/${CONVERTER}"
-            docker tag "ghcr.io/mlos-foundation/axon-converter:${VERSION#v}" "ghcr.io/mlos-foundation/axon-converter:latest" || true
-            echo "✅ Converter image loaded"
+            docker tag "$IMAGE_TAG" "ghcr.io/mlos-foundation/axon-converter:latest" || true
+            echo "✅ Converter image loaded from release artifact"
           else
-            echo "⚠️ Converter image not available, will use fallback"
+            echo "⚠️ Release artifact not found, trying registry..."
+            # Fallback: pull directly from registry
+            if docker pull "$IMAGE_TAG" 2>/dev/null; then
+              docker tag "$IMAGE_TAG" "ghcr.io/mlos-foundation/axon-converter:latest" || true
+              echo "✅ Converter image pulled from registry"
+            else
+              echo "⚠️ Converter image not available in release or registry, will use fallback"
+            fi
           fi
       
       - name: Download Core release (ONCE)
