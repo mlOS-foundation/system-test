@@ -272,35 +272,34 @@ jobs:
                 MEM_KB=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | xargs || echo "0")
                 MEM_MB=$((MEM_KB / 1024))
                 
-                # Convert to integers for comparison (multiply by 10 to handle decimals)
-                CPU_INT=$(echo "$CPU" | awk '{printf "%.0f", $1 * 10}')
-                MAX_CPU_INT=$(echo "$MAX_CPU" | awk '{printf "%.0f", $1 * 10}')
-                MEM_INT=$MEM_MB
-                MAX_MEM_INT=$MAX_MEM
-                
-                # Update max if higher
-                if [ "$CPU_INT" -gt "$MAX_CPU_INT" ] 2>/dev/null; then
-                  MAX_CPU=$CPU
-                fi
-                if [ "$MEM_INT" -gt "$MAX_MEM_INT" ] 2>/dev/null; then
-                  MAX_MEM=$MEM_MB
-                fi
-                
-                # Accumulate for average
-                TOTAL_CPU=$(echo "$TOTAL_CPU + $CPU" | bc -l 2>/dev/null || echo "$TOTAL_CPU")
-                TOTAL_MEM=$((TOTAL_MEM + MEM_MB))
-                SAMPLES=$((SAMPLES + 1))
-                
-                # Write max values
-                echo "$MAX_CPU" > /tmp/core_max_cpu.txt
-                echo "$MAX_MEM" > /tmp/core_max_mem.txt
-                
-                # Write avg values
-                if [ $SAMPLES -gt 0 ]; then
-                  AVG_CPU=$(echo "scale=1; $TOTAL_CPU / $SAMPLES" | bc -l 2>/dev/null || echo "$MAX_CPU")
-                  AVG_MEM=$((TOTAL_MEM / SAMPLES))
-                  echo "$AVG_CPU" > /tmp/core_avg_cpu.txt
-                  echo "$AVG_MEM" > /tmp/core_avg_mem.txt
+                # Update max if higher (using awk for float comparison)
+                if [ -n "$CPU" ] && [ -n "$MEM_MB" ]; then
+                  CPU_FLOAT=$(echo "$CPU" | awk '{print $1+0}')
+                  MAX_CPU_FLOAT=$(echo "$MAX_CPU" | awk '{print $1+0}')
+                  
+                  if awk "BEGIN {exit !($CPU_FLOAT > $MAX_CPU_FLOAT)}"; then
+                    MAX_CPU=$CPU
+                  fi
+                  if [ "$MEM_MB" -gt "$MAX_MEM" ] 2>/dev/null; then
+                    MAX_MEM=$MEM_MB
+                  fi
+                  
+                  # Accumulate for average (using awk)
+                  TOTAL_CPU=$(awk "BEGIN {print $TOTAL_CPU + $CPU_FLOAT}")
+                  TOTAL_MEM=$((TOTAL_MEM + MEM_MB))
+                  SAMPLES=$((SAMPLES + 1))
+                  
+                  # Write max values
+                  echo "$MAX_CPU" > /tmp/core_max_cpu.txt
+                  echo "$MAX_MEM" > /tmp/core_max_mem.txt
+                  
+                  # Write avg values
+                  if [ $SAMPLES -gt 0 ]; then
+                    AVG_CPU=$(awk "BEGIN {printf \"%.1f\", $TOTAL_CPU / $SAMPLES}")
+                    AVG_MEM=$((TOTAL_MEM / SAMPLES))
+                    echo "$AVG_CPU" > /tmp/core_avg_cpu.txt
+                    echo "$AVG_MEM" > /tmp/core_avg_mem.txt
+                  fi
                 fi
                 
                 sleep 0.5
