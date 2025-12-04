@@ -86,7 +86,6 @@ models:
     axon_id: "hf/microsoft/resnet-50@latest"
     description: "ResNet-50 - Image classification (1000 classes)"
     input_type: image
-    notes: "Validated: ONNX conversion + inference working"
     small_input:
       width: 64
       height: 64
@@ -102,7 +101,6 @@ models:
     axon_id: "hf/google/vit-base-patch16-224@latest"
     description: "Vision Transformer (ViT) - Image classification"
     input_type: image
-    notes: "Validated: ONNX conversion + inference working"
     small_input:
       width: 64
       height: 64
@@ -118,7 +116,6 @@ models:
     axon_id: "hf/facebook/convnext-tiny-224@latest"
     description: "ConvNeXt Tiny - Modern CNN architecture"
     input_type: image
-    notes: "Validated: ONNX conversion + inference working"
     small_input:
       width: 64
       height: 64
@@ -134,7 +131,6 @@ models:
     axon_id: "hf/google/mobilenet_v2_1.0_224@latest"
     description: "MobileNetV2 - Efficient mobile architecture"
     input_type: image
-    notes: "Validated: ONNX conversion + inference working"
     small_input:
       width: 64
       height: 64
@@ -150,7 +146,6 @@ models:
     axon_id: "hf/facebook/deit-small-patch16-224@latest"
     description: "DeiT Small - Data-efficient Image Transformer"
     input_type: image
-    notes: "Validated: ONNX conversion + inference working"
     small_input:
       width: 64
       height: 64
@@ -182,7 +177,6 @@ models:
     category: vision
     axon_id: "hf/google/efficientnet-b0@latest"
     description: "EfficientNet-B0 - Compound scaling CNN"
-    notes: "Validated: ONNX conversion + inference working"
     input_type: image
     small_input:
       width: 64

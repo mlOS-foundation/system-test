@@ -37,7 +37,7 @@ def load_result_files(results_dir: str) -> list:
     return results
 
 
-def aggregate_results(results: list, hardware: dict = None, setup_timings: dict = None) -> dict:
+def aggregate_results(results: list, hardware: dict = None, setup_timings: dict = None, resources: dict = None) -> dict:
     """Aggregate individual model results into a summary.
     
     Output format is compatible with report/render.py which expects:
@@ -88,6 +88,20 @@ def aggregate_results(results: list, hardware: dict = None, setup_timings: dict 
             "core_startup_ms": 0
         }
     
+    # Use provided resources or defaults
+    if resources is None:
+        resources = {
+            "core_idle_cpu": 0,
+            "core_idle_mem_mb": 0,
+            "core_load_cpu_avg": 0,
+            "core_load_cpu_max": 0,
+            "core_load_mem_avg_mb": 0,
+            "core_load_mem_max_mb": 0,
+            "axon_cpu": 0,
+            "axon_mem_mb": 0,
+            "gpu_status": "Not used (CPU-only inference)"
+        }
+    
     summary = {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "total_models": len(results),
@@ -105,18 +119,8 @@ def aggregate_results(results: list, hardware: dict = None, setup_timings: dict 
         },
         # Hardware - from actual runner
         "hardware": hardware,
-        # Resources - render.py expects these exact field names
-        "resources": {
-            "core_idle_cpu": 0,
-            "core_idle_mem_mb": 0,
-            "core_load_cpu_avg": 0,
-            "core_load_cpu_max": 0,
-            "core_load_mem_avg_mb": 0,
-            "core_load_mem_max_mb": 0,
-            "axon_cpu": 0,
-            "axon_mem_mb": 0,
-            "gpu_status": "Not used (CPU-only inference)"
-        },
+        # Resources - from actual measurements
+        "resources": resources,
         # Timings - merge setup timings with model timings
         "timings": {
             "axon_download_ms": setup_timings.get("axon_download_ms", 0),
@@ -323,6 +327,36 @@ def load_timings_info(timings_file: str) -> dict:
         return default_timings
 
 
+def load_resources_info(resources_file: str) -> dict:
+    """Load resource usage info from JSON file."""
+    default_resources = {
+        "core_idle_cpu": 0,
+        "core_idle_mem_mb": 0,
+        "core_load_cpu_avg": 0,
+        "core_load_cpu_max": 0,
+        "core_load_mem_avg_mb": 0,
+        "core_load_mem_max_mb": 0,
+        "axon_cpu": 0,
+        "axon_mem_mb": 0,
+        "gpu_status": "Not used (CPU-only inference)"
+    }
+    
+    if not resources_file or not os.path.exists(resources_file):
+        return default_resources
+    
+    try:
+        with open(resources_file) as f:
+            resources = json.load(f)
+            # Merge with defaults for any missing fields
+            for key, value in default_resources.items():
+                if key not in resources:
+                    resources[key] = value
+            return resources
+    except Exception as e:
+        print(f"Warning: Could not load resources info: {e}")
+        return default_resources
+
+
 def main():
     parser = argparse.ArgumentParser(description="Aggregate parallel model test results")
     parser.add_argument("--results-dir", required=True, help="Directory containing result JSON files")
@@ -330,6 +364,7 @@ def main():
     parser.add_argument("--markdown", help="Optional markdown report output")
     parser.add_argument("--hardware-info", help="JSON file with hardware information")
     parser.add_argument("--timings-info", help="JSON file with setup timing information")
+    parser.add_argument("--resources-info", help="JSON file with resource usage information")
     parser.add_argument("--github-summary", action="store_true", help="Write to GITHUB_STEP_SUMMARY")
     
     args = parser.parse_args()
@@ -341,6 +376,10 @@ def main():
     # Load timings info
     setup_timings = load_timings_info(args.timings_info)
     print(f"Setup timings: Axon={setup_timings.get('axon_download_ms', 0)}ms, Core={setup_timings.get('core_download_ms', 0)}ms")
+    
+    # Load resources info
+    resources = load_resources_info(args.resources_info)
+    print(f"Resources: Core idle={resources.get('core_idle_cpu', 0)}% CPU, {resources.get('core_idle_mem_mb', 0)}MB RAM")
     
     # Load results
     print(f"Loading results from: {args.results_dir}")
@@ -363,7 +402,7 @@ def main():
         }
     else:
         print(f"Found {len(results)} model results")
-        summary = aggregate_results(results, hardware, setup_timings)
+        summary = aggregate_results(results, hardware, setup_timings, resources)
     
     # Write JSON output
     with open(args.output, 'w') as f:

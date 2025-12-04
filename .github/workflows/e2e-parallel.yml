@@ -235,6 +235,17 @@ jobs:
           CORE_STARTUP_MS=$((END_TIME - START_TIME))
           echo "core_startup_ms=$CORE_STARTUP_MS" >> $GITHUB_OUTPUT
           echo "⏱️ Core startup: ${CORE_STARTUP_MS}ms"
+          
+          # Measure Core idle resource usage
+          sleep 2  # Let Core stabilize
+          CORE_PID=$(cat /tmp/core.pid 2>/dev/null || echo "")
+          if [ -n "$CORE_PID" ] && ps -p "$CORE_PID" > /dev/null 2>&1; then
+            CORE_IDLE_CPU=$(ps -p "$CORE_PID" -o %cpu= 2>/dev/null | xargs || echo "0")
+            CORE_IDLE_MEM_MB=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | awk '{printf "%.0f", $1/1024}' || echo "0")
+            echo "core_idle_cpu=$CORE_IDLE_CPU" >> $GITHUB_OUTPUT
+            echo "core_idle_mem_mb=$CORE_IDLE_MEM_MB" >> $GITHUB_OUTPUT
+            echo "📊 Core idle: CPU=${CORE_IDLE_CPU}%, Memory=${CORE_IDLE_MEM_MB}MB"
+          fi
       
       - name: Run all model tests
         id: test
@@ -295,6 +306,27 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           
           ls -la model-results/
+          
+          # Measure Core under load (during inference) and Axon
+          CORE_PID=$(cat /tmp/core.pid 2>/dev/null || echo "")
+          if [ -n "$CORE_PID" ] && ps -p "$CORE_PID" > /dev/null 2>&1; then
+            # Get max CPU/memory during tests
+            CORE_LOAD_CPU_MAX=$(ps -p "$CORE_PID" -o %cpu= 2>/dev/null | xargs || echo "0")
+            CORE_LOAD_MEM_MAX_MB=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | awk '{printf "%.0f", $1/1024}' || echo "0")
+            echo "core_load_cpu_max=$CORE_LOAD_CPU_MAX" >> $GITHUB_OUTPUT
+            echo "core_load_mem_max_mb=$CORE_LOAD_MEM_MAX_MB" >> $GITHUB_OUTPUT
+            echo "📊 Core under load: CPU=${CORE_LOAD_CPU_MAX}%, Memory=${CORE_LOAD_MEM_MAX_MB}MB"
+          fi
+          
+          # Measure Axon (if running)
+          AXON_PID=$(pgrep -f "axon" | head -1 || echo "")
+          if [ -n "$AXON_PID" ]; then
+            AXON_CPU=$(ps -p "$AXON_PID" -o %cpu= 2>/dev/null | xargs || echo "0")
+            AXON_MEM_MB=$(ps -p "$AXON_PID" -o rss= 2>/dev/null | awk '{printf "%.0f", $1/1024}' || echo "0")
+            echo "axon_cpu=$AXON_CPU" >> $GITHUB_OUTPUT
+            echo "axon_mem_mb=$AXON_MEM_MB" >> $GITHUB_OUTPUT
+            echo "📊 Axon: CPU=${AXON_CPU}%, Memory=${AXON_MEM_MB}MB"
+          fi
         continue-on-error: true
       
       - name: Stop Core server
@@ -340,6 +372,21 @@ jobs:
           }
           EOF
           
+          # Collect resource usage info from previous steps
+          cat > model-results/resources-info.json << EOF
+          {
+            "core_idle_cpu": ${{ steps.core-startup.outputs.core_idle_cpu || 0 }},
+            "core_idle_mem_mb": ${{ steps.core-startup.outputs.core_idle_mem_mb || 0 }},
+            "core_load_cpu_avg": ${{ steps.test.outputs.core_load_cpu_max || 0 }},
+            "core_load_cpu_max": ${{ steps.test.outputs.core_load_cpu_max || 0 }},
+            "core_load_mem_avg_mb": ${{ steps.test.outputs.core_load_mem_max_mb || 0 }},
+            "core_load_mem_max_mb": ${{ steps.test.outputs.core_load_mem_max_mb || 0 }},
+            "axon_cpu": ${{ steps.test.outputs.axon_cpu || 0 }},
+            "axon_mem_mb": ${{ steps.test.outputs.axon_mem_mb || 0 }},
+            "gpu_status": "Not used (CPU-only inference)"
+          }
+          EOF
+          
           echo "📊 Hardware Info:"
           cat model-results/hardware-info.json
           echo ""
@@ -357,6 +404,7 @@ jobs:
             --markdown output/RESULTS.md \
             --hardware-info model-results/hardware-info.json \
             --timings-info model-results/timings-info.json \
+            --resources-info model-results/resources-info.json \
             --github-summary || echo "⚠️ Aggregation had issues"
           
           echo "📊 Metrics:"
