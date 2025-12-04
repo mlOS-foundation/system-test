@@ -156,14 +156,42 @@ models:
     test_seed: 42
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Multi-Modal Models (Future)
+  # Multi-Modal Models
   # ═══════════════════════════════════════════════════════════════════════════
   
   clip:
     category: multimodal
-    enabled: false
+    model_type: clip
     text_tokenizer: "openai/clip-vit-base-patch32"
-    image_preprocessor: "openai/clip-vit-base-patch32"
-    test_text: "a photo of a cat"
-    image_size: 224
+    test_text:
+      small: "a photo of a cat"
+      medium: "a beautiful photograph of a golden retriever dog sitting in a garden"
+      large: "a high resolution professional photograph of a majestic lion resting on a rocky outcrop in the african savanna at sunset"
+    text_max_length:
+      small: 77
+      medium: 77
+      large: 77
+    image_size:
+      small: 224
+      medium: 224
+      large: 224
+    channels: 3
+    test_seed: 42
+    # CLIP normalization
+    normalization:
+      mean: [0.48145466, 0.4578275, 0.40821073]
+      std: [0.26862954, 0.26130258, 0.27577711]
+    required_inputs: ["input_ids", "attention_mask", "pixel_values"]
+  
+  wav2vec2:
+    category: multimodal
+    model_type: audio
+    input_name: "input_values"
+    sample_rate: 16000
+    duration:
+      small: 1.0    # 1 second
+      medium: 3.0   # 3 seconds
+      large: 5.0    # 5 seconds
+    test_seed: 42
+    required_inputs: ["input_values"]
 

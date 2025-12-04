@@ -1471,12 +1471,8 @@ run_inference_tests() {
             continue
         fi
         
-        # Skip multimodal models (require both text and image inputs - complex setup)
-        if [ "$model_category" = "multimodal" ]; then
-            log_info "Skipping inference test for $model_name (multimodal model - requires complex inputs)"
-            eval "METRIC_model_${model_name}_inference_status=ready_not_tested"
-            continue
-        fi
+        # Multimodal models now supported via generate-test-input.py
+        # CLIP: text + image input, Wav2Vec2: audio input
         
         # URL-encode the full model_id for use in the URL path
         # Core stores models with the full model_id (e.g., "hf/distilgpt2@latest")

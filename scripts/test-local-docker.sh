@@ -66,21 +66,24 @@ trap "rm -rf $TEST_DIR" EXIT
 
 echo -e "${BLUE}=== Downloading Release Binaries ===${NC}"
 
-# Download Axon
+# Download Axon (asset uses underscores: axon_VERSION_OS_ARCH.tar.gz)
 echo "Downloading Axon ${AXON_VERSION}..."
+AXON_ARCH_UNDERSCORE="${AXON_ARCH//-/_}"
 gh release download "${AXON_VERSION}" \
     --repo mlOS-foundation/axon \
-    --pattern "axon-*-${AXON_ARCH}.tar.gz" \
+    --pattern "axon_*_${AXON_ARCH_UNDERSCORE}.tar.gz" \
     --dir "$TEST_DIR" 2>/dev/null || {
     echo -e "${RED}Failed to download Axon${NC}"
     exit 1
 }
 
-# Download Core
+# Download Core (tag has v prefix, asset version doesn't)
 echo "Downloading Core ${CORE_VERSION}..."
-gh release download "${CORE_VERSION}" \
+CORE_TAG="v${CORE_VERSION#v}"  # Ensure v prefix for tag
+CORE_VER="${CORE_VERSION#v}"   # Remove v prefix for asset name
+gh release download "${CORE_TAG}" \
     --repo mlOS-foundation/core \
-    --pattern "mlos-core_${CORE_VERSION}_${CORE_ARCH}.tar.gz" \
+    --pattern "mlos-core_${CORE_VER}_${CORE_ARCH}.tar.gz" \
     --dir "$TEST_DIR" 2>/dev/null || {
     echo -e "${RED}Failed to download Core${NC}"
     exit 1
@@ -106,11 +109,11 @@ ORT_ARCH="${ORT_ARCH:-linux-x64}"
 TEST_MODEL="${TEST_MODEL:-gpt2}"
 
 echo "=== Setting up environment ==="
-cd /test
+# Files are in current dir (copied from /test to writable location)
 
-# Extract Axon
+# Extract Axon (uses underscores: axon_VERSION_linux_ARCH.tar.gz)
 echo "Extracting Axon..."
-tar -xzf axon-*-linux-*.tar.gz 2>/dev/null || true
+tar -xzf axon_*_linux_*.tar.gz 2>/dev/null || tar -xzf axon-*-linux-*.tar.gz 2>/dev/null || true
 AXON_BIN=$(find . -name "axon" -type f | head -1)
 chmod +x "$AXON_BIN" 2>/dev/null || true
 cp "$AXON_BIN" /usr/local/bin/axon
@@ -123,15 +126,15 @@ CORE_DIR=$(find . -type d -name "mlos-core-*" | head -1)
 # Download ONNX Runtime
 echo "Downloading ONNX Runtime for ${ORT_ARCH}..."
 curl -sL -o /tmp/ort.tgz "https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-${ORT_ARCH}-1.18.0.tgz"
-mkdir -p "$CORE_DIR/build/onnxruntime"
-tar -xzf /tmp/ort.tgz -C "$CORE_DIR/build/onnxruntime" --strip-components=1
+mkdir -p "$CORE_DIR/onnxruntime"
+tar -xzf /tmp/ort.tgz -C "$CORE_DIR/onnxruntime" --strip-components=1
 
-export LD_LIBRARY_PATH="$CORE_DIR/build/onnxruntime/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$CORE_DIR/onnxruntime/lib:$LD_LIBRARY_PATH"
 
-# Start Core
+# Start Core (binary is at $CORE_DIR/mlos_core)
 echo ""
 echo "=== Starting Core ==="
-"$CORE_DIR/build/mlos_core" --http-port 18080 > /tmp/core.log 2>&1 &
+"$CORE_DIR/mlos_core" --http-port 18080 > /tmp/core.log 2>&1 &
 CORE_PID=$!
 sleep 3
 
