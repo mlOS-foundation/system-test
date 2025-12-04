@@ -6,13 +6,25 @@ on:
       axon_version:
         description: 'Axon version to test'
         required: false
-        default: 'v3.1.1'
+        default: 'v3.1.2'
       core_version:
         description: 'Core version to test'
         required: false
-        default: '3.2.5-alpha'
+        default: '3.2.6-alpha'
       models:
-        description: 'Comma-separated model names (empty = all enabled)'
+        description: |
+          Models to test (comma or space separated).
+          Examples: "gpt2,bert" or "gpt2 bert t5"
+          Empty = all enabled models from config/models.yaml
+          Available models: gpt2, bert, roberta, t5, resnet, vit, convnext, mobilenet, deit, efficientnet, clip
+        required: false
+        default: ''
+      exclude_models:
+        description: |
+          Models to exclude from default set (comma or space separated).
+          Examples: "resnet,vit" or "resnet vit"
+          Only used when models input is empty.
+          Useful for: "all except vision models" = exclude_models: "resnet vit convnext mobilenet deit efficientnet"
         required: false
         default: ''
       parallel_jobs:
@@ -69,22 +81,110 @@ jobs:
           pip install pyyaml
           sudo apt-get update && sudo apt-get install -y curl tar jq
       
-      - name: Get enabled models
+      - name: Get enabled models from config/models.yaml
         id: get-models
         run: |
-          if [ -n "${{ github.event.inputs.models }}" ]; then
-            MODELS="${{ github.event.inputs.models }}"
-          else
-            MODELS=$(python3 -c "
+          # Normalize input: replace commas with spaces and clean up
+          MODELS_INPUT=$(echo "${{ github.event.inputs.models }}" | tr ',' ' ' | xargs)
+          EXCLUDE_INPUT=$(echo "${{ github.event.inputs.exclude_models }}" | tr ',' ' ' | xargs)
+          
+          # Get all enabled models from config/models.yaml
+          ALL_ENABLED=$(python3 -c "
           import yaml
-          with open('config/models.yaml') as f:
-              config = yaml.safe_load(f)
-          models = [name for name, m in config.get('models', {}).items() if m.get('enabled', False)]
-          print(' '.join(models))
+          import sys
+          try:
+              with open('config/models.yaml', 'r') as f:
+                  config = yaml.safe_load(f)
+              models = [name for name, m in config.get('models', {}).items() if m.get('enabled', False)]
+              print(' '.join(models))
+          except Exception as e:
+              print(f'Error reading config/models.yaml: {e}', file=sys.stderr)
+              sys.exit(1)
           ")
+          
+          if [ -z "$ALL_ENABLED" ]; then
+            echo "❌ Error: No enabled models found in config/models.yaml"
+            echo "Please check config/models.yaml and ensure at least one model has enabled: true"
+            exit 1
           fi
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 All enabled models in config/models.yaml:"
+          echo "   $ALL_ENABLED"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # If models input is provided, use it (select specific models)
+          if [ -n "$MODELS_INPUT" ]; then
+            echo "✅ Using provided models: $MODELS_INPUT"
+            MODELS="$MODELS_INPUT"
+          else
+            # Otherwise use all enabled models from config/models.yaml, then exclude if specified
+            MODELS="$ALL_ENABLED"
+            if [ -n "$EXCLUDE_INPUT" ]; then
+              echo "🚫 Excluding models: $EXCLUDE_INPUT"
+              # Remove excluded models from the list
+              for exclude in $EXCLUDE_INPUT; do
+                MODELS=$(echo "$MODELS" | sed "s/\b$exclude\b//g" | xargs)
+              done
+            fi
+          fi
+          
+          # Validate models exist in config/models.yaml and are enabled
+          if [ -n "$MODELS" ]; then
+            INVALID_MODELS=""
+            DISABLED_MODELS=""
+            for model in $MODELS; do
+              if ! echo "$ALL_ENABLED" | grep -q "\b$model\b"; then
+                # Check if model exists but is disabled
+                EXISTS=$(python3 -c "
+                import yaml
+                with open('config/models.yaml') as f:
+                    config = yaml.safe_load(f)
+                print('yes' if '$model' in config.get('models', {}) else 'no')
+                " 2>/dev/null || echo "no")
+                if [ "$EXISTS" = "yes" ]; then
+                  DISABLED_MODELS="$DISABLED_MODELS $model"
+                else
+                  INVALID_MODELS="$INVALID_MODELS $model"
+                fi
+              fi
+            done
+            
+            if [ -n "$INVALID_MODELS" ]; then
+              echo "⚠️ Warning: Invalid models specified (not in config/models.yaml):$INVALID_MODELS"
+              echo "Available models: $ALL_ENABLED"
+              # Remove invalid models
+              for invalid in $INVALID_MODELS; do
+                MODELS=$(echo "$MODELS" | sed "s/\b$invalid\b//g" | xargs)
+              done
+            fi
+            
+            if [ -n "$DISABLED_MODELS" ]; then
+              echo "⚠️ Warning: Models exist but are disabled in config/models.yaml:$DISABLED_MODELS"
+              echo "Enable them in config/models.yaml by setting enabled: true"
+              # Remove disabled models
+              for disabled in $DISABLED_MODELS; do
+                MODELS=$(echo "$MODELS" | sed "s/\b$disabled\b//g" | xargs)
+              done
+            fi
+          fi
+          
+          # Final validation
+          if [ -z "$MODELS" ]; then
+            echo "❌ Error: No valid models to test"
+            echo "Available enabled models in config/models.yaml: $ALL_ENABLED"
+            echo ""
+            echo "To fix:"
+            echo "  1. Check config/models.yaml for enabled models"
+            echo "  2. Or specify models in the workflow input"
+            exit 1
+          fi
+          
           echo "models=$MODELS" >> $GITHUB_OUTPUT
-          echo "📋 Models to test: $MODELS"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ Final models to test: $MODELS"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       
       - name: Download Axon release
         id: axon-download
@@ -322,12 +422,14 @@ jobs:
             echo "📊 Resource monitor started (PID: $MONITOR_PID) for Core PID: $CORE_PID"
           fi
           
-          # Separate NLP (smaller, parallel OK) from Vision (larger, need sequential)
+          # Separate NLP (smaller, parallel OK) from Vision/Multimodal (larger, need sequential)
           NLP_MODELS=""
           VISION_MODELS=""
+          MULTIMODAL_MODELS=""
           for model in $MODELS; do
             case "$model" in
               gpt2|bert|roberta|t5) NLP_MODELS="$NLP_MODELS $model" ;;
+              clip) MULTIMODAL_MODELS="$MULTIMODAL_MODELS $model" ;;
               *) VISION_MODELS="$VISION_MODELS $model" ;;
             esac
           done
@@ -363,6 +465,24 @@ jobs:
               || echo "⚠️ $model had issues"
             
             # Show disk space after each vision model
+            echo "📊 Disk after $model: $(df -h / | tail -1 | awk '{print $4}') free"
+          done
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧪 Phase 3: Multimodal models (sequential) -$MULTIMODAL_MODELS"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # Run Multimodal models sequentially (complex models, need sequential)
+          for model in $MULTIMODAL_MODELS; do
+            [ -z "$model" ] && continue
+            echo "🔄 [Multimodal] Starting: $model"
+            ./scripts/test-single-model.sh "$model" \
+            --output-dir model-results \
+            --core-url http://127.0.0.1:18080 \
+              || echo "⚠️ $model had issues"
+            
+            # Show disk space after each multimodal model
             echo "📊 Disk after $model: $(df -h / | tail -1 | awk '{print $4}') free"
           done
           

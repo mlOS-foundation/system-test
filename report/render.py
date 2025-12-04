@@ -195,8 +195,15 @@ class ReportRenderer:
             'gpt2': '#667eea',
             'bert': '#764ba2',
             'roberta': '#f093fb',
+            't5': '#f59e0b',  # Orange for T5 (encoder-decoder)
             'resnet': '#11998e',
-            'vgg': '#38ef7d'
+            'vgg': '#38ef7d',
+            'clip': '#8b5cf6',  # Purple for CLIP (multi-encoder)
+            'vit': '#10b981',
+            'convnext': '#06b6d4',
+            'mobilenet': '#ec4899',
+            'deit': '#14b8a6',
+            'efficientnet': '#84cc16'
         }
         
         for model_name, model_data in models.items():

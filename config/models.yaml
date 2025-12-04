@@ -70,7 +70,7 @@ models:
     axon_id: "hf/t5-small@latest"
     description: "T5 small - Text-to-text transformer"
     input_type: text
-    notes: "Requires encoder-decoder input format"
+    notes: "✅ Fully supported: Encoder-decoder architecture enabled in Axon v3.1.2 + Core v3.2.6-alpha"
     small_input:
       tokens: 7
       sequence: [101, 2054, 2003, 1996, 3462, 102]
@@ -198,7 +198,7 @@ models:
     axon_id: "hf/openai/clip-vit-base-patch32@latest"
     description: "CLIP - Image-text matching and zero-shot classification"
     input_type: multimodal
-    notes: "Multi-encoder model with text_model.onnx + vision_model.onnx"
+    notes: "✅ Fully supported: Multi-encoder architecture (text_model.onnx + vision_model.onnx) enabled in Axon v3.1.2 + Core v3.2.6-alpha"
     small_input:
       text_tokens: 77
       image_width: 224

@@ -248,7 +248,19 @@ generate_test_input() {
     local category="$3"
     local size="$4"  # small or large
     
-    # Use model-specific input formats that Core expects
+    # Try to use the Python generator first (supports T5, CLIP, etc.)
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local generator="$script_dir/generate-test-input.py"
+    
+    if [ -f "$generator" ]; then
+        local result=$(python3 "$generator" "$model_name" "$size" 2>/dev/null)
+        if [ -n "$result" ] && [ "$result" != "{}" ] && [ "$result" != "null" ]; then
+            echo "$result"
+            return 0
+        fi
+    fi
+    
+    # Fallback to inline generation if generator fails or unavailable
     case "$category" in
         nlp)
             case "$model_name" in
@@ -284,6 +296,20 @@ ids = [0] + [31414] * ($max_len - 2) + [2]
 print(json.dumps({'input_ids': ids}))
 "
                     ;;
+                t5)
+                    # T5: encoder-decoder model - Python generator handles this via test-inputs.yaml
+                    # Fallback if Python generator fails (shouldn't happen, but just in case)
+                    local max_len=16
+                    [ "$size" = "large" ] && max_len=128
+                    python3 -c "
+import json
+# T5 fallback: encoder input + decoder input with start token
+encoder_ids = [8774, 6, 26, 21, 408, 8612, 2495, 5, 1] + [0] * ($max_len - 9)
+encoder_mask = [1] * min(9, $max_len) + [0] * max(0, $max_len - 9)
+decoder_ids = [0] + [320] * ($max_len - 1)  # decoder_start_token_id=0
+print(json.dumps({'input_ids': encoder_ids[:$max_len], 'attention_mask': encoder_mask[:$max_len], 'decoder_input_ids': decoder_ids[:$max_len]}))
+"
+                    ;;
                 *)
                     # Generic NLP fallback
                     echo '{"input_ids": [101, 7592, 102]}'
@@ -301,6 +327,32 @@ random.seed(42)
 data = [random.gauss(0, 1) for _ in range(1 * 3 * $img_size * $img_size)]
 print(json.dumps({'pixel_values': data}))
 "
+            ;;
+        multimodal)
+            case "$model_name" in
+                clip)
+                    # CLIP: text (input_ids, attention_mask) + image (pixel_values)
+                    # Using same approach as vision models but with text inputs too
+                    local text_len=77
+                    local img_size=224
+                    python3 -c "
+import random
+import json
+random.seed(42)
+# CLIP text: 49406 = <|startoftext|>, 49407 = <|endoftext|>
+# Fallback token IDs (matches generate-test-input.py fallback)
+text_ids = [49406] + [320] * ($text_len - 2) + [49407]
+text_mask = [1] * $text_len
+# CLIP image: normalized pixel values (mean=0, std=1) - flat array
+img_data = [random.gauss(0, 1) for _ in range(1 * 3 * $img_size * $img_size)]
+print(json.dumps({'input_ids': text_ids, 'attention_mask': text_mask, 'pixel_values': img_data}))
+"
+                    ;;
+                *)
+                    # Generic multimodal fallback - return empty to force Python generator
+                    echo ""
+                    ;;
+            esac
             ;;
         *)
             echo '{"input_ids": [101, 7592, 102]}'
