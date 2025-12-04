@@ -166,7 +166,7 @@ jobs:
             echo "📥 Trying curl from: $URL"
             if curl -L -f -o "/tmp/core.tar.gz" "$URL" 2>/dev/null; then
               echo "✅ Downloaded via curl"
-              tar -xzf "/tmp/core.tar.gz" -C ~/mlos-core
+          tar -xzf "/tmp/core.tar.gz" -C ~/mlos-core
             else
               echo "❌ Failed to download Core"
               exit 1
@@ -180,7 +180,7 @@ jobs:
           mkdir -p ~/mlos-core/build
           tar -xzf /tmp/onnx.tgz -C ~/mlos-core/build
           mv ~/mlos-core/build/onnxruntime-* ~/mlos-core/build/onnxruntime
-          
+      
           END_TIME=$(date +%s%3N)
           CORE_DOWNLOAD_MS=$((END_TIME - START_TIME))
           echo "core_download_ms=$CORE_DOWNLOAD_MS" >> $GITHUB_OUTPUT
@@ -224,7 +224,7 @@ jobs:
             echo "⏳ Waiting for Core... ($i/30)"
             sleep 1
           done
-          
+      
           if ! curl -s http://127.0.0.1:18080/health >/dev/null 2>&1; then
             echo "❌ Core failed to start"
             cat /tmp/core.log
@@ -255,6 +255,78 @@ jobs:
           mkdir -p model-results
           chmod +x scripts/test-single-model.sh
           export PATH="$HOME/.local/bin:$PATH"
+          
+          # Start resource monitoring in background (captures max during tests)
+          CORE_PID=$(cat /tmp/core.pid 2>/dev/null || echo "")
+          if [ -n "$CORE_PID" ]; then
+            echo "$CORE_PID" > /tmp/monitor_core_pid.txt
+            python3 << 'PYTHON_SCRIPT' &
+import time
+import subprocess
+
+try:
+    with open('/tmp/monitor_core_pid.txt') as f:
+        core_pid = int(f.read().strip())
+except:
+    exit(0)
+
+max_cpu = 0.0
+max_mem = 0.0
+total_cpu = 0.0
+total_mem = 0.0
+samples = 0
+
+while True:
+    try:
+        # Check if process still exists
+        result = subprocess.run(['ps', '-p', str(core_pid)],
+                              stdout=subprocess.DEVNULL, 
+                              stderr=subprocess.DEVNULL, 
+                              check=False)
+        if result.returncode != 0:
+            break
+        
+        # Get CPU and memory
+        result = subprocess.run(['ps', '-p', str(core_pid), '-o', '%cpu=,rss='],
+                              capture_output=True, text=True, check=False)
+        if result.returncode == 0:
+            parts = result.stdout.strip().split()
+            if len(parts) >= 2:
+                cpu = float(parts[0])
+                mem_kb = int(parts[1])
+                mem_mb = mem_kb / 1024
+                
+                if cpu > max_cpu:
+                    max_cpu = cpu
+                if mem_mb > max_mem:
+                    max_mem = mem_mb
+                
+                total_cpu += cpu
+                total_mem += mem_mb
+                samples += 1
+                
+                # Write max values
+                with open('/tmp/core_max_cpu.txt', 'w') as f:
+                    f.write(f"{max_cpu:.1f}")
+                with open('/tmp/core_max_mem.txt', 'w') as f:
+                    f.write(f"{max_mem:.0f}")
+                
+                # Write avg values
+                if samples > 0:
+                    avg_cpu = total_cpu / samples
+                    avg_mem = total_mem / samples
+                    with open('/tmp/core_avg_cpu.txt', 'w') as f:
+                        f.write(f"{avg_cpu:.1f}")
+                    with open('/tmp/core_avg_mem.txt', 'w') as f:
+                        f.write(f"{avg_mem:.0f}")
+    except Exception as e:
+        pass
+    
+    time.sleep(0.5)
+PYTHON_SCRIPT
+            MONITOR_PID=$!
+            echo "📊 Resource monitor started (PID: $MONITOR_PID) for Core PID: $CORE_PID"
+          fi
           
           # Separate NLP (smaller, parallel OK) from Vision (larger, need sequential)
           NLP_MODELS=""
@@ -292,13 +364,20 @@ jobs:
             [ -z "$model" ] && continue
             echo "🔄 [Vision] Starting: $model"
             ./scripts/test-single-model.sh "$model" \
-              --output-dir model-results \
-              --core-url http://127.0.0.1:18080 \
+            --output-dir model-results \
+            --core-url http://127.0.0.1:18080 \
               || echo "⚠️ $model had issues"
             
             # Show disk space after each vision model
             echo "📊 Disk after $model: $(df -h / | tail -1 | awk '{print $4}') free"
           done
+          
+          # Stop monitor and get max values
+          if [ -n "$MONITOR_PID" ]; then
+            kill $MONITOR_PID 2>/dev/null || true
+            wait $MONITOR_PID 2>/dev/null || true
+            sleep 1
+          fi
           
           echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -307,16 +386,39 @@ jobs:
           
           ls -la model-results/
           
-          # Measure Core under load (during inference) and Axon
-          CORE_PID=$(cat /tmp/core.pid 2>/dev/null || echo "")
-          if [ -n "$CORE_PID" ] && ps -p "$CORE_PID" > /dev/null 2>&1; then
-            # Get max CPU/memory during tests
-            CORE_LOAD_CPU_MAX=$(ps -p "$CORE_PID" -o %cpu= 2>/dev/null | xargs || echo "0")
-            CORE_LOAD_MEM_MAX_MB=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | awk '{printf "%.0f", $1/1024}' || echo "0")
-            echo "core_load_cpu_max=$CORE_LOAD_CPU_MAX" >> $GITHUB_OUTPUT
-            echo "core_load_mem_max_mb=$CORE_LOAD_MEM_MAX_MB" >> $GITHUB_OUTPUT
-            echo "📊 Core under load: CPU=${CORE_LOAD_CPU_MAX}%, Memory=${CORE_LOAD_MEM_MAX_MB}MB"
+          # Get max CPU/memory from monitoring
+          if [ -f /tmp/core_max_cpu.txt ] && [ -f /tmp/core_max_mem.txt ]; then
+            CORE_LOAD_CPU_MAX=$(cat /tmp/core_max_cpu.txt | head -1 || echo "0")
+            CORE_LOAD_MEM_MAX_MB=$(cat /tmp/core_max_mem.txt | head -1 || echo "0")
+            if [ -f /tmp/core_avg_cpu.txt ] && [ -f /tmp/core_avg_mem.txt ]; then
+              CORE_LOAD_CPU_AVG=$(cat /tmp/core_avg_cpu.txt | head -1 || echo "$CORE_LOAD_CPU_MAX")
+              CORE_LOAD_MEM_AVG_MB=$(cat /tmp/core_avg_mem.txt | head -1 || echo "$CORE_LOAD_MEM_MAX_MB")
+            else
+              # Fallback: use max as avg if no samples
+              CORE_LOAD_CPU_AVG=$CORE_LOAD_CPU_MAX
+              CORE_LOAD_MEM_AVG_MB=$CORE_LOAD_MEM_MAX_MB
+            fi
+          else
+            # Fallback: measure current (may be idle)
+            CORE_PID=$(cat /tmp/core.pid 2>/dev/null || echo "")
+            if [ -n "$CORE_PID" ] && ps -p "$CORE_PID" > /dev/null 2>&1; then
+              CORE_LOAD_CPU_MAX=$(ps -p "$CORE_PID" -o %cpu= 2>/dev/null | xargs || echo "0")
+              CORE_LOAD_MEM_MAX_MB=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | awk '{printf "%.0f", $1/1024}' || echo "0")
+              CORE_LOAD_CPU_AVG=$CORE_LOAD_CPU_MAX
+              CORE_LOAD_MEM_AVG_MB=$CORE_LOAD_MEM_MAX_MB
+            else
+              CORE_LOAD_CPU_MAX=0
+              CORE_LOAD_MEM_MAX_MB=0
+              CORE_LOAD_CPU_AVG=0
+              CORE_LOAD_MEM_AVG_MB=0
+            fi
           fi
+          
+          echo "core_load_cpu_max=$CORE_LOAD_CPU_MAX" >> $GITHUB_OUTPUT
+          echo "core_load_cpu_avg=$CORE_LOAD_CPU_AVG" >> $GITHUB_OUTPUT
+          echo "core_load_mem_max_mb=$CORE_LOAD_MEM_MAX_MB" >> $GITHUB_OUTPUT
+          echo "core_load_mem_avg_mb=$CORE_LOAD_MEM_AVG_MB" >> $GITHUB_OUTPUT
+          echo "📊 Core under load: CPU=${CORE_LOAD_CPU_MAX}% (max), Memory=${CORE_LOAD_MEM_MAX_MB}MB (max)"
           
           # Measure Axon (if running)
           AXON_PID=$(pgrep -f "axon" | head -1 || echo "")
@@ -483,11 +585,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ -f metrics/latest.json ]; then
-            python3 -c "
+          python3 -c "
           import json
           try:
-              with open('metrics/latest.json') as f:
-                  m = json.load(f)
+          with open('metrics/latest.json') as f:
+              m = json.load(f)
               print(f\"| Metric | Value |\")
               print(f\"|--------|-------|\")
               print(f\"| Models Tested | {m.get('total_models', 'N/A')} |\")
