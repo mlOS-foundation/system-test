@@ -138,6 +138,19 @@ body {
 
 /* Metrics Grid */
 .metrics-grid {
+.category-section {
+    margin-bottom: 1.5rem;
+}
+
+.category-section h4 {
+    margin-bottom: 8px !important;
+    margin-top: 0 !important;
+}
+
+.category-section:not(:first-child) {
+    margin-top: 1.5rem;
+}
+
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;

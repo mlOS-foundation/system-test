@@ -257,7 +257,7 @@ class ReportRenderer:
         
         # NLP Models
         if categories['nlp']:
-            html_parts.append('<h4 style="color: #667eea; margin-bottom: 15px;">🔤 NLP Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #667eea; margin-bottom: 8px; margin-top: 0;">🔤 NLP Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['nlp']:
                 display_name = model_name.upper()
@@ -288,10 +288,10 @@ class ReportRenderer:
                     </div>
                 ''')
             html_parts.append('</div>')
-        
+            html_parts.append('</div>')
         # Vision Models
         if categories['vision']:
-            html_parts.append('<h4 style="color: #17998e; margin: 25px 0 15px 0;">👁️ Vision Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #17998e; margin-bottom: 8px; margin-top: 20px;">👁️ Vision Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['vision']:
                 display_name = model_name.upper()
@@ -322,6 +322,7 @@ class ReportRenderer:
                     </div>
                 ''')
             html_parts.append('</div>')
+            html_parts.append('</div>')
         
         return '\n'.join(html_parts)
     
@@ -339,7 +340,7 @@ class ReportRenderer:
         
         # NLP Models
         if categories['nlp']:
-            html_parts.append('<h4 style="color: #667eea; margin-bottom: 15px;">🔤 NLP Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #667eea; margin-bottom: 8px; margin-top: 0;">🔤 NLP Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['nlp']:
                 display_name = model_name.upper()
@@ -366,10 +367,10 @@ class ReportRenderer:
                     </div>
                 ''')
             html_parts.append('</div>')
-        
+            html_parts.append('</div>')
         # Vision Models
         if categories['vision']:
-            html_parts.append('<h4 style="color: #17998e; margin: 25px 0 15px 0;">👁️ Vision Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #17998e; margin-bottom: 8px; margin-top: 20px;">👁️ Vision Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['vision']:
                 display_name = model_name.upper()
