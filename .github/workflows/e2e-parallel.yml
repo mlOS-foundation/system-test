@@ -91,7 +91,7 @@ jobs:
         run: |
           START_TIME=$(date +%s%3N)
           
-          VERSION="${{ github.event.inputs.axon_version || 'v3.1.1' }}"
+          VERSION="${{ github.event.inputs.axon_version || 'v3.1.2' }}"
           OS="linux"
           ARCH=$(uname -m)
           case $ARCH in
@@ -116,7 +116,7 @@ jobs:
       
       - name: Download converter image (ONCE)
         run: |
-          VERSION="${{ github.event.inputs.axon_version || 'v3.1.1' }}"
+          VERSION="${{ github.event.inputs.axon_version || 'v3.1.2' }}"
           OS="linux"
           ARCH=$(uname -m)
           case $ARCH in
@@ -142,7 +142,7 @@ jobs:
         run: |
           START_TIME=$(date +%s%3N)
           
-          VERSION="${{ github.event.inputs.core_version || '3.2.5-alpha' }}"
+          VERSION="${{ github.event.inputs.core_version || '3.2.6-alpha' }}"
           OS="linux"
           ARCH=$(uname -m)
           case $ARCH in

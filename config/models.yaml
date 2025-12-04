@@ -1,7 +1,8 @@
 # MLOS E2E Test - Model Configuration
 # Add new models here to include them in test runs
 # 
-# Updated: 2024-12-01 - Added validated vision models (Axon v3.1.0, Core v3.2.0-alpha)
+# Updated: 2024-12-04 - Multi-encoder support (Axon v3.1.2, Core v3.2.6-alpha)
+# - CLIP enabled with multi-encoder architecture support
 
 # Test runner settings
 settings:
@@ -64,7 +65,7 @@ models:
       tokens: 128
 
   t5:
-    enabled: false  # Disabled - encoder-decoder architecture needs special handling
+    enabled: true  # Enabled: Multi-encoder support added in Axon v3.1.2 + Core v3.2.6-alpha
     category: nlp
     axon_id: "hf/t5-small@latest"
     description: "T5 small - Text-to-text transformer"
@@ -192,12 +193,12 @@ models:
   # =============================================================================
   
   clip:
-    enabled: false  # Blocked: Multi-encoder ONNX export (text_model.onnx + vision_model.onnx)
+    enabled: true  # Enabled: Multi-encoder support added in Axon v3.1.2 + Core v3.2.6-alpha
     category: multimodal
     axon_id: "hf/openai/clip-vit-base-patch32@latest"
     description: "CLIP - Image-text matching and zero-shot classification"
     input_type: multimodal
-    notes: "Optimum exports separate files (text_model.onnx, vision_model.onnx) - need Axon/Core multi-encoder support"
+    notes: "Multi-encoder model with text_model.onnx + vision_model.onnx"
     small_input:
       text_tokens: 77
       image_width: 224

@@ -22,8 +22,8 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-AXON_RELEASE_VERSION="v3.1.1"
-CORE_RELEASE_VERSION="3.2.0-alpha"
+AXON_RELEASE_VERSION="${AXON_VERSION:-v3.1.2}"
+CORE_RELEASE_VERSION="${CORE_VERSION:-3.2.6-alpha}"
 TEST_DIR="$(pwd)/release-test-$(date +%s)"
 REPORT_FILE="$TEST_DIR/release-validation-report.html"
 METRICS_FILE="$TEST_DIR/metrics.json"
@@ -852,18 +852,15 @@ install_models() {
         
         local start_time=$(get_timestamp_ms)
         
-        # Skip multimodal models (require both text and image inputs - complex setup)
-        if [ "$model_category" = "multimodal" ]; then
-            log_info "Skipping installation of $model_name (multimodal model - requires complex inputs)"
-            continue
-        fi
+        # Multimodal models now supported with multi-encoder architecture
+        # CLIP and other multi-encoder models are handled via onnx_manifest.json
         
         # Clear model cache to force fresh installation with ONNX conversion
         # If model was previously installed in PyTorch format, we need to reinstall for ONNX
         local model_cache_dir="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}"
         if [ -d "$model_cache_dir" ]; then
-            # Check if ONNX model exists
-            if [ ! -f "$model_cache_dir/model.onnx" ]; then
+            # Check if ONNX model exists (single model.onnx or multi-encoder onnx_manifest.json)
+            if [ ! -f "$model_cache_dir/model.onnx" ] && [ ! -f "$model_cache_dir/onnx_manifest.json" ]; then
                 log "Clearing cache for $model_id (no ONNX model found, forcing reinstall)..."
                 rm -rf "$model_cache_dir"
             else
@@ -930,7 +927,10 @@ install_models() {
         
         # Verify the model was actually installed
         # Correct path: ~/.axon/cache/models/{namespace}/{model}/{version}/model.onnx
-        local model_path="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}/model.onnx"
+        # For multi-encoder models: ~/.axon/cache/models/{namespace}/{model}/{version}/onnx_manifest.json
+        local model_dir="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}"
+        local model_path="$model_dir/model.onnx"
+        local manifest_path="$model_dir/onnx_manifest.json"
         
         if [ -f "$model_path" ]; then
             log "✅ Model file verified at: $model_path"
@@ -940,15 +940,20 @@ install_models() {
             rm -f "$axon_output"
             
             # Clean up unnecessary files to save disk space (keep only model.onnx)
-            local model_dir=$(dirname "$model_path")
             if [ -d "$model_dir" ]; then
                 # Remove large weight files that are redundant after ONNX conversion
                 rm -f "$model_dir/pytorch_model.bin" "$model_dir/tf_model.h5" "$model_dir/model.safetensors" 2>/dev/null || true
                 rm -f "$model_dir/flax_model.msgpack" 2>/dev/null || true
             fi
+        elif [ -f "$manifest_path" ]; then
+            log "✅ Multi-encoder model manifest verified at: $manifest_path"
+            eval "METRIC_model_${model_name}_install_time_ms=$install_time"
+            log "✅ Installed $model_name (multi-encoder, ${install_time}ms)"
+            ((model_count++))
+            rm -f "$axon_output"
         else
             # Model not found - output was already shown in real-time, but summarize key issues
-            log_warn "Model file not found at expected location: $model_path"
+            log_warn "Model file not found at expected location: $model_path or $manifest_path"
             
             # Check for ONNX conversion issues in captured output
             if grep -qi "onnx\|conversion\|docker" "$axon_output" 2>/dev/null; then
@@ -958,10 +963,16 @@ install_models() {
             
             log "Searching in ~/.axon/cache/models/..."
             local found_model=$(find "$HOME/.axon/cache/models" -name "model.onnx" -path "*${model_id%%/*}*" 2>/dev/null | head -n 1)
+            local found_manifest=$(find "$HOME/.axon/cache/models" -name "onnx_manifest.json" -path "*${model_id%%/*}*" 2>/dev/null | head -n 1)
             if [ -n "$found_model" ]; then
                 log "✅ Found model at: $found_model"
                 eval "METRIC_model_${model_name}_install_time_ms=$install_time"
                 log "✅ Installed $model_name (${install_time}ms)"
+                ((model_count++))
+            elif [ -n "$found_manifest" ]; then
+                log "✅ Found multi-encoder manifest at: $found_manifest"
+                eval "METRIC_model_${model_name}_install_time_ms=$install_time"
+                log "✅ Installed $model_name (multi-encoder, ${install_time}ms)"
                 ((model_count++))
             else
                 log_error "Model installation failed - file not found"
