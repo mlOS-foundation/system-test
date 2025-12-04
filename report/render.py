@@ -28,6 +28,29 @@ except ImportError:
     HAS_YAML = False
 
 
+def format_time(ms: int) -> str:
+    """Format milliseconds to human-readable time.
+    
+    - < 1000ms: show as ms (e.g., "523 ms")
+    - 1-60s: show as seconds (e.g., "5.2s")
+    - 1-60min: show as minutes (e.g., "3.5 min")
+    - > 60min: show as hours (e.g., "1.2 hr")
+    """
+    if ms < 1000:
+        return f"{ms} ms"
+    
+    seconds = ms / 1000
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    
+    minutes = seconds / 60
+    if minutes < 60:
+        return f"{minutes:.1f} min"
+    
+    hours = minutes / 60
+    return f"{hours:.1f} hr"
+
+
 class ReportRenderer:
     """Renders E2E test report from metrics JSON."""
     
@@ -219,43 +242,91 @@ class ReportRenderer:
         }
     
     def generate_inference_metrics_html(self) -> str:
-        """Generate HTML for inference metrics cards."""
+        """Generate HTML for inference metrics cards - one card per model with both small/large inside."""
         models = self.metrics.get('models', {})
         html_parts = []
         
+        # Group by category for better organization
+        categories = {'nlp': [], 'vision': [], 'multimodal': []}
         for model_name, model_data in models.items():
             if not model_data.get('tested', False):
                 continue
-            
-            display_name = model_name.upper()
-            
-            # Small inference
-            time_ms = model_data.get('inference_time_ms', 0)
-            status = self.get_model_status(model_name, 'small')
-            html_parts.append(f'''
-                <div class="metric-card">
-                    <h4>{display_name} (small)</h4>
-                    <div class="metric-value">{time_ms} ms</div>
-                    <div class="status-badge {status['status_class']}">{status['status']} Success</div>
-                </div>
-            ''')
-            
-            # Large inference (if tested)
-            if model_data.get('inference_large_tested', False):
-                time_ms_large = model_data.get('inference_large_time_ms', 0)
+            cat = model_data.get('category', 'nlp')
+            if cat in categories:
+                categories[cat].append((model_name, model_data))
+        
+        # NLP Models
+        if categories['nlp']:
+            html_parts.append('<h4 style="color: #667eea; margin-bottom: 15px;">🔤 NLP Models</h4>')
+            html_parts.append('<div class="metrics-grid">')
+            for model_name, model_data in categories['nlp']:
+                display_name = model_name.upper()
+                time_small = model_data.get('inference_time_ms', 0)
+                time_large = model_data.get('inference_large_time_ms', 0)
+                status_small = self.get_model_status(model_name, 'small')
                 status_large = self.get_model_status(model_name, 'large')
+                overall_status = self.get_model_status(model_name)
+                
                 html_parts.append(f'''
                     <div class="metric-card">
-                        <h4>{display_name} (large)</h4>
-                        <div class="metric-value">{time_ms_large} ms</div>
-                        <div class="status-badge {status_large['status_class']}">{status_large['status']} Success</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">{display_name}</h4>
+                            <span class="status-badge {overall_status['status_class']}">{overall_status['status']}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(time_small)}</div>
+                                <span class="status-badge {status_small['status_class']}" style="font-size: 0.7rem; margin-top: 0.25rem; display: inline-block;">{status_small['status']}</span>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(time_large) if time_large > 0 else 'N/A'}</div>
+                                <span class="status-badge {status_large['status_class']}" style="font-size: 0.7rem; margin-top: 0.25rem; display: inline-block;">{status_large['status']}</span>
+                            </div>
+                        </div>
                     </div>
                 ''')
+            html_parts.append('</div>')
+        
+        # Vision Models
+        if categories['vision']:
+            html_parts.append('<h4 style="color: #17998e; margin: 25px 0 15px 0;">👁️ Vision Models</h4>')
+            html_parts.append('<div class="metrics-grid">')
+            for model_name, model_data in categories['vision']:
+                display_name = model_name.upper()
+                time_small = model_data.get('inference_time_ms', 0)
+                time_large = model_data.get('inference_large_time_ms', 0)
+                status_small = self.get_model_status(model_name, 'small')
+                status_large = self.get_model_status(model_name, 'large')
+                overall_status = self.get_model_status(model_name)
+                
+                html_parts.append(f'''
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">{display_name}</h4>
+                            <span class="status-badge {overall_status['status_class']}">{overall_status['status']}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(time_small)}</div>
+                                <span class="status-badge {status_small['status_class']}" style="font-size: 0.7rem; margin-top: 0.25rem; display: inline-block;">{status_small['status']}</span>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(time_large) if time_large > 0 else 'N/A'}</div>
+                                <span class="status-badge {status_large['status_class']}" style="font-size: 0.7rem; margin-top: 0.25rem; display: inline-block;">{status_large['status']}</span>
+                            </div>
+                        </div>
+                    </div>
+                ''')
+            html_parts.append('</div>')
         
         return '\n'.join(html_parts)
     
     def generate_model_details_html(self) -> str:
-        """Generate HTML for model details section."""
+        """Generate HTML for model details section - one card per model with timing data points inside."""
         models = self.metrics.get('models', {})
         html_parts = []
         
@@ -274,14 +345,24 @@ class ReportRenderer:
                 display_name = model_name.upper()
                 install_time = model_data.get('install_time_ms', 0)
                 register_time = model_data.get('register_time_ms', 0)
+                overall_status = self.get_model_status(model_name)
+                
                 html_parts.append(f'''
                     <div class="metric-card">
-                        <h4>{display_name} Install Time</h4>
-                        <div class="metric-value">{install_time} ms</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>{display_name} Register Time</h4>
-                        <div class="metric-value">{register_time} ms</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">{display_name}</h4>
+                            <span class="status-badge {overall_status['status_class']}">{overall_status['status']}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(install_time)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(register_time)}</div>
+                            </div>
+                        </div>
                     </div>
                 ''')
             html_parts.append('</div>')
@@ -294,14 +375,24 @@ class ReportRenderer:
                 display_name = model_name.upper()
                 install_time = model_data.get('install_time_ms', 0)
                 register_time = model_data.get('register_time_ms', 0)
+                overall_status = self.get_model_status(model_name)
+                
                 html_parts.append(f'''
                     <div class="metric-card" style="border-left-color: #17998e;">
-                        <h4>{display_name} Install Time</h4>
-                        <div class="metric-value">{install_time} ms</div>
-                    </div>
-                    <div class="metric-card" style="border-left-color: #17998e;">
-                        <h4>{display_name} Register Time</h4>
-                        <div class="metric-value">{register_time} ms</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">{display_name}</h4>
+                            <span class="status-badge {overall_status['status_class']}">{overall_status['status']}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(install_time)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(register_time)}</div>
+                            </div>
+                        </div>
                     </div>
                 ''')
             html_parts.append('</div>')
@@ -361,11 +452,11 @@ class ReportRenderer:
             '{{AXON_MEM}}': str(resources.get('axon_mem_mb', 0)),
             '{{GPU_STATUS}}': resources.get('gpu_status', 'Not used (CPU-only inference)'),
             
-            # Timings
-            '{{AXON_DOWNLOAD_TIME}}': str(timings.get('axon_download_ms', 0)),
-            '{{CORE_DOWNLOAD_TIME}}': str(timings.get('core_download_ms', 0)),
-            '{{CORE_STARTUP_TIME}}': str(timings.get('core_startup_ms', 0)),
-            '{{TOTAL_MODEL_INSTALL_TIME}}': str(timings.get('total_model_install_ms', 0)),
+            # Timings (formatted for display)
+            '{{AXON_DOWNLOAD_TIME}}': format_time(timings.get('axon_download_ms', 0)),
+            '{{CORE_DOWNLOAD_TIME}}': format_time(timings.get('core_download_ms', 0)),
+            '{{CORE_STARTUP_TIME}}': format_time(timings.get('core_startup_ms', 0)),
+            '{{TOTAL_MODEL_INSTALL_TIME}}': format_time(timings.get('total_model_install_ms', 0)),
             
             # Category status
             '{{NLP_STATUS}}': nlp_status['status'],
@@ -385,7 +476,7 @@ class ReportRenderer:
             '{{BREAKDOWN_CHART_LABELS}}': breakdown_chart['labels'],
             '{{BREAKDOWN_CHART_DATA}}': breakdown_chart['data'],
             '{{BREAKDOWN_CHART_COLORS}}': breakdown_chart['colors'],
-            '{{MODEL_INSTALL_TIME_CALLOUT}}': str(breakdown_chart['model_install_ms']),
+            '{{MODEL_INSTALL_TIME_CALLOUT}}': format_time(breakdown_chart['model_install_ms']),
             
             # Dynamic HTML sections
             '{{INFERENCE_METRICS_HTML}}': self.generate_inference_metrics_html(),
