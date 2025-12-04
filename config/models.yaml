@@ -192,20 +192,33 @@ models:
   # =============================================================================
   
   clip:
-    enabled: false  # Requires special multimodal input handling
+    enabled: true
     category: multimodal
     axon_id: "hf/openai/clip-vit-base-patch32@latest"
-    description: "CLIP - Image-text matching"
+    description: "CLIP - Image-text matching and zero-shot classification"
     input_type: multimodal
-    notes: "Requires both image and text inputs - special handling needed"
     small_input:
-      text_tokens: 7
-      image_width: 32
-      image_height: 32
+      text_tokens: 77
+      image_width: 224
+      image_height: 224
     large_input:
       text_tokens: 77
       image_width: 224
       image_height: 224
+
+  wav2vec2:
+    enabled: false  # Pending: Audio support in Core
+    category: multimodal
+    axon_id: "hf/facebook/wav2vec2-base-960h@latest"
+    description: "Wav2Vec2 - Speech recognition"
+    input_type: audio
+    notes: "Audio models require waveform input - pending Core support"
+    small_input:
+      duration_seconds: 1.0
+      sample_rate: 16000
+    large_input:
+      duration_seconds: 5.0
+      sample_rate: 16000
 
 # =============================================================================
 # Quick reference for adding new models:

@@ -316,6 +316,37 @@ class ReportRenderer:
             html_parts.append('</div>')
             html_parts.append('</div>')
         
+        # Multimodal Models
+        if categories['multimodal']:
+            html_parts.append('<div class="category-section"><h4 style="color: #764ba2; margin-bottom: 8px; margin-top: 20px;">🎨 Multimodal Models</h4>')
+            html_parts.append('<div class="metrics-grid">')
+            for model_name, model_data in categories['multimodal']:
+                display_name = model_name.upper()
+                time_small = model_data.get('inference_time_ms', 0)
+                time_large = model_data.get('inference_large_time_ms', 0)
+                overall_status = self.get_model_status(model_name)
+                
+                html_parts.append(f'''
+                    <div class="metric-card" style="border-left-color: #764ba2;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">{display_name}</h4>
+                            <span class="status-badge {overall_status['status_class']}">{overall_status['status']}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(time_small)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(time_large) if time_large > 0 else 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+                ''')
+            html_parts.append('</div>')
+            html_parts.append('</div>')
+        
         return '\n'.join(html_parts)
     
     def generate_model_details_html(self) -> str:
@@ -388,6 +419,38 @@ class ReportRenderer:
                         </div>
                     </div>
                 ''')
+            html_parts.append('</div>')
+            html_parts.append('</div>')
+        
+        # Multimodal Models
+        if categories['multimodal']:
+            html_parts.append('<div class="category-section"><h4 style="color: #764ba2; margin-bottom: 8px; margin-top: 20px;">🎨 Multimodal Models</h4>')
+            html_parts.append('<div class="metrics-grid">')
+            for model_name, model_data in categories['multimodal']:
+                display_name = model_name.upper()
+                install_time = model_data.get('install_time_ms', 0)
+                register_time = model_data.get('register_time_ms', 0)
+                overall_status = self.get_model_status(model_name)
+                
+                html_parts.append(f'''
+                    <div class="metric-card" style="border-left-color: #764ba2;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">{display_name}</h4>
+                            <span class="status-badge {overall_status['status_class']}">{overall_status['status']}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(install_time)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(register_time)}</div>
+                            </div>
+                        </div>
+                    </div>
+                ''')
+            html_parts.append('</div>')
             html_parts.append('</div>')
         
         return '\n'.join(html_parts)
@@ -496,6 +559,11 @@ class ReportRenderer:
             '{{DEIT_STATUS_CLASS}}': self.get_model_status('deit')['status_class'],
             '{{EFFICIENTNET_STATUS}}': self.get_model_status('efficientnet')['status'],
             '{{EFFICIENTNET_STATUS_CLASS}}': self.get_model_status('efficientnet')['status_class'],
+            # Multimodal Models
+            '{{CLIP_STATUS}}': self.get_model_status('clip')['status'],
+            '{{CLIP_STATUS_CLASS}}': self.get_model_status('clip')['status_class'],
+            '{{WAV2VEC2_STATUS}}': self.get_model_status('wav2vec2')['status'],
+            '{{WAV2VEC2_STATUS_CLASS}}': self.get_model_status('wav2vec2')['status_class'],
             
             # Metadata
             '{{TIMESTAMP}}': self.metrics.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
