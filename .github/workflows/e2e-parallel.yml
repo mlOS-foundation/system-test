@@ -259,73 +259,53 @@ jobs:
           # Start resource monitoring in background (captures max during tests)
           CORE_PID=$(cat /tmp/core.pid 2>/dev/null || echo "")
           if [ -n "$CORE_PID" ]; then
-            # Write Python monitoring script to file
-            cat > /tmp/monitor_resources.py << 'EOF'
-import time
-import subprocess
-
-try:
-    with open('/tmp/monitor_core_pid.txt') as f:
-        core_pid = int(f.read().strip())
-except:
-    exit(0)
-
-max_cpu = 0.0
-max_mem = 0.0
-total_cpu = 0.0
-total_mem = 0.0
-samples = 0
-
-while True:
-    try:
-        # Check if process still exists
-        result = subprocess.run(['ps', '-p', str(core_pid)],
-                              stdout=subprocess.DEVNULL, 
-                              stderr=subprocess.DEVNULL, 
-                              check=False)
-        if result.returncode != 0:
-            break
-        
-        # Get CPU and memory
-        result = subprocess.run(['ps', '-p', str(core_pid), '-o', '%cpu=,rss='],
-                              capture_output=True, text=True, check=False)
-        if result.returncode == 0:
-            parts = result.stdout.strip().split()
-            if len(parts) >= 2:
-                cpu = float(parts[0])
-                mem_kb = int(parts[1])
-                mem_mb = mem_kb / 1024
+            # Use bash-based monitoring to avoid YAML heredoc issues
+            (
+              MAX_CPU=0
+              MAX_MEM=0
+              TOTAL_CPU=0
+              TOTAL_MEM=0
+              SAMPLES=0
+              
+              while ps -p "$CORE_PID" > /dev/null 2>&1; do
+                CPU=$(ps -p "$CORE_PID" -o %cpu= 2>/dev/null | xargs || echo "0")
+                MEM_KB=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | xargs || echo "0")
+                MEM_MB=$((MEM_KB / 1024))
                 
-                if cpu > max_cpu:
-                    max_cpu = cpu
-                if mem_mb > max_mem:
-                    max_mem = mem_mb
+                # Convert to integers for comparison (multiply by 10 to handle decimals)
+                CPU_INT=$(echo "$CPU" | awk '{printf "%.0f", $1 * 10}')
+                MAX_CPU_INT=$(echo "$MAX_CPU" | awk '{printf "%.0f", $1 * 10}')
+                MEM_INT=$MEM_MB
+                MAX_MEM_INT=$MAX_MEM
                 
-                total_cpu += cpu
-                total_mem += mem_mb
-                samples += 1
+                # Update max if higher
+                if [ "$CPU_INT" -gt "$MAX_CPU_INT" ] 2>/dev/null; then
+                  MAX_CPU=$CPU
+                fi
+                if [ "$MEM_INT" -gt "$MAX_MEM_INT" ] 2>/dev/null; then
+                  MAX_MEM=$MEM_MB
+                fi
+                
+                # Accumulate for average
+                TOTAL_CPU=$(echo "$TOTAL_CPU + $CPU" | bc -l 2>/dev/null || echo "$TOTAL_CPU")
+                TOTAL_MEM=$((TOTAL_MEM + MEM_MB))
+                SAMPLES=$((SAMPLES + 1))
                 
                 # Write max values
-                with open('/tmp/core_max_cpu.txt', 'w') as f:
-                    f.write(f"{max_cpu:.1f}")
-                with open('/tmp/core_max_mem.txt', 'w') as f:
-                    f.write(f"{max_mem:.0f}")
+                echo "$MAX_CPU" > /tmp/core_max_cpu.txt
+                echo "$MAX_MEM" > /tmp/core_max_mem.txt
                 
                 # Write avg values
-                if samples > 0:
-                    avg_cpu = total_cpu / samples
-                    avg_mem = total_mem / samples
-                    with open('/tmp/core_avg_cpu.txt', 'w') as f:
-                        f.write(f"{avg_cpu:.1f}")
-                    with open('/tmp/core_avg_mem.txt', 'w') as f:
-                        f.write(f"{avg_mem:.0f}")
-    except Exception:
-        pass
-    
-    time.sleep(0.5)
-EOF
-            echo "$CORE_PID" > /tmp/monitor_core_pid.txt
-            python3 /tmp/monitor_resources.py &
+                if [ $SAMPLES -gt 0 ]; then
+                  AVG_CPU=$(echo "scale=1; $TOTAL_CPU / $SAMPLES" | bc -l 2>/dev/null || echo "$MAX_CPU")
+                  AVG_MEM=$((TOTAL_MEM / SAMPLES))
+                  echo "$AVG_CPU" > /tmp/core_avg_cpu.txt
+                  echo "$AVG_MEM" > /tmp/core_avg_mem.txt
+                fi
+                
+                sleep 0.5
+              done
+            ) &
             MONITOR_PID=$!
             echo "📊 Resource monitor started (PID: $MONITOR_PID) for Core PID: $CORE_PID"
           fi
