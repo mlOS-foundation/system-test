@@ -549,7 +549,6 @@ jobs:
       - name: Prepare Pages artifact
         if: always()
         run: |
-        run: |
           # Remove symlinks and ensure no hard links
           find ./output -type l -delete 2>/dev/null || true
           # Remove large files that might cause issues (reduce threshold)
