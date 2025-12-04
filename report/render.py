@@ -309,12 +309,10 @@ class ReportRenderer:
                             <div>
                                 <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
                                 <div class="metric-value" style="font-size: 1.1rem;">{format_time(time_small)}</div>
-                                <span class="status-badge {status_small['status_class']}" style="font-size: 0.7rem; margin-top: 0.25rem; display: inline-block;">{status_small['status']}</span>
                             </div>
                             <div>
                                 <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
                                 <div class="metric-value" style="font-size: 1.1rem;">{format_time(time_large) if time_large > 0 else 'N/A'}</div>
-                                <span class="status-badge {status_large['status_class']}" style="font-size: 0.7rem; margin-top: 0.25rem; display: inline-block;">{status_large['status']}</span>
                             </div>
                         </div>
                     </div>
