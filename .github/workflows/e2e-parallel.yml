@@ -549,13 +549,23 @@ jobs:
       - name: Prepare Pages artifact
         if: always()
         run: |
+        run: |
           # Remove symlinks and ensure no hard links
-          find ./output -type l -delete
-          # Remove large files that might cause issues
-          find ./output -type f -size +50M -delete
+          find ./output -type l -delete 2>/dev/null || true
+          # Remove large files that might cause issues (reduce threshold)
+          find ./output -type f -size +10M -delete 2>/dev/null || true
+          # Remove any nested symlinks
+          find ./output -type l -exec rm -f {} + 2>/dev/null || true
+          # Check for hard links and convert to regular files
+          find ./output -type f -links +1 -exec cp --remove-destination {} {} \; 2>/dev/null || true
           # Ensure output directory exists and is clean
-          ls -lah ./output/ || echo "Output directory not found"
-          du -sh ./output/ || echo "Cannot check size"
+          ls -lah ./output/ 2>/dev/null || echo "Output directory not found"
+          du -sh ./output/ 2>/dev/null || echo "Cannot check size"
+          # Final check - list any remaining symlinks
+          if find ./output -type l 2>/dev/null | grep -q .; then
+            echo "Warning: Symlinks still found, removing..."
+            find ./output -type l -delete 2>/dev/null || true
+          fi
 
       - name: Upload Pages artifact
         if: always()
@@ -579,7 +589,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ -f metrics/latest.json ]; then
-          echo -e "import json\ntry:\n    m=json.load(open(\"metrics/latest.json\"))\n    print(f\"| Metric | Value |\")\n    print(f\"|--------|-------|\")\n    print(f\"| Models Tested | {m.get(\\\"total_models\\\", \\\"N/A\\\")} |\")\n    print(f\"| Successful | {m.get(\\\"successful_models\\\", \\\"N/A\\\")} |\")\n    print(f\"| Success Rate | {m.get(\\\"success_rate\\\", \\\"N/A\\\")}% |\")\nexcept:\n    print(\"Results not available\")" > /tmp/summary.py && python3 /tmp/summary.py >> $GITHUB_STEP_SUMMARY
+          echo -e "import json\ntry:\n    with open(\"metrics/latest.json\") as f:\n        m = json.load(f)\n    print(\"| Metric | Value |\")\n    print(\"|--------|-------|\")\n    total = m.get(\"total_models\", \"N/A\")\n    success = m.get(\"successful_models\", \"N/A\")\n    rate = m.get(\"success_rate\", \"N/A\")\n    print(\"| Models Tested | {}\" .format(total))\n    print(\"| Successful | {}\" .format(success))\n    print(\"| Success Rate | {}%\" .format(rate))\nexcept:\n    print(\"Results not available\")" > /tmp/summary.py && python3 /tmp/summary.py >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
