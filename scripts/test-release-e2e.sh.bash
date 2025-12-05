@@ -470,6 +470,24 @@ setup_test_environment() {
 download_axon_release() {
     banner "📦 Downloading Axon ${AXON_RELEASE_VERSION}"
     
+    # Check if USE_LOCAL_AXON is set and use local binary
+    if [ -n "$USE_LOCAL_AXON" ] && [ -n "$LOCAL_AXON_BINARY" ] && [ -f "$LOCAL_AXON_BINARY" ]; then
+        log "Using local Axon binary: $LOCAL_AXON_BINARY"
+        mkdir -p "$TEST_DIR"
+        cp "$LOCAL_AXON_BINARY" "$TEST_DIR/axon"
+        chmod +x "$TEST_DIR/axon"
+        
+        # Install to ~/.local/bin
+        cp "$TEST_DIR/axon" "$HOME/.local/bin/axon"
+        chmod +x "$HOME/.local/bin/axon"
+        
+        METRIC_axon_version="local-$(cd "$(dirname "$LOCAL_AXON_BINARY")/.." && git rev-parse --short HEAD 2>/dev/null || echo fix)"
+        METRIC_axon_download_time_ms=0
+        log "✅ Using local Axon binary: $TEST_DIR/axon"
+        log "✅ Axon installed to ~/.local/bin/axon"
+        return 0
+    fi
+    
     local start_time=$(get_timestamp_ms)
     
     # Detect platform
@@ -884,8 +902,22 @@ install_models() {
         # If model was previously installed in PyTorch format, we need to reinstall for ONNX
         local model_cache_dir="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}"
         if [ -d "$model_cache_dir" ]; then
-            # Check if ONNX model exists (single model.onnx or multi-encoder onnx_manifest.json)
-            if [ ! -f "$model_cache_dir/model.onnx" ] && [ ! -f "$model_cache_dir/onnx_manifest.json" ]; then
+            # Check if ONNX model exists:
+            # - Single model: model.onnx
+            # - Multi-encoder (CLIP): onnx_manifest.json or onnx/ subdirectory with model.onnx
+            # - Seq2seq (T5/BART): encoder_model.onnx + decoder_model.onnx
+            local has_onnx=false
+            if [ -f "$model_cache_dir/model.onnx" ]; then
+                has_onnx=true
+            elif [ -f "$model_cache_dir/onnx_manifest.json" ]; then
+                has_onnx=true
+            elif [ -f "$model_cache_dir/encoder_model.onnx" ] && [ -f "$model_cache_dir/decoder_model.onnx" ]; then
+                has_onnx=true
+            elif [ -d "$model_cache_dir/onnx" ] && [ -f "$model_cache_dir/onnx/encoder_model.onnx" ]; then
+                has_onnx=true
+            fi
+
+            if [ "$has_onnx" = "false" ]; then
                 log "Clearing cache for $model_id (no ONNX model found, forcing reinstall)..."
                 rm -rf "$model_cache_dir"
             else
@@ -953,17 +985,20 @@ install_models() {
         # Verify the model was actually installed
         # Correct path: ~/.axon/cache/models/{namespace}/{model}/{version}/model.onnx
         # For multi-encoder models: ~/.axon/cache/models/{namespace}/{model}/{version}/onnx_manifest.json
+        # For seq2seq models: encoder_model.onnx + decoder_model.onnx
         local model_dir="$HOME/.axon/cache/models/${model_id%@*}/${model_id##*@}"
         local model_path="$model_dir/model.onnx"
         local manifest_path="$model_dir/onnx_manifest.json"
-        
+        local encoder_path="$model_dir/encoder_model.onnx"
+        local decoder_path="$model_dir/decoder_model.onnx"
+
         if [ -f "$model_path" ]; then
             log "✅ Model file verified at: $model_path"
             eval "METRIC_model_${model_name}_install_time_ms=$install_time"
             log "✅ Installed $model_name (${install_time}ms)"
             ((model_count++))
             rm -f "$axon_output"
-            
+
             # Clean up unnecessary files to save disk space (keep only model.onnx)
             if [ -d "$model_dir" ]; then
                 # Remove large weight files that are redundant after ONNX conversion
@@ -974,6 +1009,24 @@ install_models() {
             log "✅ Multi-encoder model manifest verified at: $manifest_path"
             eval "METRIC_model_${model_name}_install_time_ms=$install_time"
             log "✅ Installed $model_name (multi-encoder, ${install_time}ms)"
+            ((model_count++))
+            rm -f "$axon_output"
+        elif [ -f "$encoder_path" ] && [ -f "$decoder_path" ]; then
+            log "✅ Seq2seq model files verified at: $encoder_path, $decoder_path"
+            eval "METRIC_model_${model_name}_install_time_ms=$install_time"
+            log "✅ Installed $model_name (seq2seq, ${install_time}ms)"
+            ((model_count++))
+            rm -f "$axon_output"
+
+            # Clean up unnecessary files to save disk space
+            if [ -d "$model_dir" ]; then
+                rm -f "$model_dir/pytorch_model.bin" "$model_dir/tf_model.h5" "$model_dir/model.safetensors" 2>/dev/null || true
+                rm -f "$model_dir/flax_model.msgpack" 2>/dev/null || true
+            fi
+        elif [ -d "$model_dir/onnx" ] && [ -f "$model_dir/onnx/encoder_model.onnx" ]; then
+            log "✅ Seq2seq model files verified at: $model_dir/onnx/"
+            eval "METRIC_model_${model_name}_install_time_ms=$install_time"
+            log "✅ Installed $model_name (seq2seq, ${install_time}ms)"
             ((model_count++))
             rm -f "$axon_output"
         else
@@ -989,6 +1042,7 @@ install_models() {
             log "Searching in ~/.axon/cache/models/..."
             local found_model=$(find "$HOME/.axon/cache/models" -name "model.onnx" -path "*${model_id%%/*}*" 2>/dev/null | head -n 1)
             local found_manifest=$(find "$HOME/.axon/cache/models" -name "onnx_manifest.json" -path "*${model_id%%/*}*" 2>/dev/null | head -n 1)
+            local found_encoder=$(find "$HOME/.axon/cache/models" -name "encoder_model.onnx" -path "*${model_id%%/*}*" 2>/dev/null | head -n 1)
             if [ -n "$found_model" ]; then
                 log "✅ Found model at: $found_model"
                 eval "METRIC_model_${model_name}_install_time_ms=$install_time"
@@ -998,6 +1052,11 @@ install_models() {
                 log "✅ Found multi-encoder manifest at: $found_manifest"
                 eval "METRIC_model_${model_name}_install_time_ms=$install_time"
                 log "✅ Installed $model_name (multi-encoder, ${install_time}ms)"
+                ((model_count++))
+            elif [ -n "$found_encoder" ]; then
+                log "✅ Found seq2seq encoder at: $found_encoder"
+                eval "METRIC_model_${model_name}_install_time_ms=$install_time"
+                log "✅ Installed $model_name (seq2seq, ${install_time}ms)"
                 ((model_count++))
             else
                 log_error "Model installation failed - file not found"
@@ -1461,8 +1520,29 @@ print(json.dumps({'pixel_values': data}))
             esac
             ;;
         multimodal)
-            # Multi-modal models need both text and image/audio - mark as not tested for now
-            echo ""
+            # Multi-modal models (CLIP, etc.) - use Python generator
+            case "$model_name" in
+                clip)
+                    # CLIP: text (input_ids, attention_mask) + image (pixel_values)
+                    local text_len=77
+                    local img_size=224
+                    python3 -c "
+import random
+import json
+random.seed(42)
+# CLIP text: 49406 = <|startoftext|>, 49407 = <|endoftext|>
+text_ids = [49406] + [320] * ($text_len - 2) + [49407]
+text_mask = [1] * $text_len
+# CLIP image: normalized pixel values (mean=0, std=1) - flat array
+pixel_data = [random.gauss(0, 1) for _ in range(1 * 3 * $img_size * $img_size)]
+print(json.dumps({'input_ids': text_ids, 'attention_mask': text_mask, 'pixel_values': pixel_data}))
+"
+                    ;;
+                *)
+                    # Other multimodal models - mark as not tested for now
+                    echo ""
+                    ;;
+            esac
             ;;
         *)
             echo '{"input_ids": [101, 7592, 102]}'
