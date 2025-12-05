@@ -115,7 +115,7 @@ def aggregate_results(results: list, hardware: dict = None, setup_timings: dict 
         # Versions - render.py expects versions.axon and versions.core
         "versions": {
             "axon": "v3.1.1",
-            "core": "3.2.5-alpha"
+            "core": "3.2.7-alpha"
         },
         # Hardware - from actual runner
         "hardware": hardware,

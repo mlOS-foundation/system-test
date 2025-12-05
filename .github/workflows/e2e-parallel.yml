@@ -10,7 +10,7 @@ on:
       core_version:
         description: 'Core version to test'
         required: false
-        default: '3.2.6-alpha'
+        default: '3.2.7-alpha'
       models:
         description: |
           Models to test (comma or space separated).
@@ -255,7 +255,7 @@ jobs:
         run: |
           START_TIME=$(date +%s%3N)
           
-          VERSION="${{ github.event.inputs.core_version || '3.2.6-alpha' }}"
+          VERSION="${{ github.event.inputs.core_version || '3.2.7-alpha' }}"
           OS="linux"
           ARCH=$(uname -m)
           case $ARCH in

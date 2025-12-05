@@ -23,7 +23,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 AXON_RELEASE_VERSION="${AXON_VERSION:-v3.1.2}"
-CORE_RELEASE_VERSION="${CORE_VERSION:-3.2.6-alpha}"
+CORE_RELEASE_VERSION="${CORE_VERSION:-3.2.7-alpha}"
 TEST_DIR="$(pwd)/release-test-$(date +%s)"
 REPORT_FILE="$TEST_DIR/release-validation-report.html"
 METRICS_FILE="$TEST_DIR/metrics.json"
@@ -531,6 +531,31 @@ download_axon_release() {
 download_core_release() {
     banner "📦 Downloading MLOS Core ${CORE_RELEASE_VERSION}"
     
+    # Check if USE_LOCAL_CORE is set and use local binary
+    if [ -n "$USE_LOCAL_CORE" ] && [ -n "$LOCAL_CORE_BINARY" ] && [ -f "$LOCAL_CORE_BINARY" ]; then
+        log "Using local Core binary: $LOCAL_CORE_BINARY"
+        mkdir -p mlos-core/build
+        cp "$LOCAL_CORE_BINARY" mlos-core/build/mlos_core
+        chmod +x mlos-core/build/mlos_core
+        
+        # Set paths - MLOS_CORE_DIR is where we cd to, MLOS_CORE_BINARY is relative to that
+        MLOS_CORE_DIR="$(pwd)/mlos-core"
+        MLOS_CORE_BINARY="build/mlos_core"
+        
+        # Verify the binary exists at the expected location
+        if [ ! -f "$MLOS_CORE_DIR/$MLOS_CORE_BINARY" ]; then
+            log_error "Failed to copy local core binary to $MLOS_CORE_DIR/$MLOS_CORE_BINARY"
+            exit 1
+        fi
+        
+        METRIC_core_version="local-$(cd "$(dirname "$LOCAL_CORE_BINARY")/../.." && git rev-parse --short HEAD 2>/dev/null || echo fix)"
+        log "✅ Using local Core binary: $MLOS_CORE_DIR/$MLOS_CORE_BINARY"
+        cp "$MLOS_CORE_DIR/$MLOS_CORE_BINARY" "$HOME/.local/bin/mlos_core"
+        chmod +x "$HOME/.local/bin/mlos_core"
+        log "✅ MLOS Core installed to ~/.local/bin/mlos_core"
+        return 0
+    fi
+    
     local start_time=$(get_timestamp_ms)
     
     # Detect platform and architecture
@@ -1032,7 +1057,16 @@ start_mlos_core() {
         fi
     fi
     
-    # Check if binary is valid
+    # Check if binary is valid (use absolute path to be sure)
+    local abs_binary_path="$(pwd)/$MLOS_CORE_BINARY"
+    if [ ! -f "$abs_binary_path" ]; then
+        log_error "Binary not found at: $abs_binary_path"
+        log_error "Current directory: $(pwd)"
+        log_error "MLOS_CORE_BINARY: $MLOS_CORE_BINARY"
+        log_error "Directory contents:"
+        ls -la >> "$LOG_FILE" 2>&1
+        exit 1
+    fi
     if ! file "$MLOS_CORE_BINARY" >> "$LOG_FILE" 2>&1; then
         log_error "Binary file check failed"
         exit 1

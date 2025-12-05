@@ -10,7 +10,7 @@ on:
       core_version:
         description: 'Core version to test'
         required: false
-        default: '3.2.5-alpha'
+        default: '3.2.7-alpha'
   # schedule:
   #   - cron: '0 0 * * 0'  # Weekly on Sunday
 
