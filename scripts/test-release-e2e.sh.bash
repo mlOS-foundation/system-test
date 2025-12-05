@@ -1773,16 +1773,11 @@ generate_html_report() {
     for model_spec in "${TEST_MODELS[@]}"; do
         IFS=':' read -r model_id model_name model_type model_category <<< "$model_spec"
         model_category=${model_category:-nlp}
-        
-        # Skip vision and multimodal for inference display
-        if [ "$model_category" = "vision" ] || [ "$model_category" = "multimodal" ]; then
-            continue
-        fi
-        
+
         # Check small inference
         eval "inference_time=\${METRIC_model_${model_name}_inference_time_ms:-0}"
         eval "inference_status=\${METRIC_model_${model_name}_inference_status:-failed}"
-        
+
         if [ "$inference_time" != "0" ] && [ "$inference_time" != "N/A" ] && [ -n "$inference_time" ]; then
             # Add to chart data - format display name nicely
             local display_name=""
@@ -1791,6 +1786,13 @@ generate_html_report() {
                 bert) display_name="BERT" ;;
                 roberta) display_name="RoBERTa" ;;
                 t5) display_name="T5" ;;
+                resnet) display_name="ResNet" ;;
+                vit) display_name="ViT" ;;
+                convnext) display_name="ConvNeXt" ;;
+                mobilenet) display_name="MobileNet" ;;
+                deit) display_name="DeiT" ;;
+                efficientnet) display_name="EfficientNet" ;;
+                clip) display_name="CLIP" ;;
                 *) display_name=$(echo "$model_name" | awk '{print toupper(substr($0,1,1)) substr($0,2)}') ;;
             esac
             
@@ -1833,6 +1835,13 @@ generate_html_report() {
                 bert) display_name="BERT" ;;
                 roberta) display_name="RoBERTa" ;;
                 t5) display_name="T5" ;;
+                resnet) display_name="ResNet" ;;
+                vit) display_name="ViT" ;;
+                convnext) display_name="ConvNeXt" ;;
+                mobilenet) display_name="MobileNet" ;;
+                deit) display_name="DeiT" ;;
+                efficientnet) display_name="EfficientNet" ;;
+                clip) display_name="CLIP" ;;
                 *) display_name=$(echo "$model_name" | awk '{print toupper(substr($0,1,1)) substr($0,2)}') ;;
             esac
             
