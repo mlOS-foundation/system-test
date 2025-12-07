@@ -444,11 +444,9 @@ install_model() {
     AXON_ID=$(echo "$config" | python3 -c "import json,sys; print(json.load(sys.stdin)['axon_id'])")
     CATEGORY=$(echo "$config" | python3 -c "import json,sys; print(json.load(sys.stdin)['category'])")
     INPUT_TYPE=$(echo "$config" | python3 -c "import json,sys; print(json.load(sys.stdin)['input_type'])")
-    TASK=$(echo "$config" | python3 -c "import json,sys; print(json.load(sys.stdin).get('task', ''))")
 
     log "  Axon ID: $AXON_ID"
     log "  Category: $CATEGORY"
-    [ -n "$TASK" ] && log "  Task: $TASK"
     
     # Check if already installed
     # For single-file models: model.onnx
@@ -492,15 +490,9 @@ install_model() {
     
     local start_time=$(get_timestamp_ms)
 
-    # Build install command with optional --task parameter
-    local install_args="$AXON_ID"
-    if [ -n "$TASK" ]; then
-        install_args="$AXON_ID --task $TASK"
-    fi
-
     # Run installation with timeout
-    log "  Running: $axon_cmd install $install_args"
-    if run_with_timeout "$INSTALL_TIMEOUT" "$axon_cmd" install $install_args >> "$LOG_FILE" 2>&1; then
+    log "  Running: $axon_cmd install $AXON_ID"
+    if run_with_timeout "$INSTALL_TIMEOUT" "$axon_cmd" install "$AXON_ID" >> "$LOG_FILE" 2>&1; then
         local end_time=$(get_timestamp_ms)
         local install_time=$(measure_time $start_time $end_time)
         

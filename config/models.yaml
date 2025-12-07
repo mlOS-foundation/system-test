@@ -103,7 +103,6 @@ models:
     axon_id: "hf/google/vit-base-patch16-224@latest"
     description: "Vision Transformer (ViT) - Image classification"
     input_type: image
-    task: "image-classification"  # Required for ONNX export
     small_input:
       width: 64
       height: 64
