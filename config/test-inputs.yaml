@@ -83,6 +83,54 @@ models:
     required_inputs: ["input_ids", "attention_mask", "decoder_input_ids"]
     decoder_start_token_id: 0
 
+  distilbert:
+    category: nlp
+    tokenizer: "distilbert-base-uncased"
+    test_text:
+      small: "Hello world."
+      medium: "The quick brown fox jumps over the lazy dog."
+      large: "DistilBERT is a smaller, faster, cheaper version of BERT that retains 97% of BERT's language understanding."
+    max_length:
+      small: 16
+      medium: 64
+      large: 128
+    padding: "max_length"
+    truncation: true
+    # DistilBERT requires: input_ids, attention_mask
+    required_inputs: ["input_ids", "attention_mask"]
+
+  albert:
+    category: nlp
+    tokenizer: "albert-base-v2"
+    test_text:
+      small: "Hello world."
+      medium: "The quick brown fox jumps over the lazy dog."
+      large: "ALBERT is a lite BERT with parameter-reduction techniques for efficient language understanding."
+    max_length:
+      small: 16
+      medium: 64
+      large: 128
+    padding: "max_length"
+    truncation: true
+    # ALBERT requires: input_ids, attention_mask, token_type_ids
+    required_inputs: ["input_ids", "attention_mask", "token_type_ids"]
+
+  sentence-transformers:
+    category: nlp
+    tokenizer: "sentence-transformers/all-MiniLM-L6-v2"
+    test_text:
+      small: "This is a sentence for embedding."
+      medium: "Sentence transformers produce dense vector representations for sentences."
+      large: "SBERT is designed to produce semantically meaningful sentence embeddings that can be compared using cosine similarity."
+    max_length:
+      small: 128
+      medium: 128
+      large: 128
+    padding: "max_length"
+    truncation: true
+    # Sentence-transformers requires: input_ids, attention_mask, token_type_ids
+    required_inputs: ["input_ids", "attention_mask", "token_type_ids"]
+
   # ═══════════════════════════════════════════════════════════════════════════
   # Vision Models
   # ═══════════════════════════════════════════════════════════════════════════
