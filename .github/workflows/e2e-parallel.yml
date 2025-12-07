@@ -299,11 +299,30 @@ jobs:
           echo "core_download_ms=$CORE_DOWNLOAD_MS" >> $GITHUB_OUTPUT
           echo "⏱️ Core download: ${CORE_DOWNLOAD_MS}ms"
       
+      - name: Run format detection tests (Core PR #39)
+        id: format-detection
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔍 Testing Format-Agnostic Model Detection"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # Run format detection tests if script exists
+          if [ -x ./test-format-detection.sh ]; then
+            # Set CORE_DIR to point to downloaded Core
+            export CORE_DIR=~/mlos-core
+            export LOCAL_CORE_BINARY=$(find ~/mlos-core -name "mlos_core" -type f 2>/dev/null | head -1)
+
+            ./test-format-detection.sh || echo "⚠️ Format detection tests had issues (non-blocking)"
+          else
+            echo "ℹ️ Format detection test script not found, skipping"
+          fi
+          echo ""
+
       - name: Start Core server (ONCE)
         id: core-startup
         run: |
           START_TIME=$(date +%s%3N)
-          
+
           cd ~/mlos-core
           BINARY=$(find . -name "mlos_core" -o -name "mlos-server" 2>/dev/null | head -1)
           if [ -z "$BINARY" ]; then
