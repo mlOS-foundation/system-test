@@ -16,7 +16,11 @@ on:
           Models to test (comma or space separated).
           Examples: "gpt2,bert" or "gpt2 bert t5"
           Empty = all enabled models from config/models.yaml
-          Available models: gpt2, bert, roberta, t5, resnet, vit, convnext, mobilenet, deit, efficientnet, clip
+          Available models:
+            NLP: gpt2, bert, roberta, t5, distilbert, albert
+            Vision: resnet, vit, convnext, mobilenet, deit, efficientnet
+            Multimodal: clip
+            LLM (pending): tinyllama, phi2, qwen2-0.5b
         required: false
         default: ''
       exclude_models:
