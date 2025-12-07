@@ -308,6 +308,10 @@
                     <div class="stat-value">{{MULTIMODAL_COUNT}}</div>
                     <div class="stat-label">Multimodal</div>
                 </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{LLM_COUNT}}</div>
+                    <div class="stat-label">LLM</div>
+                </div>
             </div>
         </div>
         
@@ -346,7 +350,22 @@
                 {{MULTIMODAL_MODELS_HTML}}
             </div>
         </section>
-        
+
+        <!-- LLM Models -->
+        <section class="category-section">
+            <div class="category-header">
+                <span class="category-icon">🤖</span>
+                <h2 class="category-title">LLM Models (GGUF)</h2>
+                <span class="category-count">{{LLM_COUNT}} models</span>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                Large Language Models using GGUF format. Requires Core GGUF runtime plugin (llama.cpp).
+            </p>
+            <div class="model-grid">
+                {{LLM_MODELS_HTML}}
+            </div>
+        </section>
+
         <!-- How to Add -->
         <div class="how-to-add">
             <h3>➕ How to Add a New Model</h3>

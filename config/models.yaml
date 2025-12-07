@@ -303,7 +303,7 @@ models:
   # =============================================================================
 
   distilbert:
-    enabled: false  # Disabled to keep test matrix smaller - works with current stack
+    enabled: true  # Extended testing: Smaller, faster BERT variant
     category: nlp
     axon_id: "hf/distilbert-base-uncased@latest"
     description: "DistilBERT - Smaller, faster BERT variant"
@@ -315,7 +315,7 @@ models:
       tokens: 128
 
   albert:
-    enabled: false  # Disabled to keep test matrix smaller - works with current stack
+    enabled: true  # Extended testing: Parameter-efficient BERT variant
     category: nlp
     axon_id: "hf/albert-base-v2@latest"
     description: "ALBERT - Parameter-efficient BERT variant"
