@@ -75,7 +75,7 @@ jobs:
         id: versions
         run: |
           AXON_VERSION="${{ github.event.inputs.axon_version || 'v3.1.3' }}"
-          CORE_VERSION="${{ github.event.inputs.core_version || '3.2.8-alpha' }}"
+          CORE_VERSION="${{ github.event.inputs.core_version || '3.2.9-alpha' }}"
           echo "axon=$AXON_VERSION" >> $GITHUB_OUTPUT
           echo "core=$CORE_VERSION" >> $GITHUB_OUTPUT
       

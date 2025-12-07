@@ -23,7 +23,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 AXON_RELEASE_VERSION="${AXON_VERSION:-v3.1.3}"
-CORE_RELEASE_VERSION="${CORE_VERSION:-3.2.8-alpha}"
+CORE_RELEASE_VERSION="${CORE_VERSION:-3.2.9-alpha}"
 TEST_DIR="$(pwd)/release-test-$(date +%s)"
 REPORT_FILE="$TEST_DIR/release-validation-report.html"
 METRICS_FILE="$TEST_DIR/metrics.json"

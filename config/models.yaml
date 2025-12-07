@@ -1,7 +1,7 @@
 # MLOS E2E Test - Model Configuration
 # Add new models here to include them in test runs
 #
-# Updated: 2024-12-05 - Seq2seq + Multi-encoder support (Axon v3.1.3, Core v3.2.8-alpha)
+# Updated: 2024-12-05 - Seq2seq + Multi-encoder support (Axon v3.1.3, Core v3.2.9-alpha)
 # - T5 enabled with encoder-decoder architecture support
 # - CLIP enabled with multi-encoder architecture support
 
@@ -66,12 +66,12 @@ models:
       tokens: 128
 
   t5:
-    enabled: true  # Enabled: Seq2seq support added in Axon v3.1.3 + Core v3.2.8-alpha
+    enabled: true  # Enabled: Seq2seq support added in Axon v3.1.3 + Core v3.2.9-alpha
     category: nlp
     axon_id: "hf/t5-small@latest"
     description: "T5 small - Text-to-text transformer"
     input_type: text
-    notes: "✅ Fully supported: Encoder-decoder architecture enabled in Axon v3.1.3 + Core v3.2.8-alpha"
+    notes: "✅ Fully supported: Encoder-decoder architecture enabled in Axon v3.1.3 + Core v3.2.9-alpha"
     small_input:
       tokens: 7
       sequence: [101, 2054, 2003, 1996, 3462, 102]
@@ -194,12 +194,12 @@ models:
   # =============================================================================
   
   clip:
-    enabled: true  # Enabled: Multi-encoder support added in Axon v3.1.3 + Core v3.2.8-alpha
+    enabled: true  # Enabled: Multi-encoder support added in Axon v3.1.3 + Core v3.2.9-alpha
     category: multimodal
     axon_id: "hf/openai/clip-vit-base-patch32@latest"
     description: "CLIP - Image-text matching and zero-shot classification"
     input_type: multimodal
-    notes: "✅ Fully supported: Multi-encoder architecture (text_model.onnx + vision_model.onnx) enabled in Axon v3.1.3 + Core v3.2.8-alpha"
+    notes: "✅ Fully supported: Multi-encoder architecture (text_model.onnx + vision_model.onnx) enabled in Axon v3.1.3 + Core v3.2.9-alpha"
     small_input:
       text_tokens: 77
       image_width: 224
