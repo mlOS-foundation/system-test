@@ -30,8 +30,8 @@ CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
 CONFIG_FILE="$CONFIG_DIR/models.yaml"
 
 # Default configuration
-AXON_VERSION="${AXON_VERSION:-v3.1.1}"
-CORE_VERSION="${CORE_VERSION:-3.2.0-alpha}"
+AXON_VERSION="${AXON_VERSION:-v3.1.3}"
+CORE_VERSION="${CORE_VERSION:-3.2.9-alpha}"
 CORE_URL="${CORE_URL:-http://127.0.0.1:18080}"
 OUTPUT_DIR="${OUTPUT_DIR:-./model-results}"
 INSTALL_TIMEOUT="${INSTALL_TIMEOUT:-900}"  # 15 minutes
@@ -201,6 +201,7 @@ print(json.dumps({
     'input_type': model.get('input_type', 'text'),
     'enabled': model.get('enabled', False),
     'description': model.get('description', ''),
+    'task': model.get('task', ''),  # ONNX export task (e.g., image-classification)
     'small_input': model.get('small_input', {}),
     'large_input': model.get('large_input', {})
 }))
@@ -443,9 +444,11 @@ install_model() {
     AXON_ID=$(echo "$config" | python3 -c "import json,sys; print(json.load(sys.stdin)['axon_id'])")
     CATEGORY=$(echo "$config" | python3 -c "import json,sys; print(json.load(sys.stdin)['category'])")
     INPUT_TYPE=$(echo "$config" | python3 -c "import json,sys; print(json.load(sys.stdin)['input_type'])")
-    
+    TASK=$(echo "$config" | python3 -c "import json,sys; print(json.load(sys.stdin).get('task', ''))")
+
     log "  Axon ID: $AXON_ID"
     log "  Category: $CATEGORY"
+    [ -n "$TASK" ] && log "  Task: $TASK"
     
     # Check if already installed
     # For single-file models: model.onnx
@@ -488,10 +491,16 @@ install_model() {
     fi
     
     local start_time=$(get_timestamp_ms)
-    
+
+    # Build install command with optional --task parameter
+    local install_args="$AXON_ID"
+    if [ -n "$TASK" ]; then
+        install_args="$AXON_ID --task $TASK"
+    fi
+
     # Run installation with timeout
-    log "  Running: $axon_cmd install $AXON_ID"
-    if run_with_timeout "$INSTALL_TIMEOUT" "$axon_cmd" install "$AXON_ID" >> "$LOG_FILE" 2>&1; then
+    log "  Running: $axon_cmd install $install_args"
+    if run_with_timeout "$INSTALL_TIMEOUT" "$axon_cmd" install $install_args >> "$LOG_FILE" 2>&1; then
         local end_time=$(get_timestamp_ms)
         local install_time=$(measure_time $start_time $end_time)
         

@@ -630,9 +630,12 @@ jobs:
       
       - name: Aggregate results
         if: always()
+        env:
+          AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.3' }}
+          CORE_VERSION: ${{ github.event.inputs.core_version || '3.2.9-alpha' }}
         run: |
           mkdir -p output metrics
-          
+
           python3 scripts/aggregate-results.py \
             --results-dir model-results \
             --output metrics/latest.json \
@@ -641,7 +644,7 @@ jobs:
             --timings-info model-results/timings-info.json \
             --resources-info model-results/resources-info.json \
             --github-summary || echo "⚠️ Aggregation had issues"
-          
+
           echo "📊 Metrics:"
           cat metrics/latest.json 2>/dev/null || echo "{}"
       

@@ -113,9 +113,10 @@ def aggregate_results(results: list, hardware: dict = None, setup_timings: dict 
         "models": {},
         "total_time_ms": 0,
         # Versions - render.py expects versions.axon and versions.core
+        # Get from environment variables or use defaults
         "versions": {
-            "axon": "v3.1.1",
-            "core": "3.2.7-alpha"
+            "axon": os.environ.get("AXON_VERSION", os.environ.get("AXON_RELEASE_VERSION", "unknown")),
+            "core": os.environ.get("CORE_VERSION", os.environ.get("CORE_RELEASE_VERSION", "unknown"))
         },
         # Hardware - from actual runner
         "hardware": hardware,
