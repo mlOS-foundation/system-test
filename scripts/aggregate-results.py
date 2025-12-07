@@ -51,10 +51,17 @@ def aggregate_results(results: list, hardware: dict = None, setup_timings: dict 
     
     # Model categories (from config)
     MODEL_CATEGORIES = {
+        # NLP models
         'gpt2': 'nlp', 'bert': 'nlp', 'roberta': 'nlp', 't5': 'nlp',
+        'distilbert': 'nlp', 'albert': 'nlp', 'sentence-transformers': 'nlp',
+        # Vision models
         'resnet': 'vision', 'vit': 'vision', 'convnext': 'vision',
         'mobilenet': 'vision', 'deit': 'vision', 'efficientnet': 'vision', 'swin': 'vision',
-        'clip': 'multimodal'
+        'detr': 'vision', 'segformer': 'vision',
+        # Multimodal models
+        'clip': 'multimodal', 'wav2vec2': 'multimodal',
+        # LLM models (GGUF format)
+        'tinyllama': 'llm', 'phi2': 'llm', 'qwen2-0.5b': 'llm'
     }
     
     total_inferences = 0

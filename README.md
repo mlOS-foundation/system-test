@@ -229,31 +229,60 @@ make serve
 > 📋 Models are configured in `config/models.yaml`. View full details at **[models.html](https://mlos-foundation.github.io/system-test/models.html)**.
 
 ### Current Tested Versions
-- **Axon**: v3.1.1 (Vision model support, Docker base image fix)
-- **Core**: v3.2.7-alpha (ONNX tensor name matching fix)
+- **Axon**: v3.1.3 (Seq2seq + Multi-encoder support)
+- **Core**: v3.2.9-alpha (Format-agnostic runtime plugin system)
+
+### Supported Formats (Core PR #39)
+
+| Format | Extensions | Status | Runtime |
+|--------|------------|--------|---------|
+| ONNX | `.onnx` | ✅ Built-in | ONNX Runtime (SMI) |
+| PyTorch | `.pt`, `.pth`, `.bin`, `.safetensors` | 🔌 Plugin Ready | - |
+| GGUF | `.gguf` | 🔌 Plugin Ready | llama.cpp |
+| TFLite | `.tflite` | 🔌 Plugin Ready | TFLite |
+| TensorFlow | `.pb` | 🔌 Plugin Ready | TF C API |
+| CoreML | `.mlmodel`, `.mlpackage` | 🔌 Plugin Ready | CoreML |
+
+### Model Categories
 
 | Category | Model | Status | Notes |
 |----------|-------|--------|-------|
 | **NLP** | GPT-2 | ✅ Enabled | DistilGPT-2 - text generation |
 | | BERT | ✅ Enabled | BERT base - masked language model |
 | | RoBERTa | ✅ Enabled | RoBERTa base - robust BERT variant |
-| | T5 | ⏳ Disabled | Encoder-decoder needs special handling |
+| | T5 | ✅ Enabled | Text-to-text transformer (Seq2seq) |
+| | DistilBERT | ✅ Enabled | Smaller, faster BERT variant |
+| | ALBERT | ✅ Enabled | Parameter-efficient BERT |
+| | Sentence-BERT | ✅ Enabled | Text embeddings for semantic search |
 | **Vision** | ResNet-50 | ✅ Enabled | Image classification (1000 classes) |
 | | ViT | ✅ Enabled | Vision Transformer - patch-based |
 | | ConvNeXt | ✅ Enabled | Modern CNN architecture |
 | | MobileNetV2 | ✅ Enabled | Efficient mobile architecture |
 | | DeiT | ✅ Enabled | Data-efficient Image Transformer |
+| | EfficientNet | ✅ Enabled | Compound scaling CNN |
 | | Swin | ⏳ Disabled | PyTorch-to-ONNX export issues |
-| | EfficientNet | ⏳ Disabled | Not yet tested |
-| **Multi-Modal** | CLIP | ⏳ Disabled | Pending - requires text+image input |
+| | DETR | ⏳ Disabled | Requires bbox output handling |
+| | SegFormer | ⏳ Disabled | Requires mask output handling |
+| **Multimodal** | CLIP | ✅ Enabled | Image-text matching (Multi-encoder) |
+| | Wav2Vec2 | ⏳ Disabled | Pending audio model support |
+| **LLM** | TinyLlama | ⏳ Pending | Awaiting GGUF runtime plugin |
+| | Phi-2 | ⏳ Pending | Awaiting GGUF runtime plugin |
+| | Qwen2-0.5B | ⏳ Pending | Awaiting GGUF runtime plugin |
 
-### Vision Model Support (New in v3.1.0)
+### Vision & Seq2seq Model Support (v3.1.0+)
 
-Vision models are now fully supported via:
-- **Axon v3.1.0**: Automatic task detection from model config (50+ architectures)
-- **Core v3.2.7-alpha**: ONNX tensor name matching fix, large input handling (16MB), shape inference
+Vision models are fully supported via:
+- **Axon v3.1.3**: Automatic task detection, seq2seq/encoder-decoder support, multi-encoder (CLIP)
+- **Core v3.2.9-alpha**: ONNX tensor name matching, large input handling (16MB), shape inference
 
 Standard ImageNet input (224×224×3 RGB) works out of the box.
+
+### LLM Support Roadmap
+
+LLM models (GGUF format) require:
+1. **Axon**: Direct GGUF download (skip ONNX conversion) - planned
+2. **Core**: GGUF runtime plugin (llama.cpp wrapper) - PR #39 ready
+3. **Core**: Tokenizer enhancement plugin - planned
 
 ## 📖 Documentation
 

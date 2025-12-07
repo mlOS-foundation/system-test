@@ -192,18 +192,32 @@ class ReportRenderer:
         colors = []
         
         color_map = {
+            # NLP models
             'gpt2': '#667eea',
             'bert': '#764ba2',
             'roberta': '#f093fb',
             't5': '#f59e0b',  # Orange for T5 (encoder-decoder)
+            'distilbert': '#a855f7',  # Purple
+            'albert': '#6366f1',  # Indigo
+            'sentence-transformers': '#3b82f6',  # Blue
+            # Vision models
             'resnet': '#11998e',
             'vgg': '#38ef7d',
-            'clip': '#8b5cf6',  # Purple for CLIP (multi-encoder)
             'vit': '#10b981',
             'convnext': '#06b6d4',
             'mobilenet': '#ec4899',
             'deit': '#14b8a6',
-            'efficientnet': '#84cc16'
+            'efficientnet': '#84cc16',
+            'swin': '#22c55e',
+            'detr': '#eab308',
+            'segformer': '#f97316',
+            # Multimodal models
+            'clip': '#8b5cf6',  # Purple for CLIP (multi-encoder)
+            'wav2vec2': '#d946ef',
+            # LLM models (GGUF)
+            'tinyllama': '#f59e0b',  # Amber
+            'phi2': '#f97316',  # Orange
+            'qwen2-0.5b': '#fb923c',  # Light orange
         }
         
         for model_name, model_data in models.items():
@@ -254,7 +268,7 @@ class ReportRenderer:
         html_parts = []
         
         # Group by category for better organization
-        categories = {'nlp': [], 'vision': [], 'multimodal': []}
+        categories = {'nlp': [], 'vision': [], 'multimodal': [], 'llm': []}
         for model_name, model_data in models.items():
             if not model_data.get('tested', False):
                 continue
@@ -353,16 +367,47 @@ class ReportRenderer:
                 ''')
             html_parts.append('</div>')
             html_parts.append('</div>')
-        
+
+        # LLM Models (GGUF)
+        if categories['llm']:
+            html_parts.append('<div class="category-section"><h4 style="color: #f59e0b; margin-bottom: 8px; margin-top: 20px;">🤖 LLM Models</h4>')
+            html_parts.append('<div class="metrics-grid">')
+            for model_name, model_data in categories['llm']:
+                display_name = model_name.upper()
+                time_small = model_data.get('inference_time_ms', 0)
+                time_large = model_data.get('inference_large_time_ms', 0)
+                overall_status = self.get_model_status(model_name)
+
+                html_parts.append(f'''
+                    <div class="metric-card" style="border-left-color: #f59e0b;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">{display_name}</h4>
+                            <span class="status-badge {overall_status['status_class']}">{overall_status['status']}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(time_small)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(time_large) if time_large > 0 else 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+                ''')
+            html_parts.append('</div>')
+            html_parts.append('</div>')
+
         return '\n'.join(html_parts)
-    
+
     def generate_model_details_html(self) -> str:
         """Generate HTML for model details section - one card per model with timing data points inside."""
         models = self.metrics.get('models', {})
         html_parts = []
-        
+
         # Group by category
-        categories = {'nlp': [], 'vision': [], 'multimodal': []}
+        categories = {'nlp': [], 'vision': [], 'multimodal': [], 'llm': []}
         for model_name, model_data in models.items():
             cat = model_data.get('category', 'nlp')
             if cat in categories:
@@ -459,15 +504,47 @@ class ReportRenderer:
                 ''')
             html_parts.append('</div>')
             html_parts.append('</div>')
-        
+
+        # LLM Models
+        if categories['llm']:
+            html_parts.append('<div class="category-section"><h4 style="color: #f59e0b; margin-bottom: 8px; margin-top: 20px;">🤖 LLM Models</h4>')
+            html_parts.append('<div class="metrics-grid">')
+            for model_name, model_data in categories['llm']:
+                display_name = model_name.upper()
+                install_time = model_data.get('install_time_ms', 0)
+                register_time = model_data.get('register_time_ms', 0)
+                overall_status = self.get_model_status(model_name)
+
+                html_parts.append(f'''
+                    <div class="metric-card" style="border-left-color: #f59e0b;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">{display_name}</h4>
+                            <span class="status-badge {overall_status['status_class']}">{overall_status['status']}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(install_time)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">{format_time(register_time)}</div>
+                            </div>
+                        </div>
+                    </div>
+                ''')
+            html_parts.append('</div>')
+            html_parts.append('</div>')
+
         return '\n'.join(html_parts)
-    
+
     def build_replacements(self) -> Dict[str, str]:
         """Build all template replacements."""
         overall = self.calculate_overall_status()
         nlp_status = self.calculate_category_status('nlp')
         vision_status = self.calculate_category_status('vision')
         multimodal_status = self.calculate_category_status('multimodal')
+        llm_status = self.calculate_category_status('llm')
         
         install_chart = self.generate_installation_chart_data()
         inference_chart = self.generate_inference_chart_data()
@@ -528,6 +605,8 @@ class ReportRenderer:
             '{{VISION_STATUS_CLASS}}': vision_status['status_class'],
             '{{MULTIMODAL_STATUS}}': multimodal_status['status'],
             '{{MULTIMODAL_STATUS_CLASS}}': multimodal_status['status_class'],
+            '{{LLM_STATUS}}': llm_status['status'],
+            '{{LLM_STATUS_CLASS}}': llm_status['status_class'],
             
             # Chart data
             '{{INSTALL_CHART_LABELS}}': install_chart['labels'],
@@ -725,28 +804,32 @@ class ModelsPageRenderer:
     def build_replacements(self) -> Dict[str, str]:
         """Build all template replacements."""
         models = self.config.get('models', {})
-        
+
         # Count models by category
         nlp_models = [(n, d) for n, d in models.items() if d.get('category') == 'nlp']
         vision_models = [(n, d) for n, d in models.items() if d.get('category') == 'vision']
         multimodal_models = [(n, d) for n, d in models.items() if d.get('category') == 'multimodal']
-        
+        llm_models = [(n, d) for n, d in models.items() if d.get('category') == 'llm']
+
         enabled_count = sum(1 for d in models.values() if d.get('enabled', False))
-        
+
         # Generate HTML for each category
         nlp_html = '\n'.join(self.generate_model_card_html(n, d) for n, d in nlp_models) or '<p class="no-models">No NLP models configured</p>'
         vision_html = '\n'.join(self.generate_model_card_html(n, d) for n, d in vision_models) or '<p class="no-models">No vision models configured</p>'
         multimodal_html = '\n'.join(self.generate_model_card_html(n, d) for n, d in multimodal_models) or '<p class="no-models">No multimodal models configured</p>'
-        
+        llm_html = '\n'.join(self.generate_model_card_html(n, d) for n, d in llm_models) or '<p class="no-models">No LLM models configured</p>'
+
         return {
             '{{TOTAL_MODELS}}': str(len(models)),
             '{{ENABLED_MODELS}}': str(enabled_count),
             '{{NLP_COUNT}}': str(len(nlp_models)),
             '{{VISION_COUNT}}': str(len(vision_models)),
             '{{MULTIMODAL_COUNT}}': str(len(multimodal_models)),
+            '{{LLM_COUNT}}': str(len(llm_models)),
             '{{NLP_MODELS_HTML}}': nlp_html,
             '{{VISION_MODELS_HTML}}': vision_html,
             '{{MULTIMODAL_MODELS_HTML}}': multimodal_html,
+            '{{LLM_MODELS_HTML}}': llm_html,
             '{{TIMESTAMP}}': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         }
     

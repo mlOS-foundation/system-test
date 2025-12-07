@@ -4,7 +4,20 @@ This document explains how the MLOS End-to-End (E2E) testing system works and ho
 
 ## Overview
 
-The E2E testing system validates the complete MLOS stack:
+The E2E testing system validates the complete MLOS stack including the format-agnostic runtime plugin system (Core PR #39).
+
+### Supported Formats (Core PR #39)
+
+| Format | Extensions | Status | Runtime Backend |
+|--------|------------|--------|-----------------|
+| ONNX | `.onnx` | Built-in | ONNX Runtime (SMI) |
+| PyTorch | `.pt`, `.pth`, `.bin`, `.safetensors` | Plugin Ready | - |
+| GGUF | `.gguf` | Plugin Ready | llama.cpp |
+| TFLite | `.tflite` | Plugin Ready | TFLite |
+| TensorFlow | `.pb` | Plugin Ready | TF C API |
+| CoreML | `.mlmodel`, `.mlpackage` | Plugin Ready | CoreML |
+
+### Test Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -13,15 +26,15 @@ The E2E testing system validates the complete MLOS stack:
 │                                                                     │
 │  1. Download Releases          2. Install Models                    │
 │  ┌──────────────────┐         ┌──────────────────┐                 │
-│  │  Axon v3.1.1     │         │  Hugging Face    │                 │
-│  │  Core v3.2.1     │         │  Models → ONNX   │                 │
+│  │  Axon v3.1.3     │         │  Hugging Face    │                 │
+│  │  Core v3.2.9     │         │  Models → ONNX   │                 │
 │  └──────────────────┘         └──────────────────┘                 │
 │           │                            │                            │
 │           ▼                            ▼                            │
 │  3. Start MLOS Core           4. Register Models                    │
 │  ┌──────────────────┐         ┌──────────────────┐                 │
 │  │  HTTP API :18080 │◄────────│  axon register   │                 │
-│  │  ONNX Runtime    │         │  model.onnx      │                 │
+│  │  Runtime Manager │         │  model.onnx      │                 │
 │  └──────────────────┘         └──────────────────┘                 │
 │           │                                                         │
 │           ▼                                                         │
