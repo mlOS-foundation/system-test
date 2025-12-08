@@ -10,8 +10,8 @@
 # Usage: ./test-single-model.sh <model_name> [--output-dir <dir>]
 #
 # Environment variables:
-#   AXON_VERSION    - Axon version (default: v3.1.1)
-#   CORE_VERSION    - Core version (default: 3.2.0-alpha)
+#   AXON_VERSION    - Axon version (default: v3.1.6)
+#   CORE_VERSION    - Core version (default: 3.2.11-alpha)
 #   CORE_URL        - URL to MLOS Core server (default: http://127.0.0.1:18080)
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -30,8 +30,8 @@ CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
 CONFIG_FILE="$CONFIG_DIR/models.yaml"
 
 # Default configuration
-AXON_VERSION="${AXON_VERSION:-v3.1.4}"
-CORE_VERSION="${CORE_VERSION:-3.2.10-alpha}"
+AXON_VERSION="${AXON_VERSION:-v3.1.6}"
+CORE_VERSION="${CORE_VERSION:-3.2.11-alpha}"
 CORE_URL="${CORE_URL:-http://127.0.0.1:18080}"
 OUTPUT_DIR="${OUTPUT_DIR:-./model-results}"
 INSTALL_TIMEOUT="${INSTALL_TIMEOUT:-900}"  # 15 minutes
