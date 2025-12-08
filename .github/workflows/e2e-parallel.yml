@@ -269,23 +269,26 @@ jobs:
           
           mkdir -p ~/mlos-core
           
-          # Try gh CLI first
+          # Try gh CLI first (from mlOS-foundation/core repo)
           ARTIFACT="mlos-core_${VERSION}_${OS}-${ARCH}.tar.gz"
           echo "📥 Trying gh download: $ARTIFACT"
           if gh release download "${VERSION}" --pattern "$ARTIFACT" --repo mlOS-foundation/core -D /tmp 2>/dev/null; then
             echo "✅ Downloaded via gh CLI"
             tar -xzf "/tmp/$ARTIFACT" -C ~/mlos-core
           else
-            # Fallback to core-releases
+            # Fallback to core-releases (uses v-prefixed version in artifact name)
             RELEASE_TAG="v${VERSION}"
             [[ "$VERSION" =~ ^v ]] && RELEASE_TAG="$VERSION"
-            URL="https://github.com/mlOS-foundation/core-releases/releases/download/${RELEASE_TAG}/${ARTIFACT}"
+            # core-releases uses v-prefix in artifact name: mlos-core_v3.2.11-alpha_linux-amd64.tar.gz
+            RELEASE_ARTIFACT="mlos-core_${RELEASE_TAG}_${OS}-${ARCH}.tar.gz"
+            URL="https://github.com/mlOS-foundation/core-releases/releases/download/${RELEASE_TAG}/${RELEASE_ARTIFACT}"
             echo "📥 Trying curl from: $URL"
             if curl -L -f -o "/tmp/core.tar.gz" "$URL" 2>/dev/null; then
               echo "✅ Downloaded via curl"
-          tar -xzf "/tmp/core.tar.gz" -C ~/mlos-core
+              tar -xzf "/tmp/core.tar.gz" -C ~/mlos-core
             else
               echo "❌ Failed to download Core"
+              echo "   Tried: $ARTIFACT (gh CLI) and $RELEASE_ARTIFACT (curl)"
               exit 1
             fi
           fi
