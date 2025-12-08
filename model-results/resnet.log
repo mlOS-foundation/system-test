@@ -1,0 +1,80 @@
+[0;32m[14:50:42][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:50:42][0m [resnet] 🚀 Single Model Test Pipeline: resnet
+[0;32m[14:50:42][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:50:42][0m [resnet] 📥 Phase 1: Installing model...
+[0;32m[14:50:42][0m [resnet]   Axon ID: hf/microsoft/resnet-50@latest
+[0;32m[14:50:42][0m [resnet]   Category: vision
+[0;32m[14:50:42][0m [resnet] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/microsoft/resnet-50/latest/model.onnx
+[0;32m[14:50:42][0m [resnet] 📝 Phase 2: Registering model with Core...
+[0;32m[14:50:42][0m [resnet]   Running: /Users/shaileshpant/.local/bin/axon register hf/microsoft/resnet-50@latest
+[0;32m[14:50:42][0m [resnet] ✅ Model registered (121ms)
+[0;32m[14:50:42][0m [resnet] 🧪 Phase 3: Running small inference test...
+[0;32m[14:50:44][0m [resnet] ✅ small inference successful (1134ms)
+[0;32m[14:50:44][0m [resnet] 🧪 Phase 3: Running large inference test...
+[0;32m[14:50:45][0m [resnet] ✅ large inference successful (1071ms)
+[0;32m[14:50:46][0m [resnet] 
+[0;32m[14:50:46][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:50:46][0m [resnet] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[14:50:46][0m [resnet]   Results: ./model-results/resnet-result.json
+[0;32m[14:50:46][0m [resnet]   Log: ./model-results/resnet.log
+[0;32m[14:50:46][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:06][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:06][0m [resnet] 🚀 Single Model Test Pipeline: resnet
+[0;32m[22:50:06][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:06][0m [resnet] 📥 Phase 1: Installing model...
+[0;32m[22:50:06][0m [resnet]   Axon ID: hf/microsoft/resnet-50@latest
+[0;32m[22:50:06][0m [resnet]   Category: vision
+[0;32m[22:50:06][0m [resnet] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/microsoft/resnet-50/latest/model.onnx
+[0;32m[22:50:06][0m [resnet] 📝 Phase 2: Registering model with Core...
+[0;32m[22:50:06][0m [resnet]   Running: /Users/shaileshpant/.local/bin/axon register hf/microsoft/resnet-50@latest
+[0;32m[22:50:06][0m [resnet] ✅ Model registered (118ms)
+[0;32m[22:50:06][0m [resnet] 🧪 Phase 3: Running small inference test...
+[0;32m[22:50:08][0m [resnet] ✅ small inference successful (1080ms)
+[0;32m[22:50:08][0m [resnet] 🧪 Phase 3: Running large inference test...
+[0;32m[22:50:09][0m [resnet] ✅ large inference successful (1077ms)
+[0;32m[22:50:09][0m [resnet] 
+[0;32m[22:50:09][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:09][0m [resnet] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[22:50:09][0m [resnet]   Results: /Users/shaileshpant/src/mlOS-foundation/system-test/model-results/resnet-result.json
+[0;32m[22:50:09][0m [resnet]   Log: /Users/shaileshpant/src/mlOS-foundation/system-test/model-results/resnet.log
+[0;32m[22:50:09][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:07:59][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:07:59][0m [resnet] 🚀 Single Model Test Pipeline: resnet
+[0;32m[23:07:59][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:07:59][0m [resnet] 📥 Phase 1: Installing model...
+[0;32m[23:07:59][0m [resnet]   Axon ID: hf/microsoft/resnet-50@latest
+[0;32m[23:07:59][0m [resnet]   Category: vision
+[0;32m[23:07:59][0m [resnet] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/microsoft/resnet-50/latest/model.onnx
+[0;32m[23:07:59][0m [resnet] 📝 Phase 2: Registering model with Core...
+[0;32m[23:08:00][0m [resnet]   Running: /Users/shaileshpant/.local/bin/axon register hf/microsoft/resnet-50@latest
+[0;32m[23:08:00][0m [resnet] ✅ Model registered (111ms)
+[0;32m[23:08:00][0m [resnet] 🧪 Phase 3: Running small inference test...
+[0;32m[23:08:01][0m [resnet] ✅ small inference successful (1064ms)
+[0;32m[23:08:01][0m [resnet] 🧪 Phase 3: Running large inference test...
+[0;32m[23:08:03][0m [resnet] ✅ large inference successful (1061ms)
+[0;32m[23:08:03][0m [resnet] 
+[0;32m[23:08:03][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:08:03][0m [resnet] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:08:03][0m [resnet]   Results: ./model-results/resnet-result.json
+[0;32m[23:08:03][0m [resnet]   Log: ./model-results/resnet.log
+[0;32m[23:08:03][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:16][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:16][0m [resnet] 🚀 Single Model Test Pipeline: resnet
+[0;32m[23:18:16][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:16][0m [resnet] 📥 Phase 1: Installing model...
+[0;32m[23:18:16][0m [resnet]   Axon ID: hf/microsoft/resnet-50@latest
+[0;32m[23:18:16][0m [resnet]   Category: vision
+[0;32m[23:18:16][0m [resnet] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/microsoft/resnet-50/latest/model.onnx
+[0;32m[23:18:16][0m [resnet] 📝 Phase 2: Registering model with Core...
+[0;32m[23:18:16][0m [resnet]   Running: /Users/shaileshpant/.local/bin/axon register hf/microsoft/resnet-50@latest
+[0;32m[23:18:16][0m [resnet] ✅ Model registered (115ms)
+[0;32m[23:18:16][0m [resnet] 🧪 Phase 3: Running small inference test...
+[0;32m[23:18:18][0m [resnet] ✅ small inference successful (1076ms)
+[0;32m[23:18:18][0m [resnet] 🧪 Phase 3: Running large inference test...
+[0;32m[23:18:19][0m [resnet] ✅ large inference successful (1071ms)
+[0;32m[23:18:19][0m [resnet] 
+[0;32m[23:18:19][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:19][0m [resnet] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:18:19][0m [resnet]   Results: ./model-results/resnet-result.json
+[0;32m[23:18:19][0m [resnet]   Log: ./model-results/resnet.log
+[0;32m[23:18:19][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

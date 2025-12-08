@@ -1,0 +1,27 @@
+{
+  "model_name": "deit",
+  "started_at": "2025-12-08T17:48:30Z",
+  "axon_version": "v3.1.4",
+  "core_version": "3.2.10-alpha",
+  "status": "success",
+  "phases": {
+    "install": {
+      "status": "success",
+      "time_ms": 0
+    },
+    "register": {
+      "status": "success",
+      "time_ms": 140
+    },
+    "inference_small": {
+      "status": "success",
+      "time_ms": 1089
+    },
+    "inference_large": {
+      "status": "success",
+      "time_ms": 1086
+    }
+  },
+  "completed_at": "2025-12-08T17:48:34Z",
+  "total_time_ms": 2315
+}

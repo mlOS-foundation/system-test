@@ -1,0 +1,27 @@
+{
+  "model_name": "t5",
+  "started_at": "2025-12-08T17:48:15Z",
+  "axon_version": "v3.1.4",
+  "core_version": "3.2.10-alpha",
+  "status": "success",
+  "phases": {
+    "install": {
+      "status": "success",
+      "time_ms": 0
+    },
+    "register": {
+      "status": "success",
+      "time_ms": 275
+    },
+    "inference_small": {
+      "status": "success",
+      "time_ms": 36
+    },
+    "inference_large": {
+      "status": "success",
+      "time_ms": 141
+    }
+  },
+  "completed_at": "2025-12-08T17:48:16Z",
+  "total_time_ms": 452
+}

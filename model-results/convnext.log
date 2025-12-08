@@ -1,0 +1,50 @@
+[0;32m[14:30:30][0m [convnext] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:30:30][0m [convnext] 🚀 Single Model Test Pipeline: convnext
+[0;32m[14:30:30][0m [convnext] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:30:30][0m [convnext] 📥 Phase 1: Installing model...
+[0;32m[14:30:30][0m [convnext]   Axon ID: hf/facebook/convnext-tiny-224@latest
+[0;32m[14:30:30][0m [convnext]   Category: vision
+[0;32m[14:30:30][0m [convnext] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/facebook/convnext-tiny-224/latest/model.onnx
+[0;32m[14:30:30][0m [convnext] 📝 Phase 2: Registering model with Core...
+[0;31m[14:30:30] ERROR:[0m [convnext] MLOS Core not running at http://127.0.0.1:18080
+[0;31m[14:30:31] ERROR:[0m [convnext] Pipeline failed at register phase
+[0;32m[14:30:47][0m [convnext] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:30:47][0m [convnext] 🚀 Single Model Test Pipeline: convnext
+[0;32m[14:30:47][0m [convnext] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:30:47][0m [convnext] 📥 Phase 1: Installing model...
+[0;32m[14:30:47][0m [convnext]   Axon ID: hf/facebook/convnext-tiny-224@latest
+[0;32m[14:30:47][0m [convnext]   Category: vision
+[0;32m[14:30:47][0m [convnext] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/facebook/convnext-tiny-224/latest/model.onnx
+[0;32m[14:30:47][0m [convnext] 📝 Phase 2: Registering model with Core...
+[0;32m[14:30:48][0m [convnext]   Running: /Users/shaileshpant/.local/bin/axon register hf/facebook/convnext-tiny-224@latest
+[0;32m[14:30:48][0m [convnext] ✅ Model registered (260ms)
+[0;32m[14:30:48][0m [convnext] 🧪 Phase 3: Running small inference test...
+[0;32m[14:30:49][0m [convnext] ✅ small inference successful (1103ms)
+[0;32m[14:30:49][0m [convnext] 🧪 Phase 3: Running large inference test...
+[0;32m[14:30:51][0m [convnext] ✅ large inference successful (1106ms)
+[0;32m[14:30:51][0m [convnext] 
+[0;32m[14:30:51][0m [convnext] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:30:51][0m [convnext] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[14:30:51][0m [convnext]   Results: ./model-results/convnext-result.json
+[0;32m[14:30:51][0m [convnext]   Log: ./model-results/convnext.log
+[0;32m[14:30:51][0m [convnext] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:23][0m [convnext] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:23][0m [convnext] 🚀 Single Model Test Pipeline: convnext
+[0;32m[23:18:23][0m [convnext] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:23][0m [convnext] 📥 Phase 1: Installing model...
+[0;32m[23:18:23][0m [convnext]   Axon ID: hf/facebook/convnext-tiny-224@latest
+[0;32m[23:18:23][0m [convnext]   Category: vision
+[0;32m[23:18:23][0m [convnext] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/facebook/convnext-tiny-224/latest/model.onnx
+[0;32m[23:18:23][0m [convnext] 📝 Phase 2: Registering model with Core...
+[0;32m[23:18:23][0m [convnext]   Running: /Users/shaileshpant/.local/bin/axon register hf/facebook/convnext-tiny-224@latest
+[0;32m[23:18:23][0m [convnext] ✅ Model registered (137ms)
+[0;32m[23:18:23][0m [convnext] 🧪 Phase 3: Running small inference test...
+[0;32m[23:18:25][0m [convnext] ✅ small inference successful (1112ms)
+[0;32m[23:18:25][0m [convnext] 🧪 Phase 3: Running large inference test...
+[0;32m[23:18:27][0m [convnext] ✅ large inference successful (1107ms)
+[0;32m[23:18:27][0m [convnext] 
+[0;32m[23:18:27][0m [convnext] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:27][0m [convnext] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:18:27][0m [convnext]   Results: ./model-results/convnext-result.json
+[0;32m[23:18:27][0m [convnext]   Log: ./model-results/convnext.log
+[0;32m[23:18:27][0m [convnext] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

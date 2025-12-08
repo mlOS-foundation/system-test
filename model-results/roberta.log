@@ -1,0 +1,40 @@
+[0;32m[14:50:41][0m [roberta] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:50:41][0m [roberta] 🚀 Single Model Test Pipeline: roberta
+[0;32m[14:50:41][0m [roberta] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:50:41][0m [roberta] 📥 Phase 1: Installing model...
+[0;32m[14:50:41][0m [roberta]   Axon ID: hf/roberta-base@latest
+[0;32m[14:50:41][0m [roberta]   Category: nlp
+[0;32m[14:50:41][0m [roberta] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/roberta-base/latest/model.onnx
+[0;32m[14:50:41][0m [roberta] 📝 Phase 2: Registering model with Core...
+[0;32m[14:50:41][0m [roberta]   Running: /Users/shaileshpant/.local/bin/axon register hf/roberta-base@latest
+[0;32m[14:50:41][0m [roberta] ✅ Model registered (558ms)
+[0;32m[14:50:41][0m [roberta] 🧪 Phase 3: Running small inference test...
+[0;32m[14:50:41][0m [roberta] ✅ small inference successful (49ms)
+[0;32m[14:50:42][0m [roberta] 🧪 Phase 3: Running large inference test...
+[0;32m[14:50:42][0m [roberta] ✅ large inference successful (190ms)
+[0;32m[14:50:42][0m [roberta] 
+[0;32m[14:50:42][0m [roberta] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:50:42][0m [roberta] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[14:50:42][0m [roberta]   Results: ./model-results/roberta-result.json
+[0;32m[14:50:42][0m [roberta]   Log: ./model-results/roberta.log
+[0;32m[14:50:42][0m [roberta] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:14][0m [roberta] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:14][0m [roberta] 🚀 Single Model Test Pipeline: roberta
+[0;32m[23:18:14][0m [roberta] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:14][0m [roberta] 📥 Phase 1: Installing model...
+[0;32m[23:18:14][0m [roberta]   Axon ID: hf/roberta-base@latest
+[0;32m[23:18:14][0m [roberta]   Category: nlp
+[0;32m[23:18:14][0m [roberta] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/roberta-base/latest/model.onnx
+[0;32m[23:18:14][0m [roberta] 📝 Phase 2: Registering model with Core...
+[0;32m[23:18:14][0m [roberta]   Running: /Users/shaileshpant/.local/bin/axon register hf/roberta-base@latest
+[0;32m[23:18:15][0m [roberta] ✅ Model registered (176ms)
+[0;32m[23:18:15][0m [roberta] 🧪 Phase 3: Running small inference test...
+[0;32m[23:18:15][0m [roberta] ✅ small inference successful (38ms)
+[0;32m[23:18:15][0m [roberta] 🧪 Phase 3: Running large inference test...
+[0;32m[23:18:15][0m [roberta] ✅ large inference successful (179ms)
+[0;32m[23:18:15][0m [roberta] 
+[0;32m[23:18:15][0m [roberta] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:15][0m [roberta] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:18:15][0m [roberta]   Results: ./model-results/roberta-result.json
+[0;32m[23:18:15][0m [roberta]   Log: ./model-results/roberta.log
+[0;32m[23:18:15][0m [roberta] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

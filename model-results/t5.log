@@ -1,0 +1,100 @@
+[0;32m[14:31:24][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:24][0m [t5] 🚀 Single Model Test Pipeline: t5
+[0;32m[14:31:24][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:24][0m [t5] 📥 Phase 1: Installing model...
+[0;32m[14:31:24][0m [t5]   Axon ID: hf/t5-small@latest
+[0;32m[14:31:24][0m [t5]   Category: nlp
+[0;32m[14:31:24][0m [t5] ✅ Encoder-decoder model already installed (encoder at: /Users/shaileshpant/.axon/cache/models/hf/t5-small/latest/encoder_model.onnx)
+[0;32m[14:31:24][0m [t5] 📝 Phase 2: Registering model with Core...
+[0;32m[14:31:24][0m [t5]   Running: /Users/shaileshpant/.local/bin/axon register hf/t5-small@latest
+[0;32m[14:31:24][0m [t5] ✅ Model registered (254ms)
+[0;32m[14:31:24][0m [t5] 🧪 Phase 3: Running small inference test...
+[0;32m[14:31:24][0m [t5] ✅ small inference successful (34ms)
+[0;32m[14:31:24][0m [t5] 🧪 Phase 3: Running large inference test...
+[0;32m[14:31:24][0m [t5] ✅ large inference successful (144ms)
+[0;32m[14:31:24][0m [t5] 
+[0;32m[14:31:24][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:24][0m [t5] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[14:31:24][0m [t5]   Results: ./model-results/t5-result.json
+[0;32m[14:31:24][0m [t5]   Log: ./model-results/t5.log
+[0;32m[14:31:24][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[19:43:46][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[19:43:46][0m [t5] 🚀 Single Model Test Pipeline: t5
+[0;32m[19:43:46][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[19:43:46][0m [t5] 📥 Phase 1: Installing model...
+[0;32m[19:43:46][0m [t5]   Axon ID: hf/t5-small@latest
+[0;32m[19:43:46][0m [t5]   Category: nlp
+[0;32m[19:43:46][0m [t5] ✅ Encoder-decoder model already installed (encoder at: /Users/shaileshpant/.axon/cache/models/hf/t5-small/latest/encoder_model.onnx)
+[0;32m[19:43:46][0m [t5] 📝 Phase 2: Registering model with Core...
+[0;32m[19:43:46][0m [t5]   Running: /Users/shaileshpant/.local/bin/axon register hf/t5-small@latest
+[0;32m[19:43:46][0m [t5] ✅ Model registered (257ms)
+[0;32m[19:43:46][0m [t5] 🧪 Phase 3: Running small inference test...
+[0;32m[19:43:46][0m [t5] ✅ small inference successful (128ms)
+[0;32m[19:43:46][0m [t5] 🧪 Phase 3: Running large inference test...
+[0;32m[19:43:47][0m [t5] ✅ large inference successful (145ms)
+[0;32m[19:43:47][0m [t5] 
+[0;32m[19:43:47][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[19:43:47][0m [t5] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[19:43:47][0m [t5]   Results: model-results/t5-result.json
+[0;32m[19:43:47][0m [t5]   Log: model-results/t5.log
+[0;32m[19:43:47][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:38][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:38][0m [t5] 🚀 Single Model Test Pipeline: t5
+[0;32m[22:50:38][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:38][0m [t5] 📥 Phase 1: Installing model...
+[0;32m[22:50:38][0m [t5]   Axon ID: hf/t5-small@latest
+[0;32m[22:50:38][0m [t5]   Category: nlp
+[0;32m[22:50:38][0m [t5] ✅ Encoder-decoder model already installed (encoder at: /Users/shaileshpant/.axon/cache/models/hf/t5-small/latest/encoder_model.onnx)
+[0;32m[22:50:38][0m [t5] 📝 Phase 2: Registering model with Core...
+[0;32m[22:50:38][0m [t5]   Running: /Users/shaileshpant/.local/bin/axon register hf/t5-small@latest
+[0;32m[22:50:39][0m [t5] ✅ Model registered (231ms)
+[0;32m[22:50:39][0m [t5] 🧪 Phase 3: Running small inference test...
+[0;32m[22:50:39][0m [t5] ✅ small inference successful (142ms)
+[0;32m[22:50:39][0m [t5] 🧪 Phase 3: Running large inference test...
+[0;32m[22:50:39][0m [t5] ✅ large inference successful (137ms)
+[0;32m[22:50:39][0m [t5] 
+[0;32m[22:50:39][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:39][0m [t5] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[22:50:39][0m [t5]   Results: /Users/shaileshpant/src/mlOS-foundation/system-test/model-results/t5-result.json
+[0;32m[22:50:39][0m [t5]   Log: /Users/shaileshpant/src/mlOS-foundation/system-test/model-results/t5.log
+[0;32m[22:50:39][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:08:10][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:08:10][0m [t5] 🚀 Single Model Test Pipeline: t5
+[0;32m[23:08:10][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:08:10][0m [t5] 📥 Phase 1: Installing model...
+[0;32m[23:08:10][0m [t5]   Axon ID: hf/t5-small@latest
+[0;32m[23:08:10][0m [t5]   Category: nlp
+[0;32m[23:08:10][0m [t5] ✅ Encoder-decoder model already installed (encoder at: /Users/shaileshpant/.axon/cache/models/hf/t5-small/latest/encoder_model.onnx)
+[0;32m[23:08:10][0m [t5] 📝 Phase 2: Registering model with Core...
+[0;32m[23:08:10][0m [t5]   Running: /Users/shaileshpant/.local/bin/axon register hf/t5-small@latest
+[0;32m[23:08:11][0m [t5] ✅ Model registered (238ms)
+[0;32m[23:08:11][0m [t5] 🧪 Phase 3: Running small inference test...
+[0;32m[23:08:11][0m [t5] ✅ small inference successful (128ms)
+[0;32m[23:08:11][0m [t5] 🧪 Phase 3: Running large inference test...
+[0;32m[23:08:11][0m [t5] ✅ large inference successful (134ms)
+[0;32m[23:08:11][0m [t5] 
+[0;32m[23:08:11][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:08:11][0m [t5] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:08:11][0m [t5]   Results: ./model-results/t5-result.json
+[0;32m[23:08:11][0m [t5]   Log: ./model-results/t5.log
+[0;32m[23:08:11][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:15][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:15][0m [t5] 🚀 Single Model Test Pipeline: t5
+[0;32m[23:18:15][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:15][0m [t5] 📥 Phase 1: Installing model...
+[0;32m[23:18:15][0m [t5]   Axon ID: hf/t5-small@latest
+[0;32m[23:18:15][0m [t5]   Category: nlp
+[0;32m[23:18:15][0m [t5] ✅ Encoder-decoder model already installed (encoder at: /Users/shaileshpant/.axon/cache/models/hf/t5-small/latest/encoder_model.onnx)
+[0;32m[23:18:15][0m [t5] 📝 Phase 2: Registering model with Core...
+[0;32m[23:18:15][0m [t5]   Running: /Users/shaileshpant/.local/bin/axon register hf/t5-small@latest
+[0;32m[23:18:15][0m [t5] ✅ Model registered (275ms)
+[0;32m[23:18:16][0m [t5] 🧪 Phase 3: Running small inference test...
+[0;32m[23:18:16][0m [t5] ✅ small inference successful (36ms)
+[0;32m[23:18:16][0m [t5] 🧪 Phase 3: Running large inference test...
+[0;32m[23:18:16][0m [t5] ✅ large inference successful (141ms)
+[0;32m[23:18:16][0m [t5] 
+[0;32m[23:18:16][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:16][0m [t5] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:18:16][0m [t5]   Results: ./model-results/t5-result.json
+[0;32m[23:18:16][0m [t5]   Log: ./model-results/t5.log
+[0;32m[23:18:16][0m [t5] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

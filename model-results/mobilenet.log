@@ -1,0 +1,20 @@
+[0;32m[23:18:27][0m [mobilenet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:27][0m [mobilenet] 🚀 Single Model Test Pipeline: mobilenet
+[0;32m[23:18:27][0m [mobilenet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:27][0m [mobilenet] 📥 Phase 1: Installing model...
+[0;32m[23:18:27][0m [mobilenet]   Axon ID: hf/google/mobilenet_v2_1.0_224@latest
+[0;32m[23:18:27][0m [mobilenet]   Category: vision
+[0;32m[23:18:27][0m [mobilenet] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/google/mobilenet_v2_1.0_224/latest/model.onnx
+[0;32m[23:18:27][0m [mobilenet] 📝 Phase 2: Registering model with Core...
+[0;32m[23:18:27][0m [mobilenet]   Running: /Users/shaileshpant/.local/bin/axon register hf/google/mobilenet_v2_1.0_224@latest
+[0;32m[23:18:27][0m [mobilenet] ✅ Model registered (120ms)
+[0;32m[23:18:27][0m [mobilenet] 🧪 Phase 3: Running small inference test...
+[0;32m[23:18:29][0m [mobilenet] ✅ small inference successful (1077ms)
+[0;32m[23:18:29][0m [mobilenet] 🧪 Phase 3: Running large inference test...
+[0;32m[23:18:30][0m [mobilenet] ✅ large inference successful (1066ms)
+[0;32m[23:18:30][0m [mobilenet] 
+[0;32m[23:18:30][0m [mobilenet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:30][0m [mobilenet] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:18:30][0m [mobilenet]   Results: ./model-results/mobilenet-result.json
+[0;32m[23:18:30][0m [mobilenet]   Log: ./model-results/mobilenet.log
+[0;32m[23:18:30][0m [mobilenet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

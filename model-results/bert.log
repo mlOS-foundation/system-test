@@ -1,0 +1,80 @@
+[0;32m[14:31:22][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:22][0m [bert] 🚀 Single Model Test Pipeline: bert
+[0;32m[14:31:22][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:22][0m [bert] 📥 Phase 1: Installing model...
+[0;32m[14:31:22][0m [bert]   Axon ID: hf/bert-base-uncased@latest
+[0;32m[14:31:22][0m [bert]   Category: nlp
+[0;32m[14:31:22][0m [bert] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/bert-base-uncased/latest/model.onnx
+[0;32m[14:31:22][0m [bert] 📝 Phase 2: Registering model with Core...
+[0;32m[14:31:22][0m [bert]   Running: /Users/shaileshpant/.local/bin/axon register hf/bert-base-uncased@latest
+[0;32m[14:31:23][0m [bert] ✅ Model registered (316ms)
+[0;32m[14:31:23][0m [bert] 🧪 Phase 3: Running small inference test...
+[0;32m[14:31:23][0m [bert] ✅ small inference successful (178ms)
+[0;32m[14:31:23][0m [bert] 🧪 Phase 3: Running large inference test...
+[0;32m[14:31:23][0m [bert] ✅ large inference successful (500ms)
+[0;32m[14:31:23][0m [bert] 
+[0;32m[14:31:24][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:24][0m [bert] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[14:31:24][0m [bert]   Results: ./model-results/bert-result.json
+[0;32m[14:31:24][0m [bert]   Log: ./model-results/bert.log
+[0;32m[14:31:24][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:21][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:21][0m [bert] 🚀 Single Model Test Pipeline: bert
+[0;32m[22:50:21][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:21][0m [bert] 📥 Phase 1: Installing model...
+[0;32m[22:50:21][0m [bert]   Axon ID: hf/bert-base-uncased@latest
+[0;32m[22:50:21][0m [bert]   Category: nlp
+[0;32m[22:50:21][0m [bert] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/bert-base-uncased/latest/model.onnx
+[0;32m[22:50:21][0m [bert] 📝 Phase 2: Registering model with Core...
+[0;32m[22:50:21][0m [bert]   Running: /Users/shaileshpant/.local/bin/axon register hf/bert-base-uncased@latest
+[0;32m[22:50:22][0m [bert] ✅ Model registered (264ms)
+[0;32m[22:50:22][0m [bert] 🧪 Phase 3: Running small inference test...
+[0;32m[22:50:22][0m [bert] ✅ small inference successful (83ms)
+[0;32m[22:50:22][0m [bert] 🧪 Phase 3: Running large inference test...
+[0;32m[22:50:22][0m [bert] ✅ large inference successful (497ms)
+[0;32m[22:50:22][0m [bert] 
+[0;32m[22:50:22][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:22][0m [bert] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[22:50:22][0m [bert]   Results: /Users/shaileshpant/src/mlOS-foundation/system-test/model-results/bert-result.json
+[0;32m[22:50:22][0m [bert]   Log: /Users/shaileshpant/src/mlOS-foundation/system-test/model-results/bert.log
+[0;32m[22:50:22][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:07:49][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:07:49][0m [bert] 🚀 Single Model Test Pipeline: bert
+[0;32m[23:07:49][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:07:49][0m [bert] 📥 Phase 1: Installing model...
+[0;32m[23:07:49][0m [bert]   Axon ID: hf/bert-base-uncased@latest
+[0;32m[23:07:49][0m [bert]   Category: nlp
+[0;32m[23:07:49][0m [bert] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/bert-base-uncased/latest/model.onnx
+[0;32m[23:07:49][0m [bert] 📝 Phase 2: Registering model with Core...
+[0;32m[23:07:49][0m [bert]   Running: /Users/shaileshpant/.local/bin/axon register hf/bert-base-uncased@latest
+[0;32m[23:07:49][0m [bert] ✅ Model registered (234ms)
+[0;32m[23:07:49][0m [bert] 🧪 Phase 3: Running small inference test...
+[0;32m[23:07:49][0m [bert] ✅ small inference successful (181ms)
+[0;32m[23:07:49][0m [bert] 🧪 Phase 3: Running large inference test...
+[0;32m[23:07:50][0m [bert] ✅ large inference successful (513ms)
+[0;32m[23:07:50][0m [bert] 
+[0;32m[23:07:50][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:07:50][0m [bert] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:07:50][0m [bert]   Results: ./model-results/bert-result.json
+[0;32m[23:07:50][0m [bert]   Log: ./model-results/bert.log
+[0;32m[23:07:50][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:12][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:12][0m [bert] 🚀 Single Model Test Pipeline: bert
+[0;32m[23:18:12][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:12][0m [bert] 📥 Phase 1: Installing model...
+[0;32m[23:18:12][0m [bert]   Axon ID: hf/bert-base-uncased@latest
+[0;32m[23:18:12][0m [bert]   Category: nlp
+[0;32m[23:18:12][0m [bert] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/bert-base-uncased/latest/model.onnx
+[0;32m[23:18:12][0m [bert] 📝 Phase 2: Registering model with Core...
+[0;32m[23:18:12][0m [bert]   Running: /Users/shaileshpant/.local/bin/axon register hf/bert-base-uncased@latest
+[0;32m[23:18:13][0m [bert] ✅ Model registered (244ms)
+[0;32m[23:18:13][0m [bert] 🧪 Phase 3: Running small inference test...
+[0;32m[23:18:13][0m [bert] ✅ small inference successful (193ms)
+[0;32m[23:18:13][0m [bert] 🧪 Phase 3: Running large inference test...
+[0;32m[23:18:13][0m [bert] ✅ large inference successful (491ms)
+[0;32m[23:18:13][0m [bert] 
+[0;32m[23:18:13][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:13][0m [bert] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:18:13][0m [bert]   Results: ./model-results/bert-result.json
+[0;32m[23:18:13][0m [bert]   Log: ./model-results/bert.log
+[0;32m[23:18:13][0m [bert] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

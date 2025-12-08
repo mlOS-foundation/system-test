@@ -1,0 +1,80 @@
+[0;32m[14:31:08][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:08][0m [clip] 🚀 Single Model Test Pipeline: clip
+[0;32m[14:31:08][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:08][0m [clip] 📥 Phase 1: Installing model...
+[0;32m[14:31:08][0m [clip]   Axon ID: hf/openai/clip-vit-base-patch32@latest
+[0;32m[14:31:08][0m [clip]   Category: multimodal
+[0;32m[14:31:08][0m [clip] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/openai/clip-vit-base-patch32/latest/model.onnx
+[0;32m[14:31:08][0m [clip] 📝 Phase 2: Registering model with Core...
+[0;32m[14:31:08][0m [clip]   Running: /Users/shaileshpant/.local/bin/axon register hf/openai/clip-vit-base-patch32@latest
+[0;32m[14:31:09][0m [clip] ✅ Model registered (384ms)
+[0;32m[14:31:09][0m [clip] 🧪 Phase 3: Running small inference test...
+[0;32m[14:31:10][0m [clip] ✅ small inference successful (1077ms)
+[0;32m[14:31:10][0m [clip] 🧪 Phase 3: Running large inference test...
+[0;32m[14:31:12][0m [clip] ✅ large inference successful (1085ms)
+[0;32m[14:31:12][0m [clip] 
+[0;32m[14:31:12][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:12][0m [clip] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[14:31:12][0m [clip]   Results: ./model-results/clip-result.json
+[0;32m[14:31:12][0m [clip]   Log: ./model-results/clip.log
+[0;32m[14:31:12][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:28][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:28][0m [clip] 🚀 Single Model Test Pipeline: clip
+[0;32m[22:50:28][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:28][0m [clip] 📥 Phase 1: Installing model...
+[0;32m[22:50:28][0m [clip]   Axon ID: hf/openai/clip-vit-base-patch32@latest
+[0;32m[22:50:28][0m [clip]   Category: multimodal
+[0;32m[22:50:28][0m [clip] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/openai/clip-vit-base-patch32/latest/model.onnx
+[0;32m[22:50:28][0m [clip] 📝 Phase 2: Registering model with Core...
+[0;32m[22:50:28][0m [clip]   Running: /Users/shaileshpant/.local/bin/axon register hf/openai/clip-vit-base-patch32@latest
+[0;32m[22:50:28][0m [clip] ✅ Model registered (370ms)
+[0;32m[22:50:28][0m [clip] 🧪 Phase 3: Running small inference test...
+[0;32m[22:50:30][0m [clip] ✅ small inference successful (1081ms)
+[0;32m[22:50:30][0m [clip] 🧪 Phase 3: Running large inference test...
+[0;32m[22:50:31][0m [clip] ✅ large inference successful (1085ms)
+[0;32m[22:50:31][0m [clip] 
+[0;32m[22:50:31][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:50:31][0m [clip] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[22:50:31][0m [clip]   Results: /Users/shaileshpant/src/mlOS-foundation/system-test/model-results/clip-result.json
+[0;32m[22:50:31][0m [clip]   Log: /Users/shaileshpant/src/mlOS-foundation/system-test/model-results/clip.log
+[0;32m[22:50:31][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:08:04][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:08:04][0m [clip] 🚀 Single Model Test Pipeline: clip
+[0;32m[23:08:04][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:08:04][0m [clip] 📥 Phase 1: Installing model...
+[0;32m[23:08:04][0m [clip]   Axon ID: hf/openai/clip-vit-base-patch32@latest
+[0;32m[23:08:04][0m [clip]   Category: multimodal
+[0;32m[23:08:04][0m [clip] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/openai/clip-vit-base-patch32/latest/model.onnx
+[0;32m[23:08:04][0m [clip] 📝 Phase 2: Registering model with Core...
+[0;32m[23:08:05][0m [clip]   Running: /Users/shaileshpant/.local/bin/axon register hf/openai/clip-vit-base-patch32@latest
+[0;32m[23:08:05][0m [clip] ✅ Model registered (350ms)
+[0;32m[23:08:05][0m [clip] 🧪 Phase 3: Running small inference test...
+[0;32m[23:08:07][0m [clip] ✅ small inference successful (1071ms)
+[0;32m[23:08:07][0m [clip] 🧪 Phase 3: Running large inference test...
+[0;32m[23:08:08][0m [clip] ✅ large inference successful (1069ms)
+[0;32m[23:08:08][0m [clip] 
+[0;32m[23:08:08][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:08:08][0m [clip] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:08:08][0m [clip]   Results: ./model-results/clip-result.json
+[0;32m[23:08:08][0m [clip]   Log: ./model-results/clip.log
+[0;32m[23:08:08][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:37][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:37][0m [clip] 🚀 Single Model Test Pipeline: clip
+[0;32m[23:18:37][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:37][0m [clip] 📥 Phase 1: Installing model...
+[0;32m[23:18:37][0m [clip]   Axon ID: hf/openai/clip-vit-base-patch32@latest
+[0;32m[23:18:37][0m [clip]   Category: multimodal
+[0;32m[23:18:37][0m [clip] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/openai/clip-vit-base-patch32/latest/model.onnx
+[0;32m[23:18:37][0m [clip] 📝 Phase 2: Registering model with Core...
+[0;32m[23:18:38][0m [clip]   Running: /Users/shaileshpant/.local/bin/axon register hf/openai/clip-vit-base-patch32@latest
+[0;32m[23:18:38][0m [clip] ✅ Model registered (393ms)
+[0;32m[23:18:38][0m [clip] 🧪 Phase 3: Running small inference test...
+[0;32m[23:18:40][0m [clip] ✅ small inference successful (1092ms)
+[0;32m[23:18:40][0m [clip] 🧪 Phase 3: Running large inference test...
+[0;32m[23:18:41][0m [clip] ✅ large inference successful (1083ms)
+[0;32m[23:18:41][0m [clip] 
+[0;32m[23:18:41][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:41][0m [clip] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:18:41][0m [clip]   Results: ./model-results/clip-result.json
+[0;32m[23:18:41][0m [clip]   Log: ./model-results/clip.log
+[0;32m[23:18:41][0m [clip] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

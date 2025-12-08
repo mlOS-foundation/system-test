@@ -1,0 +1,100 @@
+[0;32m[14:31:25][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:25][0m [sentence-transformers] 🚀 Single Model Test Pipeline: sentence-transformers
+[0;32m[14:31:25][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:25][0m [sentence-transformers] 📥 Phase 1: Installing model...
+[0;32m[14:31:25][0m [sentence-transformers]   Axon ID: hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[14:31:25][0m [sentence-transformers]   Category: nlp
+[0;32m[14:31:25][0m [sentence-transformers] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/sentence-transformers/all-MiniLM-L6-v2/latest/model.onnx
+[0;32m[14:31:25][0m [sentence-transformers] 📝 Phase 2: Registering model with Core...
+[0;32m[14:31:25][0m [sentence-transformers]   Running: /Users/shaileshpant/.local/bin/axon register hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[14:31:25][0m [sentence-transformers] ✅ Model registered (142ms)
+[0;32m[14:31:25][0m [sentence-transformers] 🧪 Phase 3: Running small inference test...
+[0;32m[14:31:25][0m [sentence-transformers] ✅ small inference successful (146ms)
+[0;32m[14:31:25][0m [sentence-transformers] 🧪 Phase 3: Running large inference test...
+[0;32m[14:31:25][0m [sentence-transformers] ✅ large inference successful (136ms)
+[0;32m[14:31:25][0m [sentence-transformers] 
+[0;32m[14:31:25][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:25][0m [sentence-transformers] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[14:31:25][0m [sentence-transformers]   Results: ./model-results/sentence-transformers-result.json
+[0;32m[14:31:25][0m [sentence-transformers]   Log: ./model-results/sentence-transformers.log
+[0;32m[14:31:25][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[19:43:57][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[19:43:57][0m [sentence-transformers] 🚀 Single Model Test Pipeline: sentence-transformers
+[0;32m[19:43:57][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[19:43:57][0m [sentence-transformers] 📥 Phase 1: Installing model...
+[0;32m[19:43:57][0m [sentence-transformers]   Axon ID: hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[19:43:57][0m [sentence-transformers]   Category: nlp
+[0;32m[19:43:57][0m [sentence-transformers] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/sentence-transformers/all-MiniLM-L6-v2/latest/model.onnx
+[0;32m[19:43:57][0m [sentence-transformers] 📝 Phase 2: Registering model with Core...
+[0;32m[19:43:57][0m [sentence-transformers]   Running: /Users/shaileshpant/.local/bin/axon register hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[19:43:57][0m [sentence-transformers] ✅ Model registered (149ms)
+[0;32m[19:43:57][0m [sentence-transformers] 🧪 Phase 3: Running small inference test...
+[0;32m[19:43:57][0m [sentence-transformers] ✅ small inference successful (39ms)
+[0;32m[19:43:57][0m [sentence-transformers] 🧪 Phase 3: Running large inference test...
+[0;32m[19:43:58][0m [sentence-transformers] ✅ large inference successful (135ms)
+[0;32m[19:43:58][0m [sentence-transformers] 
+[0;32m[19:43:58][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[19:43:58][0m [sentence-transformers] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[19:43:58][0m [sentence-transformers]   Results: model-results/sentence-transformers-result.json
+[0;32m[19:43:58][0m [sentence-transformers]   Log: model-results/sentence-transformers.log
+[0;32m[19:43:58][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:51:01][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:51:01][0m [sentence-transformers] 🚀 Single Model Test Pipeline: sentence-transformers
+[0;32m[22:51:01][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:51:01][0m [sentence-transformers] 📥 Phase 1: Installing model...
+[0;32m[22:51:01][0m [sentence-transformers]   Axon ID: hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[22:51:01][0m [sentence-transformers]   Category: nlp
+[0;32m[22:51:01][0m [sentence-transformers] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/sentence-transformers/all-MiniLM-L6-v2/latest/model.onnx
+[0;32m[22:51:01][0m [sentence-transformers] 📝 Phase 2: Registering model with Core...
+[0;32m[22:51:01][0m [sentence-transformers]   Running: /Users/shaileshpant/.local/bin/axon register hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[22:51:01][0m [sentence-transformers] ✅ Model registered (147ms)
+[0;32m[22:51:01][0m [sentence-transformers] 🧪 Phase 3: Running small inference test...
+[0;32m[22:51:02][0m [sentence-transformers] ✅ small inference successful (144ms)
+[0;32m[22:51:02][0m [sentence-transformers] 🧪 Phase 3: Running large inference test...
+[0;32m[22:51:02][0m [sentence-transformers] ✅ large inference successful (128ms)
+[0;32m[22:51:02][0m [sentence-transformers] 
+[0;32m[22:51:02][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[22:51:02][0m [sentence-transformers] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[22:51:02][0m [sentence-transformers]   Results: /Users/shaileshpant/src/mlOS-foundation/system-test/model-results/sentence-transformers-result.json
+[0;32m[22:51:02][0m [sentence-transformers]   Log: /Users/shaileshpant/src/mlOS-foundation/system-test/model-results/sentence-transformers.log
+[0;32m[22:51:02][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:09:10][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:09:10][0m [sentence-transformers] 🚀 Single Model Test Pipeline: sentence-transformers
+[0;32m[23:09:10][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:09:10][0m [sentence-transformers] 📥 Phase 1: Installing model...
+[0;32m[23:09:10][0m [sentence-transformers]   Axon ID: hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[23:09:10][0m [sentence-transformers]   Category: nlp
+[0;32m[23:09:10][0m [sentence-transformers] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/sentence-transformers/all-MiniLM-L6-v2/latest/model.onnx
+[0;32m[23:09:10][0m [sentence-transformers] 📝 Phase 2: Registering model with Core...
+[0;32m[23:09:10][0m [sentence-transformers]   Running: /Users/shaileshpant/.local/bin/axon register hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[23:09:10][0m [sentence-transformers] ✅ Model registered (145ms)
+[0;32m[23:09:10][0m [sentence-transformers] 🧪 Phase 3: Running small inference test...
+[0;32m[23:09:11][0m [sentence-transformers] ✅ small inference successful (136ms)
+[0;32m[23:09:11][0m [sentence-transformers] 🧪 Phase 3: Running large inference test...
+[0;32m[23:09:11][0m [sentence-transformers] ✅ large inference successful (127ms)
+[0;32m[23:09:11][0m [sentence-transformers] 
+[0;32m[23:09:11][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:09:11][0m [sentence-transformers] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:09:11][0m [sentence-transformers]   Results: ./model-results/sentence-transformers-result.json
+[0;32m[23:09:11][0m [sentence-transformers]   Log: ./model-results/sentence-transformers.log
+[0;32m[23:09:11][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:19:44][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:19:44][0m [sentence-transformers] 🚀 Single Model Test Pipeline: sentence-transformers
+[0;32m[23:19:44][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:19:44][0m [sentence-transformers] 📥 Phase 1: Installing model...
+[0;32m[23:19:44][0m [sentence-transformers]   Axon ID: hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[23:19:44][0m [sentence-transformers]   Category: nlp
+[0;32m[23:19:44][0m [sentence-transformers] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/sentence-transformers/all-MiniLM-L6-v2/latest/model.onnx
+[0;32m[23:19:44][0m [sentence-transformers] 📝 Phase 2: Registering model with Core...
+[0;32m[23:19:44][0m [sentence-transformers]   Running: /Users/shaileshpant/.local/bin/axon register hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[23:19:45][0m [sentence-transformers] ✅ Model registered (147ms)
+[0;32m[23:19:45][0m [sentence-transformers] 🧪 Phase 3: Running small inference test...
+[0;32m[23:19:45][0m [sentence-transformers] ✅ small inference successful (143ms)
+[0;32m[23:19:45][0m [sentence-transformers] 🧪 Phase 3: Running large inference test...
+[0;32m[23:19:45][0m [sentence-transformers] ✅ large inference successful (136ms)
+[0;32m[23:19:45][0m [sentence-transformers] 
+[0;32m[23:19:45][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:19:45][0m [sentence-transformers] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:19:45][0m [sentence-transformers]   Results: ./model-results/sentence-transformers-result.json
+[0;32m[23:19:45][0m [sentence-transformers]   Log: ./model-results/sentence-transformers.log
+[0;32m[23:19:45][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

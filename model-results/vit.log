@@ -1,0 +1,60 @@
+[0;32m[14:50:46][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:50:46][0m [vit] 🚀 Single Model Test Pipeline: vit
+[0;32m[14:50:46][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:50:46][0m [vit] 📥 Phase 1: Installing model...
+[0;32m[14:50:46][0m [vit]   Axon ID: hf/google/vit-base-patch16-224@latest
+[0;32m[14:50:46][0m [vit]   Category: vision
+[0;32m[14:50:46][0m [vit] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/google/vit-base-patch16-224/latest/model.onnx
+[0;32m[14:50:46][0m [vit] 📝 Phase 2: Registering model with Core...
+[0;32m[14:50:46][0m [vit]   Running: /Users/shaileshpant/.local/bin/axon register hf/google/vit-base-patch16-224@latest
+[0;32m[14:50:46][0m [vit] ✅ Model registered (518ms)
+[0;32m[14:50:46][0m [vit] 🧪 Phase 3: Running small inference test...
+[0;32m[14:50:48][0m [vit] ✅ small inference successful (1131ms)
+[0;32m[14:50:48][0m [vit] 🧪 Phase 3: Running large inference test...
+[0;32m[14:50:50][0m [vit] ✅ large inference successful (1119ms)
+[0;32m[14:50:50][0m [vit] 
+[0;32m[14:50:50][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:50:50][0m [vit] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[14:50:50][0m [vit]   Results: ./model-results/vit-result.json
+[0;32m[14:50:50][0m [vit]   Log: ./model-results/vit.log
+[0;32m[14:50:50][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:09:06][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:09:06][0m [vit] 🚀 Single Model Test Pipeline: vit
+[0;32m[23:09:06][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:09:06][0m [vit] 📥 Phase 1: Installing model...
+[0;32m[23:09:06][0m [vit]   Axon ID: hf/google/vit-base-patch16-224@latest
+[0;32m[23:09:06][0m [vit]   Category: vision
+[0;32m[23:09:06][0m [vit] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/google/vit-base-patch16-224/latest/model.onnx
+[0;32m[23:09:06][0m [vit] 📝 Phase 2: Registering model with Core...
+[0;32m[23:09:06][0m [vit]   Running: /Users/shaileshpant/.local/bin/axon register hf/google/vit-base-patch16-224@latest
+[0;32m[23:09:07][0m [vit] ✅ Model registered (168ms)
+[0;32m[23:09:07][0m [vit] 🧪 Phase 3: Running small inference test...
+[0;32m[23:09:08][0m [vit] ✅ small inference successful (1104ms)
+[0;32m[23:09:08][0m [vit] 🧪 Phase 3: Running large inference test...
+[0;32m[23:09:10][0m [vit] ✅ large inference successful (1103ms)
+[0;32m[23:09:10][0m [vit] 
+[0;32m[23:09:10][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:09:10][0m [vit] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:09:10][0m [vit]   Results: ./model-results/vit-result.json
+[0;32m[23:09:10][0m [vit]   Log: ./model-results/vit.log
+[0;32m[23:09:10][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:19][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:19][0m [vit] 🚀 Single Model Test Pipeline: vit
+[0;32m[23:18:19][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:19][0m [vit] 📥 Phase 1: Installing model...
+[0;32m[23:18:20][0m [vit]   Axon ID: hf/google/vit-base-patch16-224@latest
+[0;32m[23:18:20][0m [vit]   Category: vision
+[0;32m[23:18:20][0m [vit] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/google/vit-base-patch16-224/latest/model.onnx
+[0;32m[23:18:20][0m [vit] 📝 Phase 2: Registering model with Core...
+[0;32m[23:18:20][0m [vit]   Running: /Users/shaileshpant/.local/bin/axon register hf/google/vit-base-patch16-224@latest
+[0;32m[23:18:20][0m [vit] ✅ Model registered (173ms)
+[0;32m[23:18:20][0m [vit] 🧪 Phase 3: Running small inference test...
+[0;32m[23:18:21][0m [vit] ✅ small inference successful (1117ms)
+[0;32m[23:18:21][0m [vit] 🧪 Phase 3: Running large inference test...
+[0;32m[23:18:23][0m [vit] ✅ large inference successful (1106ms)
+[0;32m[23:18:23][0m [vit] 
+[0;32m[23:18:23][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:23][0m [vit] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:18:23][0m [vit]   Results: ./model-results/vit-result.json
+[0;32m[23:18:23][0m [vit]   Log: ./model-results/vit.log
+[0;32m[23:18:23][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

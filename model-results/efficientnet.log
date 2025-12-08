@@ -1,0 +1,40 @@
+[0;32m[14:31:05][0m [efficientnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:05][0m [efficientnet] 🚀 Single Model Test Pipeline: efficientnet
+[0;32m[14:31:05][0m [efficientnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:05][0m [efficientnet] 📥 Phase 1: Installing model...
+[0;32m[14:31:05][0m [efficientnet]   Axon ID: hf/google/efficientnet-b0@latest
+[0;32m[14:31:05][0m [efficientnet]   Category: vision
+[0;32m[14:31:05][0m [efficientnet] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/google/efficientnet-b0/latest/model.onnx
+[0;32m[14:31:05][0m [efficientnet] 📝 Phase 2: Registering model with Core...
+[0;32m[14:31:05][0m [efficientnet]   Running: /Users/shaileshpant/.local/bin/axon register hf/google/efficientnet-b0@latest
+[0;32m[14:31:05][0m [efficientnet] ✅ Model registered (124ms)
+[0;32m[14:31:05][0m [efficientnet] 🧪 Phase 3: Running small inference test...
+[0;32m[14:31:06][0m [efficientnet] ✅ small inference successful (1077ms)
+[0;32m[14:31:06][0m [efficientnet] 🧪 Phase 3: Running large inference test...
+[0;32m[14:31:08][0m [efficientnet] ✅ large inference successful (1068ms)
+[0;32m[14:31:08][0m [efficientnet] 
+[0;32m[14:31:08][0m [efficientnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[14:31:08][0m [efficientnet] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[14:31:08][0m [efficientnet]   Results: ./model-results/efficientnet-result.json
+[0;32m[14:31:08][0m [efficientnet]   Log: ./model-results/efficientnet.log
+[0;32m[14:31:08][0m [efficientnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:34][0m [efficientnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:34][0m [efficientnet] 🚀 Single Model Test Pipeline: efficientnet
+[0;32m[23:18:34][0m [efficientnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:34][0m [efficientnet] 📥 Phase 1: Installing model...
+[0;32m[23:18:34][0m [efficientnet]   Axon ID: hf/google/efficientnet-b0@latest
+[0;32m[23:18:34][0m [efficientnet]   Category: vision
+[0;32m[23:18:34][0m [efficientnet] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/google/efficientnet-b0/latest/model.onnx
+[0;32m[23:18:34][0m [efficientnet] 📝 Phase 2: Registering model with Core...
+[0;32m[23:18:34][0m [efficientnet]   Running: /Users/shaileshpant/.local/bin/axon register hf/google/efficientnet-b0@latest
+[0;32m[23:18:34][0m [efficientnet] ✅ Model registered (123ms)
+[0;32m[23:18:34][0m [efficientnet] 🧪 Phase 3: Running small inference test...
+[0;32m[23:18:36][0m [efficientnet] ✅ small inference successful (1072ms)
+[0;32m[23:18:36][0m [efficientnet] 🧪 Phase 3: Running large inference test...
+[0;32m[23:18:37][0m [efficientnet] ✅ large inference successful (1072ms)
+[0;32m[23:18:37][0m [efficientnet] 
+[0;32m[23:18:37][0m [efficientnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[23:18:37][0m [efficientnet] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[23:18:37][0m [efficientnet]   Results: ./model-results/efficientnet-result.json
+[0;32m[23:18:37][0m [efficientnet]   Log: ./model-results/efficientnet.log
+[0;32m[23:18:37][0m [efficientnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
