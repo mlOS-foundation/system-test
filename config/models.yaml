@@ -1,19 +1,23 @@
 # MLOS E2E Test - Model Configuration
 # Add new models here to include them in test runs
 #
-# Updated: 2024-12-07 - Extended format support (Core v3.2.9-alpha PR #39)
-# - Seq2seq + Multi-encoder support (Axon v3.1.3, Core v3.2.9-alpha)
+# Updated: 2024-12-08 - LLM/GGUF support enabled (Core v3.2.10-alpha, Axon v3.1.4)
+# - Seq2seq + Multi-encoder support (Axon v3.1.3+, Core v3.2.9-alpha+)
 # - T5 enabled with encoder-decoder architecture support
 # - CLIP enabled with multi-encoder architecture support
-# - Format-agnostic runtime plugin system ready
+# - LLM/GGUF support fully enabled (tinyllama, phi2, qwen2-0.5b)
 #
-# Supported formats (Core PR #39):
-#   - ONNX (.onnx) - Built-in via SMI
-#   - PyTorch (.pt, .pth, .bin, .safetensors) - Plugin ready
-#   - GGUF (.gguf) - llama.cpp LLM plugin ready
+# Format-agnostic runtime plugin system (Core v3.2.10-alpha):
+#   - ONNX (.onnx) - Built-in via ONNX Runtime
+#   - GGUF (.gguf) - llama.cpp LLM plugin (native execution)
+#   - PyTorch (.pt, .pth, .bin, .safetensors) - Auto-converted to ONNX
 #   - TFLite (.tflite) - Plugin ready
 #   - TensorFlow (.pb) - Plugin ready
 #   - CoreML (.mlmodel, .mlpackage) - Plugin ready
+#
+# Release versions:
+#   - Core v3.2.10-alpha: GGUF/LLM runtime plugin (llama.cpp backend)
+#   - Axon v3.1.4: Format-agnostic model installation (GGUF detection)
 
 # Test runner settings
 settings:
@@ -23,8 +27,8 @@ settings:
   inference_timeout: 120  # Increased for vision models (larger inputs)
   # Run large inference tests (more tokens/larger inputs)
   run_large_tests: true
-  # Enable LLM generation tests (when GGUF plugin is ready)
-  enable_llm_tests: false
+  # Enable LLM generation tests (GGUF plugin ready in Core v3.2.10-alpha)
+  enable_llm_tests: true
 
 # Model definitions
 # Each model needs:
@@ -236,20 +240,20 @@ models:
       sample_rate: 16000
 
   # =============================================================================
-  # LLM Models (GGUF Format) - Core PR #39 Runtime Plugin System
+  # LLM Models (GGUF Format) - Native llama.cpp execution
   # =============================================================================
-  # These models require the GGUF runtime plugin (llama.cpp backend)
-  # Enable when Core's GGUF plugin is fully integrated
+  # These models use Core's GGUF runtime plugin (llama.cpp backend)
+  # Requires: Core v3.2.10-alpha+ and Axon v3.1.4+
 
   tinyllama:
-    enabled: false  # Pending: GGUF runtime plugin integration
+    enabled: true  # Enabled: GGUF runtime plugin ready (Core v3.2.10-alpha)
     category: llm
     format: gguf
     axon_id: "hf/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF@latest"
     model_file: "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"  # Specific quantized variant
     description: "TinyLlama 1.1B - Small but capable chat model"
     input_type: text_generation
-    notes: "Pending: GGUF runtime plugin. 4-bit quantized (~637MB)"
+    notes: "Native GGUF execution via llama.cpp plugin. 4-bit quantized (~637MB)"
     parameters:
       context_length: 2048
       quantization: "Q4_K_M"
@@ -261,14 +265,14 @@ models:
       max_tokens: 256
 
   phi2:
-    enabled: false  # Pending: GGUF runtime plugin integration
+    enabled: false  # Disabled: Too large for CI (~1.6GB). Enable for local testing.
     category: llm
     format: gguf
     axon_id: "hf/TheBloke/phi-2-GGUF@latest"
     model_file: "phi-2.Q4_K_M.gguf"
     description: "Microsoft Phi-2 - 2.7B parameter small language model"
     input_type: text_generation
-    notes: "Pending: GGUF runtime plugin. 4-bit quantized (~1.6GB)"
+    notes: "Ready for GGUF execution. 4-bit quantized (~1.6GB) - disabled for CI performance"
     parameters:
       context_length: 2048
       quantization: "Q4_K_M"
@@ -280,14 +284,14 @@ models:
       max_tokens: 256
 
   qwen2-0.5b:
-    enabled: false  # Pending: GGUF runtime plugin integration
+    enabled: false  # Disabled for initial release. Enable for extended testing.
     category: llm
     format: gguf
     axon_id: "hf/Qwen/Qwen2-0.5B-Instruct-GGUF@latest"
     model_file: "qwen2-0_5b-instruct-q4_k_m.gguf"
     description: "Qwen2 0.5B - Ultra-small instruction-tuned model"
     input_type: text_generation
-    notes: "Pending: GGUF runtime plugin. 4-bit quantized (~400MB) - Good for CI testing"
+    notes: "Ready for GGUF execution. 4-bit quantized (~400MB) - Good for CI testing"
     parameters:
       context_length: 32768
       quantization: "Q4_K_M"

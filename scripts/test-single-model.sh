@@ -30,8 +30,8 @@ CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
 CONFIG_FILE="$CONFIG_DIR/models.yaml"
 
 # Default configuration
-AXON_VERSION="${AXON_VERSION:-v3.1.3}"
-CORE_VERSION="${CORE_VERSION:-3.2.9-alpha}"
+AXON_VERSION="${AXON_VERSION:-v3.1.4}"
+CORE_VERSION="${CORE_VERSION:-3.2.10-alpha}"
 CORE_URL="${CORE_URL:-http://127.0.0.1:18080}"
 OUTPUT_DIR="${OUTPUT_DIR:-./model-results}"
 INSTALL_TIMEOUT="${INSTALL_TIMEOUT:-900}"  # 15 minutes
@@ -352,6 +352,69 @@ print(json.dumps({'input_ids': text_ids, 'attention_mask': text_mask, 'pixel_val
                 *)
                     # Generic multimodal fallback - return empty to force Python generator
                     echo ""
+                    ;;
+            esac
+            ;;
+        llm)
+            # LLM/GGUF models - prompt-based text generation
+            # These models use Core's llama.cpp plugin
+            case "$model_name" in
+                tinyllama)
+                    local prompt="What is the capital of France?"
+                    [ "$size" = "large" ] && prompt="Explain the theory of relativity in simple terms."
+                    local max_tokens=32
+                    [ "$size" = "large" ] && max_tokens=256
+                    python3 -c "
+import json
+print(json.dumps({
+    'prompt': '''$prompt''',
+    'max_tokens': $max_tokens,
+    'temperature': 0.7,
+    'top_p': 0.9
+}))
+"
+                    ;;
+                phi2)
+                    local prompt="Write a Python function to calculate fibonacci numbers."
+                    [ "$size" = "large" ] && prompt="Explain how neural networks learn through backpropagation."
+                    local max_tokens=64
+                    [ "$size" = "large" ] && max_tokens=256
+                    python3 -c "
+import json
+print(json.dumps({
+    'prompt': '''$prompt''',
+    'max_tokens': $max_tokens,
+    'temperature': 0.7,
+    'top_p': 0.9
+}))
+"
+                    ;;
+                qwen2-0.5b)
+                    local prompt="Hello, how are you?"
+                    [ "$size" = "large" ] && prompt="Summarize the benefits of machine learning in healthcare."
+                    local max_tokens=32
+                    [ "$size" = "large" ] && max_tokens=128
+                    python3 -c "
+import json
+print(json.dumps({
+    'prompt': '''$prompt''',
+    'max_tokens': $max_tokens,
+    'temperature': 0.7,
+    'top_p': 0.9
+}))
+"
+                    ;;
+                *)
+                    # Generic LLM fallback
+                    python3 -c "
+import json
+print(json.dumps({
+    'prompt': 'Hello, how are you?',
+    'max_tokens': 32,
+    'temperature': 0.7,
+    'top_p': 0.9
+}))
+"
                     ;;
             esac
             ;;

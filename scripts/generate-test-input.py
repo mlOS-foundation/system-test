@@ -143,7 +143,7 @@ def generate_vision_input(model_config: dict, size: str = "small") -> dict:
 def generate_multimodal_input(model_config: dict, size: str = "small") -> dict:
     """Generate multi-modal input for CLIP and similar models."""
     model_type = model_config.get("model_type", "clip")
-    
+
     if model_type == "clip":
         return generate_clip_input(model_config, size)
     elif model_type == "audio":
@@ -151,6 +151,31 @@ def generate_multimodal_input(model_config: dict, size: str = "small") -> dict:
     else:
         print(f"Warning: Unknown multimodal type '{model_type}'", file=sys.stderr)
         return {}
+
+
+def generate_llm_input(model_config: dict, size: str = "small") -> dict:
+    """Generate LLM/GGUF model input (text prompt for generation).
+
+    LLM models use the GGUF format and are executed via Core's llama.cpp plugin.
+    Input format: {"prompt": "...", "max_tokens": N, "temperature": 0.7}
+    """
+    prompts = model_config.get("prompts", {})
+    max_tokens = model_config.get("max_tokens", {})
+
+    # Get size-specific values or defaults
+    prompt = prompts.get(size, "Hello, how are you?")
+    tokens = max_tokens.get(size, 32)
+
+    # Generation parameters
+    temperature = model_config.get("temperature", 0.7)
+    top_p = model_config.get("top_p", 0.9)
+
+    return {
+        "prompt": prompt,
+        "max_tokens": tokens,
+        "temperature": temperature,
+        "top_p": top_p
+    }
 
 
 def generate_clip_input(model_config: dict, size: str = "small") -> dict:
@@ -269,6 +294,8 @@ def main():
         result = generate_vision_input(model_config, args.size)
     elif category == "multimodal":
         result = generate_multimodal_input(model_config, args.size)
+    elif category == "llm":
+        result = generate_llm_input(model_config, args.size)
     else:
         print(f"Error: Unknown category '{category}'", file=sys.stderr)
         sys.exit(1)
