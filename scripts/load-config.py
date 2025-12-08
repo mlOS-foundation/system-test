@@ -71,8 +71,10 @@ def output_bash_vars(config):
     enabled = get_enabled_models(config)
     
     print(f'# Auto-generated from config/models.yaml')
-    print(f'CONFIG_INSTALL_TIMEOUT={settings.get("install_timeout", 600)}')
-    print(f'CONFIG_INFERENCE_TIMEOUT={settings.get("inference_timeout", 60)}')
+    print(f'CONFIG_INSTALL_TIMEOUT={settings.get("install_timeout", 900)}')
+    print(f'CONFIG_LLM_INSTALL_TIMEOUT={settings.get("llm_install_timeout", 2400)}')
+    print(f'CONFIG_INFERENCE_TIMEOUT={settings.get("inference_timeout", 120)}')
+    print(f'CONFIG_LLM_INFERENCE_TIMEOUT={settings.get("llm_inference_timeout", 300)}')
     print(f'CONFIG_RUN_LARGE_TESTS={"true" if settings.get("run_large_tests", True) else "false"}')
     print(f'CONFIG_ENABLED_MODELS="{" ".join(enabled)}"')
     print(f'CONFIG_MODEL_COUNT={len(enabled)}')

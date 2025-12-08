@@ -6,11 +6,11 @@ on:
       axon_version:
         description: 'Axon version to test'
         required: false
-        default: 'v3.1.4'
+        default: 'v3.1.5'
       core_version:
         description: 'Core version to test'
         required: false
-        default: '3.2.10-alpha'
+        default: '3.2.11-alpha'
       models:
         description: |
           Models to test (comma or space separated).

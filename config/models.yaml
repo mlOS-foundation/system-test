@@ -1,13 +1,13 @@
 # MLOS E2E Test - Model Configuration
 # Add new models here to include them in test runs
 #
-# Updated: 2024-12-08 - LLM/GGUF support enabled (Core v3.2.10-alpha, Axon v3.1.4)
+# Updated: 2024-12-08 - LLM/GGUF support enabled (Core v3.2.11-alpha, Axon v3.1.5)
 # - Seq2seq + Multi-encoder support (Axon v3.1.3+, Core v3.2.9-alpha+)
 # - T5 enabled with encoder-decoder architecture support
 # - CLIP enabled with multi-encoder architecture support
 # - LLM/GGUF support fully enabled (tinyllama, phi2, qwen2-0.5b)
 #
-# Format-agnostic runtime plugin system (Core v3.2.10-alpha):
+# Format-agnostic runtime plugin system (Core v3.2.11-alpha):
 #   - ONNX (.onnx) - Built-in via ONNX Runtime
 #   - GGUF (.gguf) - llama.cpp LLM plugin (native execution)
 #   - PyTorch (.pt, .pth, .bin, .safetensors) - Auto-converted to ONNX
@@ -16,15 +16,19 @@
 #   - CoreML (.mlmodel, .mlpackage) - Plugin ready
 #
 # Release versions:
-#   - Core v3.2.10-alpha: GGUF/LLM runtime plugin (llama.cpp backend)
-#   - Axon v3.1.4: Format-agnostic model installation (GGUF detection)
+#   - Core v3.2.11-alpha: GGUF/LLM runtime plugin (llama.cpp backend) + llama.cpp in release
+#   - Axon v3.1.5: Format-agnostic model installation + GGUF download fix
 
 # Test runner settings
 settings:
   # Maximum time (seconds) to wait for model installation
-  install_timeout: 600
+  install_timeout: 900  # 15 minutes (increased for larger models)
+  # Maximum time (seconds) for LLM/GGUF model installation (large downloads)
+  llm_install_timeout: 2400  # 40 minutes for large GGUF files (500MB+)
   # Maximum time (seconds) to wait for inference
   inference_timeout: 120  # Increased for vision models (larger inputs)
+  # Maximum time (seconds) for LLM generation inference
+  llm_inference_timeout: 300  # 5 minutes for LLM text generation
   # Run large inference tests (more tokens/larger inputs)
   run_large_tests: true
   # Enable LLM generation tests (GGUF plugin ready in Core v3.2.10-alpha)
