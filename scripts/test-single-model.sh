@@ -35,7 +35,9 @@ CORE_VERSION="${CORE_VERSION:-3.2.10-alpha}"
 CORE_URL="${CORE_URL:-http://127.0.0.1:18080}"
 OUTPUT_DIR="${OUTPUT_DIR:-./model-results}"
 INSTALL_TIMEOUT="${INSTALL_TIMEOUT:-900}"  # 15 minutes
+LLM_INSTALL_TIMEOUT="${LLM_INSTALL_TIMEOUT:-2400}"  # 40 minutes for LLM/GGUF
 INFERENCE_TIMEOUT="${INFERENCE_TIMEOUT:-120}"
+LLM_INFERENCE_TIMEOUT="${LLM_INFERENCE_TIMEOUT:-300}"  # 5 minutes for LLM generation
 
 # Parse arguments
 MODEL_NAME=""
@@ -553,9 +555,17 @@ install_model() {
     
     local start_time=$(get_timestamp_ms)
 
+    # Determine install timeout based on model category
+    # LLM/GGUF models need longer timeout for large downloads (500MB+)
+    local effective_timeout="$INSTALL_TIMEOUT"
+    if [ "$CATEGORY" = "llm" ]; then
+        effective_timeout="${LLM_INSTALL_TIMEOUT:-2400}"  # 40 minutes for LLM
+        log "  Using LLM install timeout: ${effective_timeout}s (GGUF download)"
+    fi
+
     # Run installation with timeout
-    log "  Running: $axon_cmd install $AXON_ID"
-    if run_with_timeout "$INSTALL_TIMEOUT" "$axon_cmd" install "$AXON_ID" >> "$LOG_FILE" 2>&1; then
+    log "  Running: $axon_cmd install $AXON_ID (timeout: ${effective_timeout}s)"
+    if run_with_timeout "$effective_timeout" "$axon_cmd" install "$AXON_ID" >> "$LOG_FILE" 2>&1; then
         local end_time=$(get_timestamp_ms)
         local install_time=$(measure_time $start_time $end_time)
         

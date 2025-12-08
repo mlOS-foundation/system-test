@@ -22,9 +22,13 @@
 # Test runner settings
 settings:
   # Maximum time (seconds) to wait for model installation
-  install_timeout: 600
+  install_timeout: 900  # 15 minutes (increased for larger models)
+  # Maximum time (seconds) for LLM/GGUF model installation (large downloads)
+  llm_install_timeout: 2400  # 40 minutes for large GGUF files (500MB+)
   # Maximum time (seconds) to wait for inference
   inference_timeout: 120  # Increased for vision models (larger inputs)
+  # Maximum time (seconds) for LLM generation inference
+  llm_inference_timeout: 300  # 5 minutes for LLM text generation
   # Run large inference tests (more tokens/larger inputs)
   run_large_tests: true
   # Enable LLM generation tests (GGUF plugin ready in Core v3.2.10-alpha)
