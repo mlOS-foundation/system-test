@@ -517,11 +517,12 @@ install_model() {
     # For single-file models: model.onnx
     # For multi-encoder models (CLIP): onnx_manifest.json
     # For encoder-decoder models (T5): encoder_model.onnx, decoder_model.onnx, etc.
+    # For LLM/GGUF models: *.gguf files
     local model_dir="$HOME/.axon/cache/models/${AXON_ID%@*}/${AXON_ID##*@}"
     local model_path="$model_dir/model.onnx"
     local manifest_path="$model_dir/onnx_manifest.json"
     local encoder_path="$model_dir/encoder_model.onnx"
-    
+
     if [ -f "$model_path" ]; then
         log "✅ Model already installed at: $model_path"
         update_result "install" "success" 0
@@ -534,6 +535,16 @@ install_model() {
         log "✅ Encoder-decoder model already installed (encoder at: $encoder_path)"
         update_result "install" "success" 0
         return 0
+    fi
+
+    # Check for GGUF files (LLM models)
+    if [ "$CATEGORY" = "llm" ] && [ -d "$model_dir" ]; then
+        local gguf_file=$(find "$model_dir" -name "*.gguf" -type f 2>/dev/null | head -1)
+        if [ -n "$gguf_file" ]; then
+            log "✅ GGUF model already installed at: $gguf_file"
+            update_result "install" "success" 0
+            return 0
+        fi
     fi
     
     # Ensure Axon is available
@@ -589,56 +600,78 @@ install_model() {
             log "✅ Encoder-decoder model installed successfully (encoder at: $encoder_path, ${install_time}ms)"
             update_result "install" "success" "$install_time"
             return 0
-        else
-            # Search for model - use the model name (without hf/ prefix and @version suffix)
-            # For hf/google/vit-base-patch16-224@latest, search for *vit-base-patch16-224*
-            local model_name_for_search="${AXON_ID#hf/}"        # Remove hf/ prefix
-            model_name_for_search="${model_name_for_search%@*}"  # Remove @version suffix  
-            model_name_for_search="${model_name_for_search##*/}" # Get last component (actual model name)
-            
-            # Search for single-file model
-            local found_model=$(find "$HOME/.axon/cache/models" -name "model.onnx" -path "*${model_name_for_search}*" 2>/dev/null | head -1)
-            if [ -n "$found_model" ]; then
-                log "✅ Model found at: $found_model (${install_time}ms)"
-                update_result "install" "success" "$install_time"
-                cleanup_model_files "$found_model"
-                return 0
-            fi
-            
-            # Search for multi-encoder manifest
-            local found_manifest=$(find "$HOME/.axon/cache/models" -name "onnx_manifest.json" -path "*${model_name_for_search}*" 2>/dev/null | head -1)
-            if [ -n "$found_manifest" ]; then
-                log "✅ Multi-encoder model found (manifest at: $found_manifest, ${install_time}ms)"
-                update_result "install" "success" "$install_time"
-                return 0
-            fi
-            
-            # Search for encoder-decoder files (T5, BART, etc.)
-            local found_encoder=$(find "$HOME/.axon/cache/models" -name "encoder_model.onnx" -path "*${model_name_for_search}*" 2>/dev/null | head -1)
-            if [ -n "$found_encoder" ]; then
-                log "✅ Encoder-decoder model found (encoder at: $found_encoder, ${install_time}ms)"
-                update_result "install" "success" "$install_time"
-                return 0
-            fi
-            
-            # List what files were actually created for debugging
-            if [ -d "$model_dir" ]; then
-                log_error "Model directory exists but no ONNX files found: $model_dir"
-                log_error "Files in directory:"
-                ls -la "$model_dir" 2>/dev/null | head -20 | while read line; do
-                    log_error "  $line"
-                done || true
-            fi
-            
-            log_error "Model file not found after installation"
-            log_error "Expected one of:"
-            log_error "  - $model_path (single-file model)"
-            log_error "  - $manifest_path (multi-encoder manifest)"
-            log_error "  - $encoder_path (encoder-decoder model)"
-            log_error "Searched for: *${model_name_for_search}*"
-            update_result "install" "failed" "$install_time" "Model file not found"
-            return 1
         fi
+
+        # Check for GGUF files (LLM models)
+        if [ "$CATEGORY" = "llm" ] && [ -d "$model_dir" ]; then
+            local gguf_file=$(find "$model_dir" -name "*.gguf" -type f 2>/dev/null | head -1)
+            if [ -n "$gguf_file" ]; then
+                log "✅ GGUF model installed successfully at: $gguf_file (${install_time}ms)"
+                update_result "install" "success" "$install_time"
+                return 0
+            fi
+        fi
+
+        # Fallback search for models not found in expected locations
+        # Search for model - use the model name (without hf/ prefix and @version suffix)
+        # For hf/google/vit-base-patch16-224@latest, search for *vit-base-patch16-224*
+        local model_name_for_search="${AXON_ID#hf/}"        # Remove hf/ prefix
+        model_name_for_search="${model_name_for_search%@*}"  # Remove @version suffix
+        model_name_for_search="${model_name_for_search##*/}" # Get last component (actual model name)
+
+        # Search for single-file model
+        local found_model=$(find "$HOME/.axon/cache/models" -name "model.onnx" -path "*${model_name_for_search}*" 2>/dev/null | head -1)
+        if [ -n "$found_model" ]; then
+            log "✅ Model found at: $found_model (${install_time}ms)"
+            update_result "install" "success" "$install_time"
+            cleanup_model_files "$found_model"
+            return 0
+        fi
+
+        # Search for multi-encoder manifest
+        local found_manifest=$(find "$HOME/.axon/cache/models" -name "onnx_manifest.json" -path "*${model_name_for_search}*" 2>/dev/null | head -1)
+        if [ -n "$found_manifest" ]; then
+            log "✅ Multi-encoder model found (manifest at: $found_manifest, ${install_time}ms)"
+            update_result "install" "success" "$install_time"
+            return 0
+        fi
+
+        # Search for encoder-decoder files (T5, BART, etc.)
+        local found_encoder=$(find "$HOME/.axon/cache/models" -name "encoder_model.onnx" -path "*${model_name_for_search}*" 2>/dev/null | head -1)
+        if [ -n "$found_encoder" ]; then
+            log "✅ Encoder-decoder model found (encoder at: $found_encoder, ${install_time}ms)"
+            update_result "install" "success" "$install_time"
+            return 0
+        fi
+
+        # Search for GGUF files (LLM models)
+        if [ "$CATEGORY" = "llm" ]; then
+            local found_gguf=$(find "$HOME/.axon/cache/models" -name "*.gguf" -path "*${model_name_for_search}*" 2>/dev/null | head -1)
+            if [ -n "$found_gguf" ]; then
+                log "✅ GGUF model found at: $found_gguf (${install_time}ms)"
+                update_result "install" "success" "$install_time"
+                return 0
+            fi
+        fi
+
+        # List what files were actually created for debugging
+        if [ -d "$model_dir" ]; then
+            log_error "Model directory exists but no model files found: $model_dir"
+            log_error "Files in directory:"
+            ls -la "$model_dir" 2>/dev/null | head -20 | while read line; do
+                log_error "  $line"
+            done || true
+        fi
+
+        log_error "Model file not found after installation"
+        log_error "Expected one of:"
+        log_error "  - $model_path (single-file ONNX model)"
+        log_error "  - $manifest_path (multi-encoder ONNX manifest)"
+        log_error "  - $encoder_path (encoder-decoder ONNX model)"
+        log_error "  - *.gguf (LLM/GGUF model)"
+        log_error "Searched for: *${model_name_for_search}*"
+        update_result "install" "failed" "$install_time" "Model file not found"
+        return 1
     else
         local exit_code=$?
         local end_time=$(get_timestamp_ms)
