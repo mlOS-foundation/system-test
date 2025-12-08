@@ -243,3 +243,51 @@ models:
     test_seed: 42
     required_inputs: ["input_values"]
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LLM Models (GGUF Format)
+  # ═══════════════════════════════════════════════════════════════════════════
+  # These models use the GGUF format and are executed via Core's llama.cpp plugin.
+  # Input format: {"prompt": "...", "max_tokens": N, "temperature": 0.7}
+
+  tinyllama:
+    category: llm
+    format: gguf
+    prompts:
+      small: "What is the capital of France?"
+      medium: "Explain how computers work in simple terms."
+      large: "Write a detailed explanation of the theory of relativity and its implications for modern physics."
+    max_tokens:
+      small: 32
+      medium: 128
+      large: 256
+    temperature: 0.7
+    top_p: 0.9
+
+  phi2:
+    category: llm
+    format: gguf
+    prompts:
+      small: "Write a Python function to calculate fibonacci numbers."
+      medium: "Explain the concept of recursion in programming with examples."
+      large: "Explain how neural networks learn through backpropagation, including the mathematical foundations."
+    max_tokens:
+      small: 64
+      medium: 256
+      large: 512
+    temperature: 0.7
+    top_p: 0.9
+
+  qwen2-0.5b:
+    category: llm
+    format: gguf
+    prompts:
+      small: "Hello, how are you?"
+      medium: "What are the benefits of machine learning in healthcare?"
+      large: "Summarize the key developments in artificial intelligence over the past decade and predict future trends."
+    max_tokens:
+      small: 32
+      medium: 128
+      large: 256
+    temperature: 0.7
+    top_p: 0.9
+
