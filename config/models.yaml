@@ -1,13 +1,14 @@
 # MLOS E2E Test - Model Configuration
 # Add new models here to include them in test runs
 #
-# Updated: 2024-12-08 - LLM/GGUF support enabled (Core v3.2.12-alpha, Axon v3.1.6)
+# Updated: 2024-12-09 - execution_files manifest support (Core v3.2.13-alpha, Axon v3.1.7)
 # - Seq2seq + Multi-encoder support (Axon v3.1.6+, Core v3.2.9-alpha+)
 # - T5 enabled with encoder-decoder architecture support
 # - CLIP enabled with multi-encoder architecture support
 # - LLM/GGUF support fully enabled (tinyllama, phi2, qwen2-0.5b)
+# - execution_files: Explicit model paths in manifest (no directory guessing)
 #
-# Format-agnostic runtime plugin system (Core v3.2.12-alpha):
+# Format-agnostic runtime plugin system (Core v3.2.13-alpha):
 #   - ONNX (.onnx) - Built-in via ONNX Runtime
 #   - GGUF (.gguf) - llama.cpp LLM plugin (native execution)
 #   - PyTorch (.pt, .pth, .bin, .safetensors) - Auto-converted to ONNX
@@ -16,8 +17,8 @@
 #   - CoreML (.mlmodel, .mlpackage) - Plugin ready
 #
 # Release versions:
-#   - Core v3.2.12-alpha: GGUF/LLM runtime plugin (llama.cpp backend) + llama.cpp in release
-#   - Axon v3.1.6: Format-agnostic model installation + GGUF download fix
+#   - Core v3.2.13-alpha: execution_files manifest support + GGUF/LLM runtime
+#   - Axon v3.1.7: execution_files in manifest for explicit model paths
 
 # Test runner settings
 settings:
