@@ -276,11 +276,12 @@ jobs:
             echo "✅ Downloaded via gh CLI"
             tar -xzf "/tmp/$ARTIFACT" -C ~/mlos-core
           else
-            # Fallback to core-releases (uses v-prefixed version in artifact name)
+            # Fallback to core-releases public repo
+            # Release tag has v-prefix (v3.2.12-alpha) but filename does NOT (mlos-core_3.2.12-alpha_...)
             RELEASE_TAG="v${VERSION}"
             [[ "$VERSION" =~ ^v ]] && RELEASE_TAG="$VERSION"
-            # core-releases uses v-prefix in artifact name: mlos-core_v3.2.12-alpha_linux-amd64.tar.gz
-            RELEASE_ARTIFACT="mlos-core_${RELEASE_TAG}_${OS}-${ARCH}.tar.gz"
+            VERSION_NO_V="${VERSION#v}"
+            RELEASE_ARTIFACT="mlos-core_${VERSION_NO_V}_${OS}-${ARCH}.tar.gz"
             URL="https://github.com/mlOS-foundation/core-releases/releases/download/${RELEASE_TAG}/${RELEASE_ARTIFACT}"
             echo "📥 Trying curl from: $URL"
             if curl -L -f -o "/tmp/core.tar.gz" "$URL" 2>/dev/null; then
