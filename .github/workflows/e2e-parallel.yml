@@ -346,9 +346,19 @@ jobs:
           
           echo "📍 Found Core binary: $BINARY"
           chmod +x "$BINARY"
-          
-          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:$LD_LIBRARY_PATH"
+
+          # Find llama.cpp libs (in release package or extracted dir)
+          BINARY_DIR=$(dirname "$BINARY")
+          LLAMA_LIB=""
+          if [ -d "$BINARY_DIR/llama.cpp/lib" ]; then
+            LLAMA_LIB="$BINARY_DIR/llama.cpp/lib"
+          elif [ -d "$(pwd)/llama.cpp/lib" ]; then
+            LLAMA_LIB="$(pwd)/llama.cpp/lib"
+          fi
+
+          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "📚 Library paths: ONNX=$(pwd)/build/onnxruntime/lib, llama.cpp=${LLAMA_LIB:-not found}"
           
           # Start Core in background
           nohup $BINARY --http-port 18080 > /tmp/core.log 2>&1 &
