@@ -1,0 +1,294 @@
+# MLOS Kernel Module Benchmark Configuration
+# This configuration defines the comprehensive benchmark suite for comparing
+# MLOS kernel module performance against baseline ML inference systems.
+
+# Hardware Configuration (update for your test environment)
+hardware:
+  gpu:
+    model: "NVIDIA RTX 4090"  # or "A100", "H100", "RTX 3090"
+    memory_gb: 24
+    driver_version: "550.x"
+    cuda_version: "12.4"
+  cpu:
+    model: "AMD Ryzen 9 7950X"  # or "Intel Xeon"
+    cores: 16
+    threads: 32
+  memory_gb: 64
+  storage: "NVMe SSD"
+  os: "Ubuntu 22.04 LTS"
+  kernel: "6.8.0"
+
+# Baseline Systems to Compare Against
+baselines:
+  pytorch:
+    enabled: true
+    version: "2.2.0"
+    description: "Direct PyTorch inference (no serving framework)"
+
+  onnxruntime:
+    enabled: true
+    version: "1.17.0"
+    providers: ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    description: "Microsoft ONNX Runtime with GPU acceleration"
+
+  triton:
+    enabled: true
+    version: "24.01"
+    description: "NVIDIA Triton Inference Server"
+    config:
+      dynamic_batching: true
+      max_batch_size: 64
+
+  vllm:
+    enabled: true
+    version: "0.3.0"
+    description: "vLLM with PagedAttention (LLM-optimized)"
+    config:
+      tensor_parallel_size: 1
+      gpu_memory_utilization: 0.9
+
+  llamacpp:
+    enabled: true
+    version: "b2000+"
+    description: "llama.cpp (CPU/GPU LLM inference)"
+    config:
+      n_gpu_layers: -1  # All layers on GPU
+
+# MLOS Configurations
+mlos:
+  userspace:
+    enabled: true
+    description: "MLOS Core (userspace only, current implementation)"
+    version: "v3.2.14-alpha"
+
+  kernel_basic:
+    enabled: true
+    description: "MLOS Kernel Module - Memory Manager only"
+    module_options:
+      enable_tmm: true
+      enable_scheduler: false
+      enable_gpu_manager: false
+
+  kernel_sched:
+    enabled: true
+    description: "MLOS Kernel Module - Memory + Scheduler"
+    module_options:
+      enable_tmm: true
+      enable_scheduler: true
+      enable_gpu_manager: false
+
+  kernel_full:
+    enabled: true
+    description: "MLOS Kernel Module - All features"
+    module_options:
+      enable_tmm: true
+      enable_scheduler: true
+      enable_gpu_manager: true
+      preemption_enabled: true
+
+  kernel_tuned:
+    enabled: true
+    description: "MLOS Kernel Module - Tuned for specific workload"
+    module_options:
+      enable_tmm: true
+      enable_scheduler: true
+      enable_gpu_manager: true
+      preemption_enabled: true
+      prefetch_depth: 3
+      defrag_threshold: 0.15
+
+# Models to Benchmark
+models:
+  # NLP Models
+  bert_base:
+    category: nlp
+    enabled: true
+    hf_id: "bert-base-uncased"
+    description: "BERT base (110M params)"
+    batch_sizes: [1, 8, 32, 64]
+    sequence_lengths: [128, 256, 512]
+
+  gpt2:
+    category: nlp
+    enabled: true
+    hf_id: "gpt2"
+    description: "GPT-2 (124M params)"
+    batch_sizes: [1, 4, 16]
+    sequence_lengths: [256, 512, 1024]
+
+  t5_small:
+    category: nlp
+    enabled: true
+    hf_id: "t5-small"
+    description: "T5 small seq2seq (60M params)"
+    batch_sizes: [1, 8, 32]
+    sequence_lengths: [128, 256]
+
+  # LLM Models (GGUF)
+  qwen2_0_5b:
+    category: llm
+    enabled: true
+    gguf_id: "Qwen/Qwen2-0.5B-Instruct-GGUF"
+    description: "Qwen2 0.5B (smallest LLM)"
+    batch_sizes: [1, 4]
+    generation_lengths: [64, 256]
+
+  tinyllama:
+    category: llm
+    enabled: true
+    gguf_id: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"
+    description: "TinyLlama 1.1B"
+    batch_sizes: [1, 2]
+    generation_lengths: [64, 256]
+
+  llama_3_2_1b:
+    category: llm
+    enabled: true
+    gguf_id: "bartowski/Llama-3.2-1B-Instruct-GGUF"
+    description: "Llama 3.2 1B"
+    batch_sizes: [1, 2]
+    generation_lengths: [64, 256, 512]
+
+  # Vision Models
+  resnet50:
+    category: vision
+    enabled: true
+    hf_id: "microsoft/resnet-50"
+    description: "ResNet-50 (25M params)"
+    batch_sizes: [1, 8, 32, 64, 128]
+    image_sizes: [224, 384]
+
+  vit_base:
+    category: vision
+    enabled: true
+    hf_id: "google/vit-base-patch16-224"
+    description: "ViT base (86M params)"
+    batch_sizes: [1, 8, 32, 64]
+    image_sizes: [224]
+
+# Benchmark Workloads
+workloads:
+  # Latency Test: Measure response time distribution
+  latency:
+    enabled: true
+    description: "Single-request latency measurement"
+    config:
+      duration_seconds: 300
+      warmup_seconds: 30
+      warmup_iterations: 100
+      request_rate_rps: 10  # Low rate for accurate latency
+      concurrency: 1
+    metrics:
+      - latency_p50_ms
+      - latency_p90_ms
+      - latency_p95_ms
+      - latency_p99_ms
+      - latency_p999_ms
+      - latency_mean_ms
+      - latency_std_ms
+
+  # Throughput Test: Maximum sustainable requests/sec
+  throughput:
+    enabled: true
+    description: "Maximum throughput measurement"
+    config:
+      duration_seconds: 600
+      warmup_seconds: 60
+      target_gpu_utilization: 0.9
+      concurrency: 32
+      ramp_up_seconds: 30
+    metrics:
+      - requests_per_second
+      - tokens_per_second  # For LLMs
+      - gpu_utilization_avg
+      - gpu_utilization_max
+      - cpu_utilization_avg
+
+  # Memory Test: Allocation efficiency and fragmentation
+  memory:
+    enabled: true
+    description: "Memory efficiency measurement"
+    config:
+      duration_seconds: 300
+      allocation_patterns: ["sequential", "random", "interleaved"]
+      multi_model_count: 5
+    metrics:
+      - memory_allocated_mb
+      - memory_used_mb
+      - memory_wasted_mb
+      - memory_fragmentation_pct
+      - memory_peak_mb
+      - allocation_time_us
+      - deallocation_time_us
+
+  # Cold Start Test: Time to first inference
+  cold_start:
+    enabled: true
+    description: "Cold start time measurement"
+    config:
+      iterations: 100
+      clear_cache: true
+      clear_gpu_memory: true
+    metrics:
+      - cold_start_total_ms
+      - model_load_ms
+      - graph_optimization_ms
+      - first_inference_ms
+
+  # Multi-Model Test: Concurrent model serving
+  multi_model:
+    enabled: true
+    description: "Multi-model concurrent serving"
+    config:
+      concurrent_models: 4
+      request_distribution: "uniform"  # or "skewed_80_20"
+      duration_seconds: 300
+      priority_mix:
+        realtime: 0.1
+        high: 0.2
+        normal: 0.5
+        batch: 0.2
+    metrics:
+      - latency_by_priority
+      - throughput_aggregate
+      - model_switch_time_us
+      - memory_per_model_mb
+      - isolation_score  # 0-1, higher is better isolation
+
+  # Stress Test: Sustained high load
+  stress:
+    enabled: true
+    description: "24-hour stress test"
+    config:
+      duration_hours: 24
+      target_utilization: 0.85
+      monitor_interval_seconds: 60
+    metrics:
+      - uptime_pct
+      - error_rate
+      - latency_degradation_pct
+      - memory_leak_mb_per_hour
+      - thermal_throttle_events
+
+# Output Configuration
+output:
+  results_dir: "results"
+  format: "json"  # Also generates CSV summary
+  timestamps: true
+  include_raw_data: true
+  generate_plots: true
+
+# Report Generation
+report:
+  enabled: true
+  template: "kernel_benchmark_report"
+  output_formats: ["html", "pdf", "markdown"]
+  include_sections:
+    - executive_summary
+    - methodology
+    - hardware_config
+    - baseline_results
+    - mlos_results
+    - comparative_analysis
+    - roi_analysis
+    - recommendations
