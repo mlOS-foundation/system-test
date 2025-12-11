@@ -265,11 +265,11 @@ make serve
 | | SegFormer | ⏳ Disabled | Requires mask output handling |
 | **Multimodal** | CLIP | ✅ Enabled | Image-text matching (Multi-encoder) |
 | | Wav2Vec2 | ⏳ Disabled | Pending audio model support |
-| **LLM** | TinyLlama-1.1B | ✅ Enabled | GGUF format, llama.cpp runtime |
-| | Qwen2-0.5B | ✅ Enabled | Smallest LLM (~380MB), CI-ready |
-| | Llama-3.2-1B | ⏳ Local | Meta's latest 1B model (~700MB) |
+| **LLM** | Qwen2-0.5B | ✅ Enabled | Smallest LLM (~380MB), CI-ready |
+| | TinyLlama-1.1B | ✅ Enabled | GGUF format, llama.cpp runtime |
+| | Llama-3.2-1B | ✅ Enabled | Meta's latest 1B model (~700MB) |
+| | DeepSeek-Coder-1.3B | ✅ Enabled | Code generation (~750MB) |
 | | Llama-3.2-3B | ⏳ Local | Best quality/size (~1.8GB) |
-| | DeepSeek-Coder-1.3B | ⏳ Local | Code generation (~750MB) |
 | | DeepSeek-LLM-7B | ⏳ Local | High-quality 7B (~4GB) |
 | | Phi-2 | ⏳ Local | Microsoft 2.7B (~1.6GB) |
 
@@ -288,8 +288,8 @@ LLM models are fully supported via the GGUF runtime plugin:
 - **Core v3.2.14-alpha+**: llama.cpp runtime plugin for native GGUF execution
 - **Quantization**: All models use Q4_K_M for optimal quality/size balance
 
-**CI-Enabled Models**: Qwen2-0.5B (~380MB), TinyLlama-1.1B (~637MB)
-**Local-Only Models**: Llama 3.2, DeepSeek, Phi-2 (larger downloads)
+**CI-Enabled Models**: Qwen2-0.5B (~380MB), TinyLlama-1.1B (~637MB), Llama-3.2-1B (~700MB), DeepSeek-Coder-1.3B (~750MB)
+**Local-Only Models**: Llama-3.2-3B, DeepSeek-LLM-7B, Phi-2 (larger downloads)
 
 ## 📖 Documentation
 
