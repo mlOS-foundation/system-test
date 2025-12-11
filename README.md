@@ -291,6 +291,56 @@ LLM models are fully supported via the GGUF runtime plugin:
 **CI-Enabled Models**: Qwen2-0.5B (~380MB), TinyLlama-1.1B (~637MB), Llama-3.2-1B (~700MB), DeepSeek-Coder-1.3B (~750MB)
 **Local-Only Models**: Llama-3.2-3B, DeepSeek-LLM-7B, Phi-2 (larger downloads)
 
+## 🔧 Runtime Modes
+
+MLOS Core supports multiple runtime modes depending on the system configuration. The E2E test report now displays which mode was used during testing.
+
+### Available Runtime Modes
+
+| Mode | Description | Target Performance | Requirements |
+|------|-------------|-------------------|--------------|
+| **Userspace Only** | Pure userspace execution using ONNX Runtime and llama.cpp | Baseline | None (works on all systems) |
+| **Kernel Basic** | Kernel module with memory manager | Improved latency (target TBD) | mlos-ml kernel module |
+| **Kernel Scheduler** | Kernel module with ML-aware scheduler | Further improvements (target TBD) | mlos-ml kernel module + scheduler |
+| **Kernel Full** | Full kernel optimization (memory + scheduler + GPU) | Maximum performance (target TBD) | mlos-ml kernel module (full config) |
+
+> **Note**: Performance targets are under active benchmarking. Stay tuned for validated numbers from E2E testing with kernel module enabled.
+
+### Mode Detection
+
+The runtime mode is automatically detected at Core startup:
+
+```bash
+# Check if kernel module is loaded
+lsmod | grep mlos_ml
+
+# Check kernel module parameters (Linux only)
+cat /sys/module/mlos_ml/parameters/enable_scheduler
+cat /sys/module/mlos_ml/parameters/enable_gpu_manager
+```
+
+### CI vs Local Testing
+
+| Environment | Typical Mode | Notes |
+|-------------|--------------|-------|
+| **GitHub Actions** | Userspace Only | No kernel module available |
+| **Local (macOS)** | Userspace Only | Kernel module not supported |
+| **Local (Linux)** | Kernel Basic+ | With kernel module installed |
+| **MLOS Linux Distro** | Kernel Full | Pre-configured for maximum performance |
+
+### Interpreting Test Results
+
+When viewing E2E reports, the **Runtime Mode** card in the "Release Versions" section indicates which mode was active:
+
+- **"Userspace Only (No Kernel Optimizations)"**: Tests ran without kernel acceleration
+- **"Kernel Module (Memory Manager)"**: Basic kernel optimizations active
+- **"Kernel Module (Full: Memory, Scheduler, GPU)"**: All kernel features enabled
+
+This helps you understand:
+1. Whether tests represent baseline or optimized performance
+2. Expected performance improvements when deploying with kernel module
+3. Which features were available during validation
+
 ## 📖 Documentation
 
 For detailed information about the E2E testing system:
