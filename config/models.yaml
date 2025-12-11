@@ -1,11 +1,11 @@
 # MLOS E2E Test - Model Configuration
 # Add new models here to include them in test runs
 #
-# Updated: 2024-12-09 - execution_files manifest support (Core v3.2.13-alpha, Axon v3.1.7)
+# Updated: 2024-12-11 - Extended LLM support (Core v3.2.14-alpha, Axon v3.1.7)
 # - Seq2seq + Multi-encoder support (Axon v3.1.6+, Core v3.2.9-alpha+)
-# - T5 enabled with encoder-decoder architecture support
+# - T5 enabled with encoder-decoder architecture support (fixed in v3.2.14-alpha)
 # - CLIP enabled with multi-encoder architecture support
-# - LLM/GGUF support fully enabled (tinyllama, phi2, qwen2-0.5b)
+# - LLM/GGUF support with top models: Qwen2, Llama 3.2, DeepSeek, TinyLlama, Phi-2
 # - execution_files: Explicit model paths in manifest (no directory guessing)
 #
 # Format-agnostic runtime plugin system (Core v3.2.13-alpha):
@@ -17,7 +17,7 @@
 #   - CoreML (.mlmodel, .mlpackage) - Plugin ready
 #
 # Release versions:
-#   - Core v3.2.13-alpha: execution_files manifest support + GGUF/LLM runtime
+#   - Core v3.2.14-alpha: T5 seq2seq fix + GGUF/LLM runtime
 #   - Axon v3.1.7: execution_files in manifest for explicit model paths
 
 # Test runner settings
@@ -289,23 +289,99 @@ models:
       max_tokens: 256
 
   qwen2-0.5b:
-    enabled: false  # Disabled for initial release. Enable for extended testing.
+    enabled: true  # Enabled: Tested and working. Smallest GGUF model (~380MB)
     category: llm
     format: gguf
     axon_id: "hf/Qwen/Qwen2-0.5B-Instruct-GGUF@latest"
     model_file: "qwen2-0_5b-instruct-q4_k_m.gguf"
-    description: "Qwen2 0.5B - Ultra-small instruction-tuned model"
+    description: "Qwen2 0.5B - Ultra-small instruction-tuned model (Alibaba)"
     input_type: text_generation
-    notes: "Ready for GGUF execution. 4-bit quantized (~400MB) - Good for CI testing"
+    notes: "Tested working. 4-bit quantized (~380MB) - Smallest viable LLM for CI"
     parameters:
       context_length: 32768
       quantization: "Q4_K_M"
     small_input:
-      prompt: "Hello, how are you?"
+      prompt: "What is 2+2?"
       max_tokens: 32
     large_input:
       prompt: "Summarize the benefits of machine learning in healthcare."
       max_tokens: 128
+
+  llama-3.2-1b:
+    enabled: false  # Disabled: Enable for extended LLM testing (~700MB)
+    category: llm
+    format: gguf
+    axon_id: "hf/bartowski/Llama-3.2-1B-Instruct-GGUF@latest"
+    model_file: "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+    description: "Meta Llama 3.2 1B - Latest small model optimized for mobile"
+    input_type: text_generation
+    notes: "Meta's latest 1B model (Dec 2024). 4-bit quantized (~700MB)"
+    parameters:
+      context_length: 131072
+      quantization: "Q4_K_M"
+    small_input:
+      prompt: "What is the capital of France?"
+      max_tokens: 32
+    large_input:
+      prompt: "Explain quantum computing in simple terms."
+      max_tokens: 256
+
+  llama-3.2-3b:
+    enabled: false  # Disabled: Larger model (~1.8GB). Enable for local testing.
+    category: llm
+    format: gguf
+    axon_id: "hf/bartowski/Llama-3.2-3B-Instruct-GGUF@latest"
+    model_file: "Llama-3.2-3B-Instruct-Q4_K_M.gguf"
+    description: "Meta Llama 3.2 3B - Excellent quality/size ratio"
+    input_type: text_generation
+    notes: "Meta's latest 3B model. Best small-model quality. 4-bit quantized (~1.8GB)"
+    parameters:
+      context_length: 131072
+      quantization: "Q4_K_M"
+    small_input:
+      prompt: "Write a haiku about artificial intelligence."
+      max_tokens: 64
+    large_input:
+      prompt: "Explain the difference between machine learning and deep learning."
+      max_tokens: 256
+
+  deepseek-coder-1.3b:
+    enabled: false  # Disabled: Code-focused model (~750MB). Enable for code testing.
+    category: llm
+    format: gguf
+    axon_id: "hf/TheBloke/deepseek-coder-1.3b-instruct-GGUF@latest"
+    model_file: "deepseek-coder-1.3b-instruct.Q4_K_M.gguf"
+    description: "DeepSeek Coder 1.3B - Code generation specialist"
+    input_type: text_generation
+    notes: "Code-focused LLM from DeepSeek. 4-bit quantized (~750MB)"
+    parameters:
+      context_length: 16384
+      quantization: "Q4_K_M"
+    small_input:
+      prompt: "Write a Python function to reverse a string."
+      max_tokens: 64
+    large_input:
+      prompt: "Implement a binary search tree in Python with insert and search methods."
+      max_tokens: 256
+
+  deepseek-llm-7b:
+    enabled: false  # Disabled: Full 7B model (~4GB). Enable for high-quality testing.
+    category: llm
+    format: gguf
+    axon_id: "hf/TheBloke/deepseek-llm-7B-chat-GGUF@latest"
+    model_file: "deepseek-llm-7b-chat.Q4_K_M.gguf"
+    description: "DeepSeek LLM 7B Chat - High-quality open model"
+    input_type: text_generation
+    notes: "DeepSeek's flagship 7B chat model. 4-bit quantized (~4GB) - Local testing only"
+    parameters:
+      context_length: 4096
+      quantization: "Q4_K_M"
+    small_input:
+      prompt: "What are the main features of DeepSeek models?"
+      max_tokens: 64
+    large_input:
+      prompt: "Compare and contrast transformer architectures with RNN architectures."
+      max_tokens: 256
 
   # =============================================================================
   # Additional NLP Models (Encoder-only, smaller variants)
