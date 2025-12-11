@@ -12,7 +12,7 @@ on:
       core_version:
         description: 'Core version to test'
         required: false
-        default: '3.1.6-alpha'
+        default: '4.0.0-alpha'
 
 permissions:
   contents: write
@@ -75,7 +75,7 @@ jobs:
         id: versions
         run: |
           AXON_VERSION="${{ github.event.inputs.axon_version || 'v3.1.6' }}"
-          CORE_VERSION="${{ github.event.inputs.core_version || '3.2.12-alpha' }}"
+          CORE_VERSION="${{ github.event.inputs.core_version || '4.0.0-alpha' }}"
           echo "axon=$AXON_VERSION" >> $GITHUB_OUTPUT
           echo "core=$CORE_VERSION" >> $GITHUB_OUTPUT
       

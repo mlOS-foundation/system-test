@@ -230,7 +230,7 @@ make serve
 
 ### Current Tested Versions
 - **Axon**: v3.1.7 (Seq2seq + Multi-encoder + GGUF support)
-- **Core**: v3.2.14-alpha (T5 seq2seq fix + GGUF/LLM runtime)
+- **Core**: v4.0.0-alpha (Kernel module support + GGUF/LLM runtime)
 
 ### Supported Formats (Core PR #39)
 
@@ -285,7 +285,7 @@ Standard ImageNet input (224×224×3 RGB) works out of the box.
 
 LLM models are fully supported via the GGUF runtime plugin:
 - **Axon v3.1.7+**: Direct GGUF download, format detection, execution_files manifest
-- **Core v3.2.14-alpha+**: llama.cpp runtime plugin for native GGUF execution
+- **Core v4.0.0-alpha+**: llama.cpp runtime plugin for native GGUF execution
 - **Quantization**: All models use Q4_K_M for optimal quality/size balance
 
 **CI-Enabled Models**: Qwen2-0.5B (~380MB), TinyLlama-1.1B (~637MB), Llama-3.2-1B (~700MB), DeepSeek-Coder-1.3B (~750MB)

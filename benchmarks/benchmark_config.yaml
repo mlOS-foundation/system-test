@@ -59,7 +59,7 @@ mlos:
   userspace:
     enabled: true
     description: "MLOS Core (userspace only, current implementation)"
-    version: "v3.2.14-alpha"
+    version: "v4.0.0-alpha"
 
   kernel_basic:
     enabled: true

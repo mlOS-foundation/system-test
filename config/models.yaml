@@ -1,9 +1,9 @@
 # MLOS E2E Test - Model Configuration
 # Add new models here to include them in test runs
 #
-# Updated: 2024-12-11 - Extended LLM support (Core v3.2.14-alpha, Axon v3.1.7)
+# Updated: 2024-12-11 - Extended LLM support (Core v4.0.0-alpha, Axon v3.1.7)
 # - Seq2seq + Multi-encoder support (Axon v3.1.6+, Core v3.2.9-alpha+)
-# - T5 enabled with encoder-decoder architecture support (fixed in v3.2.14-alpha)
+# - T5 enabled with encoder-decoder architecture support (fixed in v3.2.14-alpha, v4.0.0-alpha)
 # - CLIP enabled with multi-encoder architecture support
 # - LLM/GGUF support with top models: Qwen2, Llama 3.2, DeepSeek, TinyLlama, Phi-2
 # - execution_files: Explicit model paths in manifest (no directory guessing)
@@ -17,7 +17,7 @@
 #   - CoreML (.mlmodel, .mlpackage) - Plugin ready
 #
 # Release versions:
-#   - Core v3.2.14-alpha: T5 seq2seq fix + GGUF/LLM runtime
+#   - Core v4.0.0-alpha: Kernel module + T5 seq2seq + GGUF/LLM runtime
 #   - Axon v3.1.7: execution_files in manifest for explicit model paths
 
 # Test runner settings
