@@ -337,13 +337,13 @@ jobs:
             # Try nested directory
             BINARY=$(find . -type f -executable -name "mlos_core" 2>/dev/null | head -1)
           fi
-          
+
           if [ -z "$BINARY" ]; then
             echo "❌ Core binary not found"
             find . -type f -name "*mlos*" 2>/dev/null
             exit 1
           fi
-          
+
           echo "📍 Found Core binary: $BINARY"
           chmod +x "$BINARY"
 
@@ -359,12 +359,46 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
           echo "📚 Library paths: ONNX=$(pwd)/build/onnxruntime/lib, llama.cpp=${LLAMA_LIB:-not found}"
-          
+
+          # Detect kernel mode - check if mlos-ml kernel module is loaded
+          KERNEL_MODE="userspace"
+          KERNEL_MODULE_LOADED="false"
+          if lsmod 2>/dev/null | grep -q "mlos_ml\|mlos-ml"; then
+            KERNEL_MODULE_LOADED="true"
+            # Try to determine kernel mode from module parameters or Core config
+            if [ -f /sys/module/mlos_ml/parameters/enable_scheduler ] && [ "$(cat /sys/module/mlos_ml/parameters/enable_scheduler 2>/dev/null)" = "1" ]; then
+              if [ -f /sys/module/mlos_ml/parameters/enable_gpu_manager ] && [ "$(cat /sys/module/mlos_ml/parameters/enable_gpu_manager 2>/dev/null)" = "1" ]; then
+                KERNEL_MODE="kernel_full"
+              else
+                KERNEL_MODE="kernel_sched"
+              fi
+            else
+              KERNEL_MODE="kernel_basic"
+            fi
+          fi
+          echo "kernel_mode=$KERNEL_MODE" >> $GITHUB_OUTPUT
+          echo "kernel_module_loaded=$KERNEL_MODULE_LOADED" >> $GITHUB_OUTPUT
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔧 MLOS Core Runtime Mode"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "   Mode: $KERNEL_MODE"
+          echo "   Kernel Module Loaded: $KERNEL_MODULE_LOADED"
+          if [ "$KERNEL_MODE" = "userspace" ]; then
+            echo "   Description: Userspace-only inference (no kernel optimizations)"
+          elif [ "$KERNEL_MODE" = "kernel_basic" ]; then
+            echo "   Description: Kernel module with memory manager only"
+          elif [ "$KERNEL_MODE" = "kernel_sched" ]; then
+            echo "   Description: Kernel module with memory + scheduler"
+          elif [ "$KERNEL_MODE" = "kernel_full" ]; then
+            echo "   Description: Kernel module with all features (memory, scheduler, GPU manager)"
+          fi
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
           # Start Core in background
           nohup $BINARY --http-port 18080 > /tmp/core.log 2>&1 &
           echo $! > /tmp/core.pid
           echo "🚀 Core started with PID $(cat /tmp/core.pid)"
-          
+
           # Wait for Core to be ready
           for i in {1..30}; do
             if curl -s http://127.0.0.1:18080/health >/dev/null 2>&1; then
@@ -374,18 +408,18 @@ jobs:
             echo "⏳ Waiting for Core... ($i/30)"
             sleep 1
           done
-      
+
           if ! curl -s http://127.0.0.1:18080/health >/dev/null 2>&1; then
             echo "❌ Core failed to start"
             cat /tmp/core.log
             exit 1
           fi
-          
+
           END_TIME=$(date +%s%3N)
           CORE_STARTUP_MS=$((END_TIME - START_TIME))
           echo "core_startup_ms=$CORE_STARTUP_MS" >> $GITHUB_OUTPUT
           echo "⏱️ Core startup: ${CORE_STARTUP_MS}ms"
-          
+
           # Measure Core idle resource usage
           sleep 2  # Let Core stabilize
           CORE_PID=$(cat /tmp/core.pid 2>/dev/null || echo "")
@@ -636,7 +670,9 @@ jobs:
             "core_load_mem_max_mb": ${{ steps.test.outputs.core_load_mem_max_mb || 0 }},
             "axon_cpu": ${{ steps.test.outputs.axon_cpu || 0 }},
             "axon_mem_mb": ${{ steps.test.outputs.axon_mem_mb || 0 }},
-            "gpu_status": "Not used (CPU-only inference)"
+            "gpu_status": "Not used (CPU-only inference)",
+            "kernel_mode": "${{ steps.core-startup.outputs.kernel_mode || 'userspace' }}",
+            "kernel_module_loaded": ${{ steps.core-startup.outputs.kernel_module_loaded || 'false' }}
           }
           EOF
           

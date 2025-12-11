@@ -542,6 +542,17 @@ class ReportRenderer:
 
         return '\n'.join(html_parts)
 
+    def _get_kernel_mode_display(self, kernel_mode: str) -> str:
+        """Get human-readable kernel mode description."""
+        mode_display = {
+            'userspace': 'Userspace Only (No Kernel Optimizations)',
+            'kernel_basic': 'Kernel Module (Memory Manager)',
+            'kernel_sched': 'Kernel Module (Memory + Scheduler)',
+            'kernel_full': 'Kernel Module (Full: Memory, Scheduler, GPU)',
+            'kernel_tuned': 'Kernel Module (Tuned Configuration)'
+        }
+        return mode_display.get(kernel_mode, f'Unknown ({kernel_mode})')
+
     def build_replacements(self) -> Dict[str, str]:
         """Build all template replacements."""
         overall = self.calculate_overall_status()
@@ -595,6 +606,9 @@ class ReportRenderer:
             '{{AXON_CPU}}': str(resources.get('axon_cpu', 0)),
             '{{AXON_MEM}}': str(resources.get('axon_mem_mb', 0)),
             '{{GPU_STATUS}}': resources.get('gpu_status', 'Not used (CPU-only inference)'),
+            '{{KERNEL_MODE}}': resources.get('kernel_mode', 'userspace'),
+            '{{KERNEL_MODE_DISPLAY}}': self._get_kernel_mode_display(resources.get('kernel_mode', 'userspace')),
+            '{{KERNEL_MODULE_LOADED}}': 'Yes' if resources.get('kernel_module_loaded', False) else 'No',
             
             # Timings (formatted for display)
             '{{AXON_DOWNLOAD_TIME}}': format_time(timings.get('axon_download_ms', 0)),
