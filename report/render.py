@@ -218,6 +218,10 @@ class ReportRenderer:
             'tinyllama': '#f59e0b',  # Amber
             'phi2': '#f97316',  # Orange
             'qwen2-0.5b': '#fb923c',  # Light orange
+            'llama-3.2-1b': '#ef4444',  # Red
+            'llama-3.2-3b': '#dc2626',  # Dark red
+            'deepseek-coder-1.3b': '#0ea5e9',  # Sky blue
+            'deepseek-llm-7b': '#0284c7',  # Blue
         }
         
         for model_name, model_data in models.items():
@@ -768,6 +772,19 @@ class ModelsPageRenderer:
             '''
         elif input_type == 'multimodal':
             input_specs_html = '<p style="font-size: 0.8rem; color: var(--text-muted);">Text + Image input</p>'
+        elif input_type == 'text_generation':
+            # LLM models
+            small_prompt = small_input.get('prompt', 'N/A')[:30] + '...' if len(small_input.get('prompt', '')) > 30 else small_input.get('prompt', 'N/A')
+            small_tokens = small_input.get('max_tokens', 32)
+            large_tokens = large_input.get('max_tokens', 256)
+            format_type = data.get('format', 'gguf').upper()
+            input_specs_html = f'''
+                <table class="input-table">
+                    <tr><td>Format</td><td>{format_type}</td></tr>
+                    <tr><td>Small Test</td><td>{small_tokens} tokens</td></tr>
+                    <tr><td>Large Test</td><td>{large_tokens} tokens</td></tr>
+                </table>
+            '''
         
         # Notes section
         notes_html = ''

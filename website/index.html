@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLOS System Test - E2E Validation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --card-bg: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-primary: #667eea;
+            --accent-secondary: #764ba2;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --border-color: #334155;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            padding: 3rem 0;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 16px;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+        }
+
+        .nav {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        .nav a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            padding: 0.5rem 1.5rem;
+            border: 1px solid var(--accent-primary);
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover, .nav a.active {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .summary-card h3 {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-card .big-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .model-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .model-table th,
+        .model-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .model-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+        }
+
+        .model-table tr:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-badge.enabled {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success-color);
+        }
+
+        .status-badge.disabled {
+            background: rgba(100, 116, 139, 0.2);
+            color: var(--text-muted);
+        }
+
+        .category-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .category-badge.nlp { background: rgba(102, 126, 234, 0.2); color: #667eea; }
+        .category-badge.vision { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .category-badge.multimodal { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; }
+        .category-badge.llm { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+
+        .format-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .format-badge.gguf { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+        .format-badge.onnx { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+
+        .axon-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .model-size {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+
+        .github-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--accent-primary);
+            text-decoration: none;
+            padding: 0.75rem 1.5rem;
+            border: 1px solid var(--accent-primary);
+            border-radius: 8px;
+            margin-top: 1rem;
+            transition: all 0.2s;
+        }
+
+        .github-link:hover {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .model-table {
+                display: block;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>MLOS System Test</h1>
+            <p>End-to-End Validation for Axon + MLOS Core</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html" class="active">Overview</a>
+            <a href="models.html">Supported Models</a>
+        </nav>
+
+        <div class="summary-grid">
+            <div class="summary-card">
+                <h3>Total Models</h3>
+                <div class="big-number">24</div>
+            </div>
+            <div class="summary-card">
+                <h3>Enabled for CI</h3>
+                <div class="big-number">17</div>
+            </div>
+            <div class="summary-card">
+                <h3>Categories</h3>
+                <div class="big-number">4</div>
+            </div>
+            <div class="summary-card">
+                <h3>Formats</h3>
+                <div class="big-number">2</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Supported Model Categories</h2>
+            <table class="model-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Models</th>
+                        <th>Format</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="category-badge nlp">NLP</span></td>
+                        <td>Text processing, embeddings, encoder-decoder models</td>
+                        <td>GPT-2, BERT, RoBERTa, T5, DistilBERT, ALBERT, Sentence-BERT</td>
+                        <td><span class="format-badge onnx">ONNX</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge vision">Vision</span></td>
+                        <td>Image classification, object detection</td>
+                        <td>ResNet-50, ViT, ConvNeXt, MobileNet, DeiT, EfficientNet</td>
+                        <td><span class="format-badge onnx">ONNX</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge multimodal">Multimodal</span></td>
+                        <td>Image-text, audio-text models</td>
+                        <td>CLIP (text + vision encoders)</td>
+                        <td><span class="format-badge onnx">ONNX</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge llm">LLM</span></td>
+                        <td>Large Language Models for text generation</td>
+                        <td>Qwen2, TinyLlama, Llama 3.2, DeepSeek, Phi-2</td>
+                        <td><span class="format-badge gguf">GGUF</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>LLM Models (GGUF Format)</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Native LLM execution via llama.cpp runtime plugin. Q4_K_M quantization for optimal quality/size balance.
+            </p>
+            <table class="model-table">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Provider</th>
+                        <th>Parameters</th>
+                        <th>Size</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Qwen2-0.5B</strong></td>
+                        <td>Alibaba</td>
+                        <td>0.5B</td>
+                        <td class="model-size">~380MB</td>
+                        <td><span class="status-badge enabled">Enabled</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>TinyLlama-1.1B</strong></td>
+                        <td>Community</td>
+                        <td>1.1B</td>
+                        <td class="model-size">~637MB</td>
+                        <td><span class="status-badge enabled">Enabled</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Llama-3.2-1B</strong></td>
+                        <td>Meta</td>
+                        <td>1B</td>
+                        <td class="model-size">~700MB</td>
+                        <td><span class="status-badge disabled">Local Only</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Llama-3.2-3B</strong></td>
+                        <td>Meta</td>
+                        <td>3B</td>
+                        <td class="model-size">~1.8GB</td>
+                        <td><span class="status-badge disabled">Local Only</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>DeepSeek-Coder-1.3B</strong></td>
+                        <td>DeepSeek</td>
+                        <td>1.3B</td>
+                        <td class="model-size">~750MB</td>
+                        <td><span class="status-badge disabled">Local Only</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>DeepSeek-LLM-7B</strong></td>
+                        <td>DeepSeek</td>
+                        <td>7B</td>
+                        <td class="model-size">~4GB</td>
+                        <td><span class="status-badge disabled">Local Only</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Phi-2</strong></td>
+                        <td>Microsoft</td>
+                        <td>2.7B</td>
+                        <td class="model-size">~1.6GB</td>
+                        <td><span class="status-badge disabled">Local Only</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Release Versions</h2>
+            <table class="model-table">
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Version</th>
+                        <th>Features</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>MLOS Core</strong></td>
+                        <td><code>v3.2.14-alpha</code></td>
+                        <td>T5 seq2seq fix, GGUF/LLM runtime plugin, format-agnostic detection</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Axon</strong></td>
+                        <td><code>v3.1.7</code></td>
+                        <td>execution_files manifest, GGUF format detection, multi-encoder support</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <footer class="footer">
+            <p><strong>MLOS Foundation</strong> - Signal. Propagate. Myelinate.</p>
+            <a href="https://github.com/mlOS-foundation/system-test" class="github-link">
+                View on GitHub
+            </a>
+            <p style="margin-top: 1rem;">Generated: 2024-12-11</p>
+        </footer>
+    </div>
+</body>
+</html>

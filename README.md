@@ -229,16 +229,16 @@ make serve
 > 📋 Models are configured in `config/models.yaml`. View full details at **[models.html](https://mlos-foundation.github.io/system-test/models.html)**.
 
 ### Current Tested Versions
-- **Axon**: v3.1.3 (Seq2seq + Multi-encoder support)
-- **Core**: v3.2.9-alpha (Format-agnostic runtime plugin system)
+- **Axon**: v3.1.7 (Seq2seq + Multi-encoder + GGUF support)
+- **Core**: v3.2.14-alpha (T5 seq2seq fix + GGUF/LLM runtime)
 
 ### Supported Formats (Core PR #39)
 
 | Format | Extensions | Status | Runtime |
 |--------|------------|--------|---------|
 | ONNX | `.onnx` | ✅ Built-in | ONNX Runtime (SMI) |
+| GGUF | `.gguf` | ✅ Enabled | llama.cpp |
 | PyTorch | `.pt`, `.pth`, `.bin`, `.safetensors` | 🔌 Plugin Ready | - |
-| GGUF | `.gguf` | 🔌 Plugin Ready | llama.cpp |
 | TFLite | `.tflite` | 🔌 Plugin Ready | TFLite |
 | TensorFlow | `.pb` | 🔌 Plugin Ready | TF C API |
 | CoreML | `.mlmodel`, `.mlpackage` | 🔌 Plugin Ready | CoreML |
@@ -265,9 +265,13 @@ make serve
 | | SegFormer | ⏳ Disabled | Requires mask output handling |
 | **Multimodal** | CLIP | ✅ Enabled | Image-text matching (Multi-encoder) |
 | | Wav2Vec2 | ⏳ Disabled | Pending audio model support |
-| **LLM** | TinyLlama | ⏳ Pending | Awaiting GGUF runtime plugin |
-| | Phi-2 | ⏳ Pending | Awaiting GGUF runtime plugin |
-| | Qwen2-0.5B | ⏳ Pending | Awaiting GGUF runtime plugin |
+| **LLM** | TinyLlama-1.1B | ✅ Enabled | GGUF format, llama.cpp runtime |
+| | Qwen2-0.5B | ✅ Enabled | Smallest LLM (~380MB), CI-ready |
+| | Llama-3.2-1B | ⏳ Local | Meta's latest 1B model (~700MB) |
+| | Llama-3.2-3B | ⏳ Local | Best quality/size (~1.8GB) |
+| | DeepSeek-Coder-1.3B | ⏳ Local | Code generation (~750MB) |
+| | DeepSeek-LLM-7B | ⏳ Local | High-quality 7B (~4GB) |
+| | Phi-2 | ⏳ Local | Microsoft 2.7B (~1.6GB) |
 
 ### Vision & Seq2seq Model Support (v3.1.0+)
 
@@ -277,12 +281,15 @@ Vision models are fully supported via:
 
 Standard ImageNet input (224×224×3 RGB) works out of the box.
 
-### LLM Support Roadmap
+### LLM Support (GGUF Format)
 
-LLM models (GGUF format) require:
-1. **Axon**: Direct GGUF download (skip ONNX conversion) - planned
-2. **Core**: GGUF runtime plugin (llama.cpp wrapper) - PR #39 ready
-3. **Core**: Tokenizer enhancement plugin - planned
+LLM models are fully supported via the GGUF runtime plugin:
+- **Axon v3.1.7+**: Direct GGUF download, format detection, execution_files manifest
+- **Core v3.2.14-alpha+**: llama.cpp runtime plugin for native GGUF execution
+- **Quantization**: All models use Q4_K_M for optimal quality/size balance
+
+**CI-Enabled Models**: Qwen2-0.5B (~380MB), TinyLlama-1.1B (~637MB)
+**Local-Only Models**: Llama 3.2, DeepSeek, Phi-2 (larger downloads)
 
 ## 📖 Documentation
 

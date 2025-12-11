@@ -61,7 +61,9 @@ def aggregate_results(results: list, hardware: dict = None, setup_timings: dict 
         # Multimodal models
         'clip': 'multimodal', 'wav2vec2': 'multimodal',
         # LLM models (GGUF format)
-        'tinyllama': 'llm', 'phi2': 'llm', 'qwen2-0.5b': 'llm'
+        'tinyllama': 'llm', 'phi2': 'llm', 'qwen2-0.5b': 'llm',
+        'llama-3.2-1b': 'llm', 'llama-3.2-3b': 'llm',
+        'deepseek-coder-1.3b': 'llm', 'deepseek-llm-7b': 'llm'
     }
     
     total_inferences = 0
