@@ -887,6 +887,226 @@ class ModelsPageRenderer:
         return True
 
 
+class TestDetailsPageRenderer:
+    """Renders test details page showing golden test data and validation results."""
+
+    def __init__(self, golden_data_path: str, metrics_path: str, template_path: str, output_path: str):
+        self.golden_data_path = Path(golden_data_path)
+        self.metrics_path = Path(metrics_path)
+        self.template_path = Path(template_path)
+        self.output_path = Path(output_path)
+        self.golden_data: Dict[str, Any] = {}
+        self.metrics: Dict[str, Any] = {}
+        self.validation_results: Dict[str, Any] = {}
+
+    def load_data(self) -> bool:
+        """Load golden test data, metrics, and validation results."""
+        if not HAS_YAML:
+            print("⚠️ PyYAML not installed, skipping test details page")
+            return False
+
+        # Load golden test data
+        if not self.golden_data_path.exists():
+            print(f"⚠️ Golden data file not found: {self.golden_data_path}")
+            return False
+
+        try:
+            with open(self.golden_data_path, 'r', encoding='utf-8') as f:
+                self.golden_data = yaml.safe_load(f)
+            print(f"✅ Loaded golden data from {self.golden_data_path}")
+        except Exception as e:
+            print(f"❌ Error loading golden data: {e}")
+            return False
+
+        # Load metrics
+        if self.metrics_path.exists():
+            try:
+                with open(self.metrics_path, 'r', encoding='utf-8') as f:
+                    self.metrics = json.load(f)
+            except Exception:
+                pass
+
+        return True
+
+    def load_template(self) -> Optional[str]:
+        """Load HTML template."""
+        if not self.template_path.exists():
+            print(f"⚠️ Test details template not found: {self.template_path}")
+            return None
+
+        with open(self.template_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def get_category_for_model(self, model_name: str) -> str:
+        """Get category for a model."""
+        model_data = self.golden_data.get('models', {}).get(model_name, {})
+        # Check description for hints or use metrics
+        desc = model_data.get('description', '').lower()
+        if 'llm' in desc or 'gguf' in desc:
+            return 'llm'
+        if 'vision' in desc or 'image' in desc or 'resnet' in model_name or 'vit' in model_name:
+            return 'vision'
+        if 'clip' in model_name or 'multimodal' in desc:
+            return 'multimodal'
+        # Check metrics category
+        metrics_model = self.metrics.get('models', {}).get(model_name, {})
+        return metrics_model.get('category', 'nlp')
+
+    def generate_test_case_html(self, model_name: str, test_case: Dict) -> str:
+        """Generate HTML for a single test case."""
+        test_name = test_case.get('name', 'unnamed')
+        input_data = test_case.get('input', {})
+        expected = test_case.get('expected', {})
+        validation_type = expected.get('validation_type', 'unknown')
+        notes = expected.get('notes', '')
+
+        # Get metrics data for this model
+        model_metrics = self.metrics.get('models', {}).get(model_name, {})
+        output_size = model_metrics.get('output_size', 'N/A')
+        inference_time = model_metrics.get('inference_time_ms', model_metrics.get('inference_small_ms', 'N/A'))
+
+        # Format input data for display
+        input_display = json.dumps(input_data, indent=2) if input_data else 'N/A'
+
+        # Format expected output
+        expected_shape = expected.get('expected_shape', [])
+        expected_labels = expected.get('expected_labels', expected.get('expected_keywords', []))
+
+        expected_display = ''
+        if expected_shape:
+            expected_display = f"Shape: {expected_shape}"
+        if expected_labels:
+            if expected_display:
+                expected_display += f"\nLabels: {expected_labels}"
+            else:
+                expected_display = f"Expected: {expected_labels}"
+        if not expected_display:
+            expected_display = json.dumps(expected, indent=2)
+
+        # Determine validation status (assume passed if model succeeded)
+        status = model_metrics.get('inference_status', 'unknown')
+        if status == 'success':
+            validation_class = 'validation-passed'
+            validation_text = 'PASSED'
+        elif status == 'failed':
+            validation_class = 'validation-failed'
+            validation_text = 'FAILED'
+        else:
+            validation_class = 'validation-skipped'
+            validation_text = 'NOT RUN'
+
+        # Data source link
+        data_source = "HuggingFace Model Hub"
+        data_source_url = f"https://huggingface.co/{model_name.replace('-', '/')}"
+        if 'resnet' in model_name or 'vit' in model_name or 'mobilenet' in model_name:
+            data_source = "ONNX Model Zoo / ImageNet"
+            data_source_url = "https://github.com/onnx/models"
+
+        return f'''
+        <div class="test-case-card">
+            <div class="test-case-header">
+                <span class="test-name">{test_name}</span>
+                <span class="validation-result {validation_class}">{validation_text}</span>
+            </div>
+            <div class="test-grid">
+                <div class="test-section">
+                    <h5>Input Data</h5>
+                    <div class="code-block">{input_display}</div>
+                </div>
+                <div class="test-section">
+                    <h5>Expected Output ({validation_type})</h5>
+                    <div class="code-block">{expected_display}</div>
+                </div>
+                <div class="test-section">
+                    <h5>Core Response</h5>
+                    <div class="code-block">output_size: {output_size} bytes
+inference_time: {inference_time} ms</div>
+                </div>
+            </div>
+            {f'<p class="data-source">Note: {notes}</p>' if notes else ''}
+            <p class="data-source">Source: <a href="{data_source_url}" target="_blank">{data_source}</a></p>
+        </div>
+        '''
+
+    def generate_model_section_html(self, model_name: str, model_data: Dict) -> str:
+        """Generate HTML for a model's test cases."""
+        description = model_data.get('description', 'No description')
+        test_cases = model_data.get('test_cases', [])
+        category = self.get_category_for_model(model_name)
+
+        category_class = f'category-{category}'
+        category_icons = {'nlp': '🔤', 'vision': '👁️', 'multimodal': '🎨', 'llm': '🤖'}
+        category_icon = category_icons.get(category, '📦')
+
+        test_cases_html = '\n'.join(
+            self.generate_test_case_html(model_name, tc) for tc in test_cases
+        )
+
+        return f'''
+        <div class="model-section">
+            <div class="model-section-header">
+                <h3>{category_icon} {model_name.upper()}</h3>
+                <span class="category-badge {category_class}">{category.upper()}</span>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">{description}</p>
+            {test_cases_html}
+        </div>
+        '''
+
+    def build_replacements(self) -> Dict[str, str]:
+        """Build template replacement values."""
+        models = self.golden_data.get('models', {})
+
+        total_tests = 0
+        total_passed = 0
+        total_failed = 0
+
+        html_parts = []
+        for model_name, model_data in models.items():
+            test_cases = model_data.get('test_cases', [])
+            total_tests += len(test_cases)
+
+            # Check metrics for pass/fail
+            model_metrics = self.metrics.get('models', {}).get(model_name, {})
+            if model_metrics.get('inference_status') == 'success':
+                total_passed += len(test_cases)
+            elif model_metrics.get('inference_status') == 'failed':
+                total_failed += len(test_cases)
+
+            html_parts.append(self.generate_model_section_html(model_name, model_data))
+
+        return {
+            '{{TOTAL_PASSED}}': str(total_passed),
+            '{{TOTAL_FAILED}}': str(total_failed),
+            '{{TOTAL_MODELS}}': str(len(models)),
+            '{{TOTAL_TEST_CASES}}': str(total_tests),
+            '{{MODEL_TEST_DETAILS_HTML}}': '\n'.join(html_parts),
+            '{{TIMESTAMP}}': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        }
+
+    def render(self) -> bool:
+        """Render the test details page."""
+        if not self.load_data():
+            return False
+
+        template = self.load_template()
+        if template is None:
+            return False
+
+        replacements = self.build_replacements()
+
+        content = template
+        for key, value in sorted(replacements.items(), key=lambda x: len(x[0]), reverse=True):
+            content = content.replace(key, str(value))
+
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.output_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        print(f"✅ Test details page generated: {self.output_path}")
+        return True
+
+
 def main():
     parser = argparse.ArgumentParser(description='Render MLOS E2E test report')
     parser.add_argument('--metrics', default='scripts/metrics/latest.json',
@@ -918,11 +1138,25 @@ def main():
     config_path = script_dir / 'config' / 'models.yaml'
     models_template_path = script_dir / 'report' / 'models-template.html'
     models_output_path = script_dir / 'output' / 'models.html'
-    
+
     models_renderer = ModelsPageRenderer(str(config_path), str(models_template_path), str(models_output_path))
     models_success = models_renderer.render()
-    
-    # Success if main report succeeded (models page is optional)
+
+    # Also render test details page
+    golden_data_path = script_dir / 'config' / 'golden-test-data.yaml'
+    test_details_template_path = script_dir / 'report' / 'test-details-template.html'
+    test_details_output_path = script_dir / 'output' / 'test-details.html'
+    metrics_path = script_dir / args.metrics
+
+    test_details_renderer = TestDetailsPageRenderer(
+        str(golden_data_path),
+        str(metrics_path),
+        str(test_details_template_path),
+        str(test_details_output_path)
+    )
+    test_details_success = test_details_renderer.render()
+
+    # Success if main report succeeded (other pages are optional)
     sys.exit(0 if success else 1)
 
 

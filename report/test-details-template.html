@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLOS E2E Test Details - Golden Test Data</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .test-case-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+        .test-case-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .test-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        .test-section {
+            background: var(--bg-body);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .test-section h5 {
+            margin: 0 0 0.5rem 0;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .code-block {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .data-source {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+        .data-source a {
+            color: #667eea;
+        }
+        .validation-result {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .validation-passed {
+            background: rgba(72, 187, 120, 0.1);
+            color: #48bb78;
+        }
+        .validation-failed {
+            background: rgba(245, 101, 101, 0.1);
+            color: #f56565;
+        }
+        .validation-skipped {
+            background: rgba(160, 174, 192, 0.1);
+            color: #a0aec0;
+        }
+        .model-section {
+            margin-bottom: 2rem;
+        }
+        .model-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border);
+        }
+        .model-section-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .summary-stats {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-item {
+            background: var(--bg-card);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        .category-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        .category-nlp { background: rgba(102, 126, 234, 0.1); color: #667eea; }
+        .category-vision { background: rgba(23, 153, 142, 0.1); color: #17998e; }
+        .category-multimodal { background: rgba(118, 75, 162, 0.1); color: #764ba2; }
+        .category-llm { background: rgba(237, 137, 54, 0.1); color: #ed8936; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🧪 Test Details - Golden Test Data</h1>
+            <p>Complete transparency on test inputs, expected outputs, and validation results</p>
+            <a href="index.html" class="back-link">← Back to Main Report</a>
+        </header>
+
+        <!-- Summary Stats -->
+        <div class="summary-stats">
+            <div class="stat-item">
+                <div class="stat-value" style="color: #48bb78;">{{TOTAL_PASSED}}</div>
+                <div class="stat-label">Tests Passed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" style="color: #f56565;">{{TOTAL_FAILED}}</div>
+                <div class="stat-label">Tests Failed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{TOTAL_MODELS}}</div>
+                <div class="stat-label">Models Tested</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{TOTAL_TEST_CASES}}</div>
+                <div class="stat-label">Test Cases</div>
+            </div>
+        </div>
+
+        <!-- Data Sources Info -->
+        <div class="section" style="margin-bottom: 2rem;">
+            <h2>📚 Data Sources</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h4>HuggingFace Model Hub</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Model documentation, tokenizer configs, and example inputs from official model cards.</p>
+                    <a href="https://huggingface.co/models" target="_blank" style="color: #667eea; font-size: 0.85rem;">huggingface.co/models</a>
+                </div>
+                <div class="metric-card">
+                    <h4>ONNX Model Zoo</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Validated ONNX models with test data and expected outputs for vision models.</p>
+                    <a href="https://github.com/onnx/models" target="_blank" style="color: #667eea; font-size: 0.85rem;">github.com/onnx/models</a>
+                </div>
+                <div class="metric-card">
+                    <h4>ImageNet Labels</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Standard ImageNet-1K class labels for vision model validation.</p>
+                    <a href="https://s3.amazonaws.com/onnx-model-zoo/synset.txt" target="_blank" style="color: #667eea; font-size: 0.85rem;">ImageNet synset.txt</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Details by Model -->
+        {{MODEL_TEST_DETAILS_HTML}}
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p><strong>MLOS Foundation</strong> - Signal. Propagate. Myelinate.</p>
+            <p>Generated: {{TIMESTAMP}}</p>
+            <p>Golden Test Data: <a href="https://github.com/mlOS-foundation/system-test/blob/main/config/golden-test-data.yaml" style="color: #667eea;">config/golden-test-data.yaml</a></p>
+        </footer>
+    </div>
+</body>
+</html>
