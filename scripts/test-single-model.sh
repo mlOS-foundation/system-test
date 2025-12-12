@@ -31,7 +31,7 @@ CONFIG_FILE="$CONFIG_DIR/models.yaml"
 
 # Default configuration
 AXON_VERSION="${AXON_VERSION:-v3.1.7}"
-CORE_VERSION="${CORE_VERSION:-4.0.0-alpha}"
+CORE_VERSION="${CORE_VERSION:-4.1.0-alpha}"
 CORE_URL="${CORE_URL:-http://127.0.0.1:18080}"
 OUTPUT_DIR="${OUTPUT_DIR:-./model-results}"
 INSTALL_TIMEOUT="${INSTALL_TIMEOUT:-900}"  # 15 minutes
@@ -770,9 +770,9 @@ run_inference() {
 
     local start_time=$(get_timestamp_ms)
 
-    # Run inference
+    # Run inference with include_outputs=true to get actual tensor data for validation
     local response=$(curl -s -w "\n%{http_code}" --max-time "$INFERENCE_TIMEOUT" \
-        -X POST "$CORE_URL/models/${encoded_model_id}/inference" \
+        -X POST "$CORE_URL/models/${encoded_model_id}/inference?include_outputs=true" \
         -H "Content-Type: application/json" \
         -d "@$tmp_input" 2>&1)
 

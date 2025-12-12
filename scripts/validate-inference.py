@@ -129,13 +129,30 @@ class InferenceValidator:
         core_keys = {'status', 'model_id', 'inference_time_us', 'output_size'}
         return bool(core_keys & set(output.keys()))
 
+    def _has_tensor_outputs(self, output: Dict) -> bool:
+        """Check if Core response includes tensor outputs (include_outputs=true)."""
+        return 'outputs' in output and isinstance(output.get('outputs'), dict)
+
+    def _extract_tensor_data(self, output: Dict) -> Dict:
+        """Extract tensor data from Core response with include_outputs=true."""
+        if self._has_tensor_outputs(output):
+            return output['outputs']
+        return output
+
     def _run_single_validation(self, test: Dict, output: Dict) -> ValidationResult:
         """Run a single validation test."""
         test_name = test.get('name', 'unnamed_test')
         expected = test.get('expected', {})
         validation_type = expected.get('validation_type')
 
-        # If this is a Core metadata response (not tensor data), use Core-specific validation
+        # Check if Core response includes tensor outputs (include_outputs=true)
+        # If so, extract tensor data and run full validation
+        if self._is_core_response(output) and self._has_tensor_outputs(output):
+            # We have tensor data! Run full tensor validation
+            tensor_data = self._extract_tensor_data(output)
+            return self._run_tensor_validation(test_name, expected, tensor_data, output)
+
+        # If this is a Core metadata-only response (no tensor data), use Core-specific validation
         if self._is_core_response(output):
             return self._validate_core_response(test_name, expected, output)
 
@@ -154,6 +171,10 @@ class InferenceValidator:
                 return self._validate_embedding_normalized(test_name, expected, output)
             elif validation_type == 'embeddings_compatible':
                 return self._validate_embeddings_compatible(test_name, expected, output)
+            elif validation_type == 'output_exists':
+                return self._validate_output_exists(test_name, expected, output)
+            elif validation_type == 'status_success':
+                return self._validate_status_success(test_name, expected, output)
             else:
                 return ValidationResult(
                     test_name=test_name,
@@ -225,6 +246,87 @@ class InferenceValidator:
                 "validation_note": "Validated Core metadata response (tensor data not returned by Core API)"
             }
         )
+
+    def _run_tensor_validation(self, test_name: str, expected: Dict, tensor_data: Dict, full_response: Dict) -> ValidationResult:
+        """
+        Run validation against actual tensor data from Core response with include_outputs=true.
+
+        This enables semantic validation:
+        - output_shape: Validates actual tensor shapes
+        - top_k_contains: Validates top-K predictions contain expected classes
+        - embedding_normalized: Validates embeddings are unit normalized
+        """
+        validation_type = expected.get('validation_type')
+        inference_time = full_response.get('inference_time_us', 0)
+        model_id = full_response.get('model_id', 'unknown')
+
+        try:
+            if validation_type == 'output_shape':
+                result = self._validate_output_shape(test_name, expected, tensor_data)
+                # Enhance result with Core metadata
+                result.details['inference_time_us'] = inference_time
+                result.details['model_id'] = model_id
+                result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'multi_output_shape':
+                result = self._validate_multi_output_shape(test_name, expected, tensor_data)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'top_k_contains':
+                result = self._validate_top_k_contains(test_name, expected, tensor_data)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'top_k_logits_check':
+                result = self._validate_top_k_logits(test_name, expected, tensor_data)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'generation_contains':
+                result = self._validate_generation_contains(test_name, expected, tensor_data)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'embedding_normalized':
+                result = self._validate_embedding_normalized(test_name, expected, tensor_data)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'embeddings_compatible':
+                result = self._validate_embeddings_compatible(test_name, expected, tensor_data)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'output_exists':
+                result = self._validate_output_exists(test_name, expected, tensor_data)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'status_success':
+                # For status_success, we validate the full response, not tensor_data
+                result = self._validate_status_success(test_name, expected, full_response)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'core_response'
+                return result
+            else:
+                return ValidationResult(
+                    test_name=test_name,
+                    passed=False,
+                    message=f"Unknown validation type: {validation_type}",
+                    details={'inference_time_us': inference_time}
+                )
+        except Exception as e:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message=f"Tensor validation error: {str(e)}",
+                details={
+                    "exception": str(type(e).__name__),
+                    "inference_time_us": inference_time,
+                    "available_keys": list(tensor_data.keys()) if isinstance(tensor_data, dict) else []
+                }
+            )
 
     def _validate_output_shape(self, test_name: str, expected: Dict, output: Dict) -> ValidationResult:
         """Validate that output tensor has expected shape."""
@@ -507,6 +609,49 @@ class InferenceValidator:
                 "image_shape": image_shape
             }
         )
+
+    def _validate_output_exists(self, test_name: str, expected: Dict, output: Dict) -> ValidationResult:
+        """Validate that a specific output exists in the response."""
+        output_name = expected.get('output_name', 'output')
+
+        # Check in outputs dict if this is a Core response with tensor data
+        tensor_data = self._extract_tensor_data(output) if self._has_tensor_outputs(output) else output
+
+        if output_name in tensor_data:
+            data = tensor_data[output_name]
+            data_len = len(data) if isinstance(data, list) else 1
+            return ValidationResult(
+                test_name=test_name,
+                passed=True,
+                message=f"Output '{output_name}' found with {data_len} elements",
+                details={"output_name": output_name, "length": data_len}
+            )
+        else:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message=f"Output '{output_name}' not found in response",
+                details={"available_keys": list(tensor_data.keys()) if isinstance(tensor_data, dict) else []}
+            )
+
+    def _validate_status_success(self, test_name: str, expected: Dict, output: Dict) -> ValidationResult:
+        """Validate that the response status is success."""
+        status = output.get('status')
+
+        if status == 'success':
+            return ValidationResult(
+                test_name=test_name,
+                passed=True,
+                message="Status is success",
+                details={"status": status, "model_id": output.get('model_id', 'unknown')}
+            )
+        else:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message=f"Expected status 'success', got '{status}'",
+                details={"status": status, "message": output.get('message', '')}
+            )
 
     def _get_tensor_shape(self, data: Any) -> List[int]:
         """Recursively determine shape of nested list (tensor)."""

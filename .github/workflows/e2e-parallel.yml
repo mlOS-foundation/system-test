@@ -10,7 +10,7 @@ on:
       core_version:
         description: 'Core version to test'
         required: false
-        default: '4.0.0-alpha'
+        default: '4.1.0-alpha'
       models:
         description: |
           Models to test (comma or space separated).
@@ -259,7 +259,7 @@ jobs:
         run: |
           START_TIME=$(date +%s%3N)
           
-          VERSION="${{ github.event.inputs.core_version || '4.0.0-alpha' }}"
+          VERSION="${{ github.event.inputs.core_version || '4.1.0-alpha' }}"
           OS="linux"
           ARCH=$(uname -m)
           case $ARCH in
@@ -686,7 +686,7 @@ jobs:
         if: always()
         env:
           AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.7' }}
-          CORE_VERSION: ${{ github.event.inputs.core_version || '4.0.0-alpha' }}
+          CORE_VERSION: ${{ github.event.inputs.core_version || '4.1.0-alpha' }}
         run: |
           mkdir -p output metrics
 
