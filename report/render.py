@@ -898,6 +898,7 @@ class TestDetailsPageRenderer:
         self.golden_data: Dict[str, Any] = {}
         self.metrics: Dict[str, Any] = {}
         self.validation_results: Dict[str, Any] = {}
+        self.response_data: Dict[str, Any] = {}
 
     def load_data(self) -> bool:
         """Load golden test data, metrics, and validation results."""
@@ -926,7 +927,51 @@ class TestDetailsPageRenderer:
             except Exception:
                 pass
 
+        # Load validation results from model-results directory
+        self._load_validation_results()
+
         return True
+
+    def _load_validation_results(self) -> None:
+        """Load validation results from model-results/{model}-validation-small.json files."""
+        results_dir = self.metrics_path.parent / "model-results"
+        if not results_dir.exists():
+            results_dir = self.golden_data_path.parent.parent / "model-results"
+
+        if not results_dir.exists():
+            print(f"⚠️ Model results directory not found: {results_dir}")
+            return
+
+        for validation_file in results_dir.glob("*-validation-small.json"):
+            model_name = validation_file.stem.replace("-validation-small", "")
+            try:
+                with open(validation_file, 'r', encoding='utf-8') as f:
+                    results = json.load(f)
+                    # Index results by test_name for easy lookup
+                    self.validation_results[model_name] = {
+                        r.get('test_name', ''): r for r in results
+                    }
+                print(f"  📊 Loaded validation results for {model_name}")
+            except Exception as e:
+                print(f"  ⚠️ Failed to load validation for {model_name}: {e}")
+
+        # Also load response files to get actual inference output data
+        self._load_response_data(results_dir)
+
+    def _load_response_data(self, results_dir: Path) -> None:
+        """Load inference response data from model-results/{model}-response-small.json files."""
+        if not hasattr(self, 'response_data'):
+            self.response_data = {}
+
+        for response_file in results_dir.glob("*-response-small.json"):
+            model_name = response_file.stem.replace("-response-small", "")
+            try:
+                with open(response_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.response_data[model_name] = data
+                print(f"  📈 Loaded response data for {model_name}")
+            except Exception as e:
+                print(f"  ⚠️ Failed to load response for {model_name}: {e}")
 
     def load_template(self) -> Optional[str]:
         """Load HTML template."""
@@ -962,8 +1007,10 @@ class TestDetailsPageRenderer:
 
         # Get metrics data for this model
         model_metrics = self.metrics.get('models', {}).get(model_name, {})
-        output_size = model_metrics.get('output_size', 'N/A')
-        inference_time = model_metrics.get('inference_time_ms', model_metrics.get('inference_small_ms', 'N/A'))
+
+        # Get validation results for this test
+        model_validations = self.validation_results.get(model_name, {})
+        validation_result = model_validations.get(test_name, {})
 
         # Format input data for display
         input_display = json.dumps(input_data, indent=2) if input_data else 'N/A'
@@ -971,29 +1018,102 @@ class TestDetailsPageRenderer:
         # Format expected output
         expected_shape = expected.get('expected_shape', [])
         expected_labels = expected.get('expected_labels', expected.get('expected_keywords', []))
+        min_elements = expected.get('min_elements', 0)
+        output_name = expected.get('output_name', 'output')
 
-        expected_display = ''
+        expected_lines = [f"validation_type: {validation_type}"]
+        expected_lines.append(f"output_name: {output_name}")
         if expected_shape:
-            expected_display = f"Shape: {expected_shape}"
+            expected_lines.append(f"expected_shape: {expected_shape}")
+        if min_elements:
+            expected_lines.append(f"min_elements: {min_elements}")
         if expected_labels:
-            if expected_display:
-                expected_display += f"\nLabels: {expected_labels}"
-            else:
-                expected_display = f"Expected: {expected_labels}"
-        if not expected_display:
-            expected_display = json.dumps(expected, indent=2)
+            expected_lines.append(f"expected_labels: {expected_labels}")
+        expected_display = '\n'.join(expected_lines)
 
-        # Determine validation status (assume passed if model succeeded)
-        status = model_metrics.get('inference_status', 'unknown')
-        if status == 'success':
-            validation_class = 'validation-passed'
-            validation_text = 'PASSED'
-        elif status == 'failed':
-            validation_class = 'validation-failed'
-            validation_text = 'FAILED'
+        # Determine validation status from actual validation results
+        if validation_result:
+            passed = validation_result.get('passed', False)
+            validation_class = 'validation-passed' if passed else 'validation-failed'
+            validation_text = 'PASSED' if passed else 'FAILED'
+            validation_message = validation_result.get('message', '')
         else:
-            validation_class = 'validation-skipped'
-            validation_text = 'NOT RUN'
+            # Fall back to metrics-based status
+            status = model_metrics.get('inference_status', 'unknown')
+            if status == 'success':
+                validation_class = 'validation-skipped'
+                validation_text = 'INFERRED'
+            elif status == 'failed':
+                validation_class = 'validation-failed'
+                validation_text = 'FAILED'
+            else:
+                validation_class = 'validation-skipped'
+                validation_text = 'NOT RUN'
+            validation_message = ''
+
+        # Format actual output from validation results and response data
+        details = validation_result.get('details', {})
+        actual_lines = []
+
+        # Get response data for this model (contains actual tensor values)
+        response = self.response_data.get(model_name, {})
+
+        if details:
+            if 'actual_shape' in details:
+                actual_lines.append(f"actual_shape: {details['actual_shape']}")
+            if 'length' in details:
+                actual_lines.append(f"output_length: {details['length']}")
+            if 'output_name' in details:
+                actual_lines.append(f"output_name: {details['output_name']}")
+            if 'inference_time_us' in details:
+                actual_lines.append(f"inference_time: {details['inference_time_us'] / 1000:.2f} ms")
+            elif response and 'inference_time_us' in response:
+                actual_lines.append(f"inference_time: {response['inference_time_us'] / 1000:.2f} ms")
+            if 'validation_source' in details:
+                actual_lines.append(f"validation_source: {details['validation_source']}")
+            if 'top_k_indices' in details:
+                actual_lines.append(f"top_k_indices: {details['top_k_indices']}")
+            if 'found_indices' in details:
+                actual_lines.append(f"found_indices: {details['found_indices']}")
+        elif response:
+            # Use response data when validation details not available
+            if 'output_size' in response:
+                actual_lines.append(f"output_size: {response['output_size']} bytes")
+            if 'inference_time_us' in response:
+                actual_lines.append(f"inference_time: {response['inference_time_us'] / 1000:.2f} ms")
+        else:
+            # Fallback to metrics
+            output_size = model_metrics.get('output_size', 'N/A')
+            inference_time = model_metrics.get('inference_time_ms', model_metrics.get('inference_small_ms', 'N/A'))
+            actual_lines.append(f"output_size: {output_size} bytes")
+            actual_lines.append(f"inference_time: {inference_time} ms")
+            actual_lines.append("(validation data not available)")
+
+        # Add actual tensor output values from response data
+        if response and 'outputs' in response:
+            actual_lines.append("")
+            actual_lines.append("─── Tensor Output Values ───")
+            outputs = response['outputs']
+            for output_key, values in outputs.items():
+                if isinstance(values, list):
+                    num_values = len(values)
+                    # Show first few and last few values
+                    if num_values <= 10:
+                        formatted_values = [f"{v:.4f}" if isinstance(v, float) else str(v) for v in values]
+                        actual_lines.append(f"{output_key}: [{', '.join(formatted_values)}]")
+                    else:
+                        first_5 = [f"{v:.4f}" if isinstance(v, float) else str(v) for v in values[:5]]
+                        last_3 = [f"{v:.4f}" if isinstance(v, float) else str(v) for v in values[-3:]]
+                        actual_lines.append(f"{output_key}: [{', '.join(first_5)}, ... , {', '.join(last_3)}]")
+                        actual_lines.append(f"  (total: {num_values} values)")
+                else:
+                    actual_lines.append(f"{output_key}: {values}")
+
+        actual_display = '\n'.join(actual_lines)
+
+        # Add validation message if present
+        if validation_message:
+            actual_display = f"result: {validation_message}\n\n{actual_display}"
 
         # Data source link
         data_source = "HuggingFace Model Hub"
@@ -1014,13 +1134,12 @@ class TestDetailsPageRenderer:
                     <div class="code-block">{input_display}</div>
                 </div>
                 <div class="test-section">
-                    <h5>Expected Output ({validation_type})</h5>
+                    <h5>Expected Output</h5>
                     <div class="code-block">{expected_display}</div>
                 </div>
                 <div class="test-section">
-                    <h5>Core Response</h5>
-                    <div class="code-block">output_size: {output_size} bytes
-inference_time: {inference_time} ms</div>
+                    <h5>Actual Output</h5>
+                    <div class="code-block">{actual_display}</div>
                 </div>
             </div>
             {f'<p class="data-source">Note: {notes}</p>' if notes else ''}
@@ -1066,12 +1185,23 @@ inference_time: {inference_time} ms</div>
             test_cases = model_data.get('test_cases', [])
             total_tests += len(test_cases)
 
-            # Check metrics for pass/fail
-            model_metrics = self.metrics.get('models', {}).get(model_name, {})
-            if model_metrics.get('inference_status') == 'success':
-                total_passed += len(test_cases)
-            elif model_metrics.get('inference_status') == 'failed':
-                total_failed += len(test_cases)
+            # Use actual validation results if available
+            model_validations = self.validation_results.get(model_name, {})
+            if model_validations:
+                for test_case in test_cases:
+                    test_name = test_case.get('name', '')
+                    result = model_validations.get(test_name, {})
+                    if result.get('passed', False):
+                        total_passed += 1
+                    elif result:  # Has result but failed
+                        total_failed += 1
+            else:
+                # Fall back to metrics-based counting
+                model_metrics = self.metrics.get('models', {}).get(model_name, {})
+                if model_metrics.get('inference_status') == 'success':
+                    total_passed += len(test_cases)
+                elif model_metrics.get('inference_status') == 'failed':
+                    total_failed += len(test_cases)
 
             html_parts.append(self.generate_model_section_html(model_name, model_data))
 
