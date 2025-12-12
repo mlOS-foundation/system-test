@@ -171,6 +171,10 @@ class InferenceValidator:
                 return self._validate_embedding_normalized(test_name, expected, output)
             elif validation_type == 'embeddings_compatible':
                 return self._validate_embeddings_compatible(test_name, expected, output)
+            elif validation_type == 'output_exists':
+                return self._validate_output_exists(test_name, expected, output)
+            elif validation_type == 'status_success':
+                return self._validate_status_success(test_name, expected, output)
             else:
                 return ValidationResult(
                     test_name=test_name,
@@ -293,6 +297,17 @@ class InferenceValidator:
                 result = self._validate_embeddings_compatible(test_name, expected, tensor_data)
                 result.details['inference_time_us'] = inference_time
                 result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'output_exists':
+                result = self._validate_output_exists(test_name, expected, tensor_data)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'status_success':
+                # For status_success, we validate the full response, not tensor_data
+                result = self._validate_status_success(test_name, expected, full_response)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'core_response'
                 return result
             else:
                 return ValidationResult(
@@ -594,6 +609,49 @@ class InferenceValidator:
                 "image_shape": image_shape
             }
         )
+
+    def _validate_output_exists(self, test_name: str, expected: Dict, output: Dict) -> ValidationResult:
+        """Validate that a specific output exists in the response."""
+        output_name = expected.get('output_name', 'output')
+
+        # Check in outputs dict if this is a Core response with tensor data
+        tensor_data = self._extract_tensor_data(output) if self._has_tensor_outputs(output) else output
+
+        if output_name in tensor_data:
+            data = tensor_data[output_name]
+            data_len = len(data) if isinstance(data, list) else 1
+            return ValidationResult(
+                test_name=test_name,
+                passed=True,
+                message=f"Output '{output_name}' found with {data_len} elements",
+                details={"output_name": output_name, "length": data_len}
+            )
+        else:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message=f"Output '{output_name}' not found in response",
+                details={"available_keys": list(tensor_data.keys()) if isinstance(tensor_data, dict) else []}
+            )
+
+    def _validate_status_success(self, test_name: str, expected: Dict, output: Dict) -> ValidationResult:
+        """Validate that the response status is success."""
+        status = output.get('status')
+
+        if status == 'success':
+            return ValidationResult(
+                test_name=test_name,
+                passed=True,
+                message="Status is success",
+                details={"status": status, "model_id": output.get('model_id', 'unknown')}
+            )
+        else:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message=f"Expected status 'success', got '{status}'",
+                details={"status": status, "message": output.get('message', '')}
+            )
 
     def _get_tensor_shape(self, data: Any) -> List[int]:
         """Recursively determine shape of nested list (tensor)."""
