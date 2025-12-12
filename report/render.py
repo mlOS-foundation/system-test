@@ -1015,20 +1015,32 @@ class TestDetailsPageRenderer:
         # Format input data for display
         input_display = json.dumps(input_data, indent=2) if input_data else 'N/A'
 
-        # Format expected output
+        # Format expected output - include all relevant fields from golden data
         expected_shape = expected.get('expected_shape', [])
         expected_labels = expected.get('expected_labels', expected.get('expected_keywords', []))
         min_elements = expected.get('min_elements', 0)
-        output_name = expected.get('output_name', 'output')
+        min_output_size = expected.get('min_output_size', 0)
+        output_name = expected.get('output_name', '')
+        case_insensitive = expected.get('case_insensitive', False)
 
         expected_lines = [f"validation_type: {validation_type}"]
-        expected_lines.append(f"output_name: {output_name}")
+
+        # Only show output_name if explicitly specified in golden data
+        if output_name:
+            expected_lines.append(f"output_name: {output_name}")
+
         if expected_shape:
             expected_lines.append(f"expected_shape: {expected_shape}")
         if min_elements:
             expected_lines.append(f"min_elements: {min_elements}")
+        if min_output_size:
+            expected_lines.append(f"min_output_size: {min_output_size} bytes")
         if expected_labels:
-            expected_lines.append(f"expected_labels: {expected_labels}")
+            expected_lines.append(f"expected_keywords: {expected_labels}")
+            if case_insensitive:
+                expected_lines.append("case_insensitive: true")
+        if notes:
+            expected_lines.append(f"notes: {notes}")
         expected_display = '\n'.join(expected_lines)
 
         # Determine validation status from actual validation results
@@ -1058,6 +1070,9 @@ class TestDetailsPageRenderer:
         # Get response data for this model (contains actual tensor values)
         response = self.response_data.get(model_name, {})
 
+        # Get actual output_size for comparison (from response or details)
+        actual_output_size = response.get('output_size', details.get('output_size', 0))
+
         if details:
             if 'actual_shape' in details:
                 actual_lines.append(f"actual_shape: {details['actual_shape']}")
@@ -1065,6 +1080,14 @@ class TestDetailsPageRenderer:
                 actual_lines.append(f"output_length: {details['length']}")
             if 'output_name' in details:
                 actual_lines.append(f"output_name: {details['output_name']}")
+
+            # Show output_size with comparison if min_output_size was expected
+            if actual_output_size and min_output_size:
+                status = "PASS" if actual_output_size >= min_output_size else "FAIL"
+                actual_lines.append(f"output_size: {actual_output_size} bytes ({status} >= {min_output_size})")
+            elif actual_output_size:
+                actual_lines.append(f"output_size: {actual_output_size} bytes")
+
             if 'inference_time_us' in details:
                 actual_lines.append(f"inference_time: {details['inference_time_us'] / 1000:.2f} ms")
             elif response and 'inference_time_us' in response:
@@ -1075,10 +1098,16 @@ class TestDetailsPageRenderer:
                 actual_lines.append(f"top_k_indices: {details['top_k_indices']}")
             if 'found_indices' in details:
                 actual_lines.append(f"found_indices: {details['found_indices']}")
+            if 'generated_text' in details:
+                actual_lines.append(f"generated_text: {details['generated_text']}")
         elif response:
             # Use response data when validation details not available
             if 'output_size' in response:
-                actual_lines.append(f"output_size: {response['output_size']} bytes")
+                if min_output_size:
+                    status = "PASS" if response['output_size'] >= min_output_size else "FAIL"
+                    actual_lines.append(f"output_size: {response['output_size']} bytes ({status} >= {min_output_size})")
+                else:
+                    actual_lines.append(f"output_size: {response['output_size']} bytes")
             if 'inference_time_us' in response:
                 actual_lines.append(f"inference_time: {response['inference_time_us'] / 1000:.2f} ms")
         else:
