@@ -11,6 +11,12 @@ e2e-test
 e2e-results-*/
 e2e-results/
 scripts/release-test-*/
+model-results-latest/
+output-latest/
+
+# Generated inference responses and validations (large files)
+model-results/*-response-*.json
+model-results/*-validation-*.json
 
 # Generated output
 output/

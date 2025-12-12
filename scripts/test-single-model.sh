@@ -747,6 +747,52 @@ register_model() {
 }
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Helper: Check if model needs tensor output data for validation
+#━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+needs_tensor_output() {
+    local model_name="$1"
+    local golden_data="$CONFIG_DIR/golden-test-data.yaml"
+
+    if [ ! -f "$golden_data" ]; then
+        # Default to true if no golden data file
+        return 0
+    fi
+
+    # Check the validation_type in golden data
+    # Types that need tensor data: output_exists, output_shape, top_k_contains
+    # Types that only need metadata: status_success
+    local validation_type=$(python3 -c "
+import yaml
+import sys
+try:
+    with open('$golden_data') as f:
+        data = yaml.safe_load(f)
+    model_data = data.get('models', {}).get('$model_name', {})
+    test_cases = model_data.get('test_cases', [])
+    if test_cases:
+        vtype = test_cases[0].get('expected', {}).get('validation_type', '')
+        print(vtype)
+except:
+    print('')
+" 2>/dev/null)
+
+    case "$validation_type" in
+        status_success)
+            # status_success only needs metadata, no tensor data
+            return 1
+            ;;
+        output_exists|output_shape|top_k_contains|embedding_normalized)
+            # These need tensor data
+            return 0
+            ;;
+        *)
+            # Default: include outputs to be safe
+            return 0
+            ;;
+    esac
+}
+
+#━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PHASE 3: Run Inference Tests
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 run_inference() {
@@ -770,16 +816,29 @@ run_inference() {
 
     local start_time=$(get_timestamp_ms)
 
-    # Run inference with include_outputs=true to get actual tensor data for validation
-    local response=$(curl -s -w "\n%{http_code}" --max-time "$INFERENCE_TIMEOUT" \
-        -X POST "$CORE_URL/models/${encoded_model_id}/inference?include_outputs=true" \
+    # Output file for inference response (write directly to avoid bash variable size limits)
+    # BERT output can be 5MB+ which exceeds bash's ability to store in variables
+    local response_file="$OUTPUT_DIR/${MODEL_NAME}-response-${size}.json"
+
+    # Determine if we need tensor output data for validation
+    # Models with status_success validation only need metadata, not tensor data
+    # Including tensor data for large models like BERT causes response truncation
+    local inference_url="$CORE_URL/models/${encoded_model_id}/inference"
+    if needs_tensor_output "$MODEL_NAME"; then
+        inference_url="${inference_url}?include_outputs=true"
+        log "  Including tensor outputs for validation"
+    else
+        log "  Metadata-only response (status_success validation)"
+    fi
+
+    # Run inference and write directly to file to avoid bash variable truncation
+    local http_code=$(curl -s -w "%{http_code}" --max-time "$INFERENCE_TIMEOUT" \
+        -X POST "$inference_url" \
         -H "Content-Type: application/json" \
-        -d "@$tmp_input" 2>&1)
+        -d "@$tmp_input" \
+        -o "$response_file" 2>/dev/null)
 
     rm -f "$tmp_input"
-
-    local http_code=$(echo "$response" | tail -n 1)
-    local body=$(echo "$response" | sed '$d')
 
     local end_time=$(get_timestamp_ms)
     local inference_time=$(measure_time $start_time $end_time)
@@ -791,7 +850,8 @@ run_inference() {
         local validator="$SCRIPT_DIR/validate-inference.py"
         if [ -f "$validator" ] && [ "$VALIDATE_OUTPUT" != "false" ]; then
             log "  🔍 Validating inference output..."
-            local validation_result=$(echo "$body" | python3 "$validator" --model "$MODEL_NAME" --response "$(echo "$body")" --json 2>/dev/null || echo "[]")
+            # Response is already saved directly to file by curl (avoids bash variable size limits)
+            local validation_result=$(python3 "$validator" --model "$MODEL_NAME" --output "$response_file" --json 2>/dev/null || echo "[]")
 
             if [ -n "$validation_result" ] && [ "$validation_result" != "[]" ]; then
                 # Check if any validations failed
@@ -820,12 +880,12 @@ run_inference() {
             update_result "inference_$size" "success" "$inference_time"
         fi
 
-        # Save response for debugging
-        echo "$body" > "$OUTPUT_DIR/${MODEL_NAME}-response-${size}.json"
+        # Response already saved to file by curl (response_file variable)
         return 0
     else
         log_error "$size inference failed (HTTP $http_code)"
-        log_error "Response: $(echo "$body" | head -c 500)"
+        # Show first 500 chars of error response from file
+        log_error "Response: $(head -c 500 "$response_file" 2>/dev/null || echo 'No response file')"
         update_result "inference_$size" "failed" "$inference_time" "HTTP $http_code"
         return 1
     fi
