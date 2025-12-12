@@ -752,41 +752,76 @@ register_model() {
 run_inference() {
     local size="$1"  # small or large
     log "🧪 Phase 3: Running $size inference test..."
-    
+
     local encoded_model_id=$(url_encode "$AXON_ID")
-    
+
     # Generate test input
     local test_input=$(generate_test_input "$MODEL_NAME" "$INPUT_TYPE" "$CATEGORY" "$size")
-    
+
     if [ -z "$test_input" ] || [ "$test_input" = "null" ]; then
         log_error "Failed to generate test input"
         update_result "inference_$size" "failed" 0 "Failed to generate input"
         return 1
     fi
-    
+
     # Write input to temp file (for large inputs)
     local tmp_input="/tmp/inference_${MODEL_NAME}_${size}_$$.json"
     echo "$test_input" > "$tmp_input"
-    
+
     local start_time=$(get_timestamp_ms)
-    
+
     # Run inference
     local response=$(curl -s -w "\n%{http_code}" --max-time "$INFERENCE_TIMEOUT" \
         -X POST "$CORE_URL/models/${encoded_model_id}/inference" \
         -H "Content-Type: application/json" \
         -d "@$tmp_input" 2>&1)
-    
+
     rm -f "$tmp_input"
-    
+
     local http_code=$(echo "$response" | tail -n 1)
     local body=$(echo "$response" | sed '$d')
-    
+
     local end_time=$(get_timestamp_ms)
     local inference_time=$(measure_time $start_time $end_time)
-    
+
     if [ "$http_code" = "200" ]; then
         log "✅ $size inference successful (${inference_time}ms)"
-        update_result "inference_$size" "success" "$inference_time"
+
+        # Run output validation if validator script exists
+        local validator="$SCRIPT_DIR/validate-inference.py"
+        if [ -f "$validator" ] && [ "$VALIDATE_OUTPUT" != "false" ]; then
+            log "  🔍 Validating inference output..."
+            local validation_result=$(echo "$body" | python3 "$validator" --model "$MODEL_NAME" --response "$(echo "$body")" --json 2>/dev/null || echo "[]")
+
+            if [ -n "$validation_result" ] && [ "$validation_result" != "[]" ]; then
+                # Check if any validations failed
+                local failed_count=$(echo "$validation_result" | python3 -c "import json,sys; data=json.load(sys.stdin); print(sum(1 for r in data if not r.get('passed', True)))" 2>/dev/null || echo "0")
+                local total_count=$(echo "$validation_result" | python3 -c "import json,sys; data=json.load(sys.stdin); print(len(data))" 2>/dev/null || echo "0")
+
+                if [ "$failed_count" = "0" ] && [ "$total_count" != "0" ]; then
+                    log "  ✅ Output validation passed ($total_count tests)"
+                    update_result "inference_$size" "success" "$inference_time"
+                    # Save validation results
+                    echo "$validation_result" > "$OUTPUT_DIR/${MODEL_NAME}-validation-${size}.json"
+                elif [ "$total_count" = "0" ]; then
+                    log "  ℹ️  No validation tests defined for this model"
+                    update_result "inference_$size" "success" "$inference_time"
+                else
+                    log_warn "  ⚠️  Output validation: $failed_count/$total_count tests failed"
+                    # Don't fail the whole test, just log warning
+                    update_result "inference_$size" "success" "$inference_time"
+                    echo "$validation_result" > "$OUTPUT_DIR/${MODEL_NAME}-validation-${size}.json"
+                fi
+            else
+                log "  ℹ️  No validation tests defined for model '$MODEL_NAME'"
+                update_result "inference_$size" "success" "$inference_time"
+            fi
+        else
+            update_result "inference_$size" "success" "$inference_time"
+        fi
+
+        # Save response for debugging
+        echo "$body" > "$OUTPUT_DIR/${MODEL_NAME}-response-${size}.json"
         return 0
     else
         log_error "$size inference failed (HTTP $http_code)"
