@@ -1,0 +1,485 @@
+# Golden Test Data for MLOS E2E Validation
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# This file contains validated input/output pairs for inference testing.
+# Each model has curated test cases with known expected outputs that can be
+# validated programmatically.
+#
+# Validation Types:
+#   - exact: Output must match exactly (for deterministic models)
+#   - top_k_contains: Top-K predictions must contain expected label
+#   - embedding_similarity: Embedding must have expected properties
+#   - generation_contains: Generated text must contain keywords
+#   - output_shape: Output tensor must have expected shape
+#   - argmax_in_range: Argmax of output must be in expected range
+#
+# Sources:
+#   - HuggingFace model documentation and examples
+#   - ImageNet validation set labels
+#   - ONNX Model Zoo test data
+#
+# Updated: 2024-12-11
+# ═══════════════════════════════════════════════════════════════════════════════
+
+version: "1.0"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NLP MODELS - Text Classification, Masked LM, Sequence-to-Sequence
+# ═══════════════════════════════════════════════════════════════════════════════
+
+models:
+  # ---------------------------------------------------------------------------
+  # GPT-2 (DistilGPT2) - Causal Language Model
+  # ---------------------------------------------------------------------------
+  gpt2:
+    description: "Text generation model - validates output shape and logits"
+    test_cases:
+      - name: "simple_prompt"
+        input:
+          text: "Hello, I am a language model"
+          max_length: 16
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          # Output shape: [batch_size, sequence_length, vocab_size]
+          # DistilGPT2 vocab_size = 50257
+          expected_shape: [1, 16, 50257]
+
+      - name: "continuation_test"
+        input:
+          text: "The capital of France is"
+          max_length: 8
+        expected:
+          validation_type: "top_k_logits_check"
+          # Check that "Paris" token (5765) is in top-10 next tokens
+          output_name: "logits"
+          position: -1  # Last token position
+          top_k: 10
+          expected_tokens: [5765]  # "Paris" in GPT-2 tokenizer
+          notes: "Token 5765 = 'Paris' in GPT-2 vocabulary"
+
+  # ---------------------------------------------------------------------------
+  # BERT - Masked Language Model
+  # ---------------------------------------------------------------------------
+  bert:
+    description: "Masked language model - validates mask prediction"
+    test_cases:
+      - name: "mask_prediction_photosynthesis"
+        input:
+          text: "Plants create [MASK] through a process known as photosynthesis."
+          max_length: 16
+        expected:
+          validation_type: "top_k_contains"
+          output_name: "logits"
+          mask_position: 3  # Position of [MASK] token
+          top_k: 5
+          expected_labels: ["oxygen", "energy", "food", "sugar", "glucose"]
+          notes: "Standard BERT fill-mask example from HuggingFace docs"
+
+      - name: "mask_prediction_capital"
+        input:
+          text: "The capital of France is [MASK]."
+          max_length: 10
+        expected:
+          validation_type: "top_k_contains"
+          output_name: "logits"
+          mask_position: 5
+          top_k: 3
+          expected_labels: ["Paris"]
+
+      - name: "output_shape_validation"
+        input:
+          text: "Hello world"
+          max_length: 8
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          # BERT base: vocab_size = 30522
+          expected_shape: [1, 8, 30522]
+
+  # ---------------------------------------------------------------------------
+  # RoBERTa - Robust BERT variant
+  # ---------------------------------------------------------------------------
+  roberta:
+    description: "Robust BERT - validates output shape"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          text: "RoBERTa is great at understanding context."
+          max_length: 16
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          # RoBERTa: vocab_size = 50265
+          expected_shape: [1, 16, 50265]
+
+  # ---------------------------------------------------------------------------
+  # T5 - Text-to-Text Transformer (Encoder-Decoder)
+  # ---------------------------------------------------------------------------
+  t5:
+    description: "Seq2seq model - validates encoder-decoder outputs"
+    test_cases:
+      - name: "translation_task"
+        input:
+          text: "translate English to German: Hello"
+          max_length: 16
+          decoder_max_length: 8
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          # T5 small vocab_size = 32128
+          expected_shape: [1, 8, 32128]
+
+      - name: "summarization_task"
+        input:
+          text: "summarize: Machine learning is transforming industries."
+          max_length: 16
+          decoder_max_length: 16
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          expected_shape: [1, 16, 32128]
+
+  # ---------------------------------------------------------------------------
+  # DistilBERT - Smaller BERT variant
+  # ---------------------------------------------------------------------------
+  distilbert:
+    description: "Distilled BERT - validates output consistency"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          text: "DistilBERT is smaller and faster."
+          max_length: 12
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          # DistilBERT: vocab_size = 30522 (same as BERT)
+          expected_shape: [1, 12, 30522]
+
+  # ---------------------------------------------------------------------------
+  # ALBERT - Parameter-efficient BERT
+  # ---------------------------------------------------------------------------
+  albert:
+    description: "ALBERT - validates output with shared parameters"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          text: "ALBERT uses parameter sharing."
+          max_length: 10
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          # ALBERT base v2: vocab_size = 30000
+          expected_shape: [1, 10, 30000]
+
+  # ---------------------------------------------------------------------------
+  # Sentence Transformers - Embedding Model
+  # ---------------------------------------------------------------------------
+  sentence-transformers:
+    description: "Sentence embedding model - validates embedding properties"
+    test_cases:
+      - name: "embedding_dimension"
+        input:
+          text: "This is a test sentence for embedding."
+          max_length: 128
+        expected:
+          validation_type: "output_shape"
+          output_name: "sentence_embedding"
+          # all-MiniLM-L6-v2 produces 384-dimensional embeddings
+          expected_shape: [1, 384]
+
+      - name: "embedding_normalization"
+        input:
+          text: "Sentence transformers produce normalized embeddings."
+          max_length: 128
+        expected:
+          validation_type: "embedding_normalized"
+          output_name: "sentence_embedding"
+          # Embeddings should be unit normalized (L2 norm ≈ 1.0)
+          expected_l2_norm: 1.0
+          tolerance: 0.01
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VISION MODELS - Image Classification
+# ═══════════════════════════════════════════════════════════════════════════════
+
+  # ---------------------------------------------------------------------------
+  # ResNet-50 - CNN Image Classification
+  # ---------------------------------------------------------------------------
+  resnet:
+    description: "ResNet-50 ImageNet classifier - validates classification output"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          image_size: 224
+          channels: 3
+          # Use deterministic seeded random input
+          seed: 42
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          # ImageNet: 1000 classes
+          expected_shape: [1, 1000]
+
+      - name: "golden_retriever_image"
+        description: "Test with known golden retriever image"
+        input:
+          # Reference: ONNX Model Zoo ResNet50 demo
+          # URL: https://s3.amazonaws.com/onnx-model-zoo/synset.txt for labels
+          image_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/YellowLabradorLooking_new.jpg/260px-YellowLabradorLooking_new.jpg"
+          image_size: 224
+          channels: 3
+        expected:
+          validation_type: "top_k_contains"
+          output_name: "logits"
+          top_k: 5
+          # ImageNet class indices for dog breeds
+          # 207: golden retriever, 208: Labrador retriever
+          expected_class_indices: [207, 208]
+          expected_class_labels: ["golden retriever", "Labrador retriever"]
+          notes: "Standard ImageNet validation - dog should be classified as retriever breed"
+
+  # ---------------------------------------------------------------------------
+  # ViT - Vision Transformer
+  # ---------------------------------------------------------------------------
+  vit:
+    description: "Vision Transformer - validates transformer-based classification"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          image_size: 224
+          channels: 3
+          seed: 42
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          expected_shape: [1, 1000]
+
+  # ---------------------------------------------------------------------------
+  # ConvNeXt - Modern CNN
+  # ---------------------------------------------------------------------------
+  convnext:
+    description: "ConvNeXt - modern CNN architecture"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          image_size: 224
+          channels: 3
+          seed: 42
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          expected_shape: [1, 1000]
+
+  # ---------------------------------------------------------------------------
+  # MobileNet - Efficient Mobile Architecture
+  # ---------------------------------------------------------------------------
+  mobilenet:
+    description: "MobileNetV2 - efficient mobile classifier"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          image_size: 224
+          channels: 3
+          seed: 42
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          expected_shape: [1, 1000]
+
+  # ---------------------------------------------------------------------------
+  # DeiT - Data-efficient Image Transformer
+  # ---------------------------------------------------------------------------
+  deit:
+    description: "DeiT - data-efficient ViT"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          image_size: 224
+          channels: 3
+          seed: 42
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          expected_shape: [1, 1000]
+
+  # ---------------------------------------------------------------------------
+  # EfficientNet - Compound Scaling CNN
+  # ---------------------------------------------------------------------------
+  efficientnet:
+    description: "EfficientNet-B0 - compound scaled CNN"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          image_size: 224
+          channels: 3
+          seed: 42
+        expected:
+          validation_type: "output_shape"
+          output_name: "logits"
+          expected_shape: [1, 1000]
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MULTIMODAL MODELS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+  # ---------------------------------------------------------------------------
+  # CLIP - Contrastive Language-Image Pretraining
+  # ---------------------------------------------------------------------------
+  clip:
+    description: "CLIP - image-text similarity model"
+    test_cases:
+      - name: "embedding_shapes"
+        input:
+          text: "a photo of a cat"
+          text_max_length: 77
+          image_size: 224
+          channels: 3
+          seed: 42
+        expected:
+          validation_type: "multi_output_shape"
+          outputs:
+            text_embeds:
+              expected_shape: [1, 512]
+            image_embeds:
+              expected_shape: [1, 512]
+
+      - name: "embeddings_same_dimension"
+        description: "Text and image embeddings must have same dimension for similarity"
+        input:
+          text: "a beautiful landscape"
+          text_max_length: 77
+          image_size: 224
+          channels: 3
+          seed: 123
+        expected:
+          validation_type: "embeddings_compatible"
+          text_output: "text_embeds"
+          image_output: "image_embeds"
+          notes: "CLIP embeddings should be comparable for cosine similarity"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LLM MODELS (GGUF Format)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+  # ---------------------------------------------------------------------------
+  # TinyLlama - Small Chat Model
+  # ---------------------------------------------------------------------------
+  tinyllama:
+    description: "TinyLlama 1.1B GGUF - validates text generation"
+    test_cases:
+      - name: "basic_generation"
+        input:
+          prompt: "What is the capital of France?"
+          max_tokens: 32
+          temperature: 0.1  # Low temperature for more deterministic output
+        expected:
+          validation_type: "generation_contains"
+          expected_keywords: ["Paris"]
+          case_insensitive: true
+
+      - name: "math_question"
+        input:
+          prompt: "What is 2 + 2?"
+          max_tokens: 16
+          temperature: 0.1
+        expected:
+          validation_type: "generation_contains"
+          expected_keywords: ["4", "four"]
+          case_insensitive: true
+
+  # ---------------------------------------------------------------------------
+  # Qwen2 0.5B - Ultra-small Instruction Model
+  # ---------------------------------------------------------------------------
+  qwen2-0.5b:
+    description: "Qwen2 0.5B GGUF - validates instruction following"
+    test_cases:
+      - name: "simple_math"
+        input:
+          prompt: "What is 2 + 2? Answer with just the number."
+          max_tokens: 8
+          temperature: 0.1
+        expected:
+          validation_type: "generation_contains"
+          expected_keywords: ["4"]
+
+      - name: "greeting_response"
+        input:
+          prompt: "Say hello in one word."
+          max_tokens: 8
+          temperature: 0.1
+        expected:
+          validation_type: "generation_contains"
+          expected_keywords: ["Hello", "hello", "Hi", "hi"]
+
+  # ---------------------------------------------------------------------------
+  # Llama 3.2 1B - Meta's Small Model
+  # ---------------------------------------------------------------------------
+  llama-3.2-1b:
+    description: "Llama 3.2 1B GGUF - validates instruction following"
+    test_cases:
+      - name: "capital_question"
+        input:
+          prompt: "What is the capital of Japan? Answer in one word."
+          max_tokens: 16
+          temperature: 0.1
+        expected:
+          validation_type: "generation_contains"
+          expected_keywords: ["Tokyo"]
+
+  # ---------------------------------------------------------------------------
+  # DeepSeek Coder 1.3B - Code Generation
+  # ---------------------------------------------------------------------------
+  deepseek-coder-1.3b:
+    description: "DeepSeek Coder 1.3B GGUF - validates code generation"
+    test_cases:
+      - name: "python_function"
+        input:
+          prompt: "Write a Python function called 'add' that takes two numbers and returns their sum."
+          max_tokens: 64
+          temperature: 0.1
+        expected:
+          validation_type: "generation_contains"
+          expected_keywords: ["def add", "return"]
+
+      - name: "reverse_string"
+        input:
+          prompt: "Write a Python one-liner to reverse a string s."
+          max_tokens: 32
+          temperature: 0.1
+        expected:
+          validation_type: "generation_contains"
+          expected_keywords: ["[::-1]", "reverse"]
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ImageNet Class Labels Reference
+# ═══════════════════════════════════════════════════════════════════════════════
+# Common ImageNet classes for validation:
+#
+# Dogs:
+#   151: Chihuahua
+#   207: golden retriever
+#   208: Labrador retriever
+#   209: Chesapeake Bay retriever
+#   235: German shepherd
+#
+# Cats:
+#   281: tabby cat
+#   282: tiger cat
+#   283: Persian cat
+#   285: Egyptian cat
+#
+# Common objects:
+#   409: analog clock
+#   437: basketball
+#   479: car wheel
+#   504: coffee mug
+#   508: computer keyboard
+#   621: laptop
+#   636: mailbox
+#   737: photocopier
+#   817: sports car
+#   920: traffic light
+#
+# Reference: https://s3.amazonaws.com/onnx-model-zoo/synset.txt
+# ═══════════════════════════════════════════════════════════════════════════════
