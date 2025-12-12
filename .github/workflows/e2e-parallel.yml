@@ -1,6 +1,8 @@
 name: E2E Parallel Pipeline
 
 on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight UTC
   workflow_dispatch:
     inputs:
       axon_version:
