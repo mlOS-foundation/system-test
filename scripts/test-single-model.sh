@@ -770,9 +770,9 @@ run_inference() {
 
     local start_time=$(get_timestamp_ms)
 
-    # Run inference
+    # Run inference with include_outputs=true to get actual tensor data for validation
     local response=$(curl -s -w "\n%{http_code}" --max-time "$INFERENCE_TIMEOUT" \
-        -X POST "$CORE_URL/models/${encoded_model_id}/inference" \
+        -X POST "$CORE_URL/models/${encoded_model_id}/inference?include_outputs=true" \
         -H "Content-Type: application/json" \
         -d "@$tmp_input" 2>&1)
 

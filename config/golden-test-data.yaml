@@ -217,9 +217,10 @@ models:
           seed: 42
         expected:
           validation_type: "output_shape"
-          output_name: "logits"
-          # ImageNet: 1000 classes
-          expected_shape: [1, 1000]
+          # ONNX export uses "output" as tensor name
+          output_name: "output"
+          # ImageNet: 1000 classes (batch dim squeezed by ONNX Runtime)
+          expected_shape: [1000]
 
       - name: "golden_retriever_image"
         description: "Test with known golden retriever image"
@@ -231,7 +232,8 @@ models:
           channels: 3
         expected:
           validation_type: "top_k_contains"
-          output_name: "logits"
+          # ONNX export uses "output" as tensor name
+          output_name: "output"
           top_k: 5
           # ImageNet class indices for dog breeds
           # 207: golden retriever, 208: Labrador retriever
@@ -252,7 +254,8 @@ models:
           seed: 42
         expected:
           validation_type: "output_shape"
-          output_name: "logits"
+          # ONNX export uses "output" as tensor name
+          output_name: "output"
           expected_shape: [1, 1000]
 
   # ---------------------------------------------------------------------------
@@ -268,7 +271,8 @@ models:
           seed: 42
         expected:
           validation_type: "output_shape"
-          output_name: "logits"
+          # ONNX export uses "output" as tensor name
+          output_name: "output"
           expected_shape: [1, 1000]
 
   # ---------------------------------------------------------------------------
@@ -284,7 +288,8 @@ models:
           seed: 42
         expected:
           validation_type: "output_shape"
-          output_name: "logits"
+          # ONNX export uses "output" as tensor name
+          output_name: "output"
           expected_shape: [1, 1000]
 
   # ---------------------------------------------------------------------------
@@ -300,7 +305,8 @@ models:
           seed: 42
         expected:
           validation_type: "output_shape"
-          output_name: "logits"
+          # ONNX export uses "output" as tensor name
+          output_name: "output"
           expected_shape: [1, 1000]
 
   # ---------------------------------------------------------------------------
@@ -316,7 +322,8 @@ models:
           seed: 42
         expected:
           validation_type: "output_shape"
-          output_name: "logits"
+          # ONNX export uses "output" as tensor name
+          output_name: "output"
           expected_shape: [1, 1000]
 
 # ═══════════════════════════════════════════════════════════════════════════════
