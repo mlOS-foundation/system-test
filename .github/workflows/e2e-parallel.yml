@@ -688,7 +688,7 @@ jobs:
         if: always()
         env:
           AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.7' }}
-          CORE_VERSION: ${{ github.event.inputs.core_version || '4.1.1-alpha' }}
+          CORE_VERSION: ${{ github.event.inputs.core_version || '4.1.2-alpha' }}
         run: |
           mkdir -p output metrics
 
