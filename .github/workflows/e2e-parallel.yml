@@ -260,38 +260,41 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           START_TIME=$(date +%s%3N)
-          
+
           VERSION="${{ github.event.inputs.core_version || '4.1.0-alpha' }}"
+          # Normalize version: strip 'v' prefix for artifact filename (Core always publishes without v prefix)
+          VERSION_NO_V="${VERSION#v}"
+          # Release tag always has 'v' prefix
+          RELEASE_TAG="v${VERSION_NO_V}"
+
           OS="linux"
           ARCH=$(uname -m)
           case $ARCH in
             x86_64) ARCH="amd64" ;;
             aarch64) ARCH="arm64" ;;
           esac
-          
+
           mkdir -p ~/mlos-core
-          
+
+          # Artifact filename always uses version without 'v' prefix
+          ARTIFACT="mlos-core_${VERSION_NO_V}_${OS}-${ARCH}.tar.gz"
+
           # Try gh CLI first (from mlOS-foundation/core repo)
-          ARTIFACT="mlos-core_${VERSION}_${OS}-${ARCH}.tar.gz"
-          echo "📥 Trying gh download: $ARTIFACT"
-          if gh release download "${VERSION}" --pattern "$ARTIFACT" --repo mlOS-foundation/core -D /tmp 2>/dev/null; then
-            echo "✅ Downloaded via gh CLI"
+          echo "📥 Trying gh download from core repo: $ARTIFACT (tag: $RELEASE_TAG)"
+          if gh release download "${RELEASE_TAG}" --pattern "$ARTIFACT" --repo mlOS-foundation/core -D /tmp 2>/dev/null; then
+            echo "✅ Downloaded via gh CLI from core"
             tar -xzf "/tmp/$ARTIFACT" -C ~/mlos-core
           else
             # Fallback to core-releases public repo
-            # Release tag has v-prefix (v3.2.12-alpha) but filename does NOT (mlos-core_3.2.12-alpha_...)
-            RELEASE_TAG="v${VERSION}"
-            [[ "$VERSION" =~ ^v ]] && RELEASE_TAG="$VERSION"
-            VERSION_NO_V="${VERSION#v}"
-            RELEASE_ARTIFACT="mlos-core_${VERSION_NO_V}_${OS}-${ARCH}.tar.gz"
-            URL="https://github.com/mlOS-foundation/core-releases/releases/download/${RELEASE_TAG}/${RELEASE_ARTIFACT}"
-            echo "📥 Trying curl from: $URL"
+            URL="https://github.com/mlOS-foundation/core-releases/releases/download/${RELEASE_TAG}/${ARTIFACT}"
+            echo "📥 Trying curl from core-releases: $URL"
             if curl -L -f -o "/tmp/core.tar.gz" "$URL" 2>/dev/null; then
-              echo "✅ Downloaded via curl"
+              echo "✅ Downloaded via curl from core-releases"
               tar -xzf "/tmp/core.tar.gz" -C ~/mlos-core
             else
               echo "❌ Failed to download Core"
-              echo "   Tried: $ARTIFACT (gh CLI) and $RELEASE_ARTIFACT (curl)"
+              echo "   Release tag: $RELEASE_TAG"
+              echo "   Artifact: $ARTIFACT"
               exit 1
             fi
           fi
