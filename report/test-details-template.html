@@ -134,6 +134,98 @@
         .category-vision { background: rgba(23, 153, 142, 0.1); color: #17998e; }
         .category-multimodal { background: rgba(118, 75, 162, 0.1); color: #764ba2; }
         .category-llm { background: rgba(237, 137, 54, 0.1); color: #ed8936; }
+
+        /* Comparison Table Styles */
+        .comparison-table-wrapper {
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            background: var(--bg-card);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .comparison-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .comparison-table th {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+        .comparison-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+        .comparison-table tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+        .field-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .expected-value {
+            color: var(--text-muted);
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+        }
+        .actual-value {
+            color: var(--text-primary);
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+        }
+        .result-cell {
+            text-align: center;
+        }
+        .result-pass {
+            background: rgba(72, 187, 120, 0.15);
+            color: #48bb78;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            display: inline-block;
+        }
+        .result-fail {
+            background: rgba(245, 101, 101, 0.15);
+            color: #f56565;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            display: inline-block;
+        }
+        .result-info {
+            background: rgba(160, 174, 192, 0.15);
+            color: #a0aec0;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            display: inline-block;
+        }
+        .test-notes {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: rgba(237, 137, 54, 0.1);
+            border-left: 3px solid #ed8936;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
     </style>
 </head>
 <body>

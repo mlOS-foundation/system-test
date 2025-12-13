@@ -998,7 +998,7 @@ class TestDetailsPageRenderer:
         return metrics_model.get('category', 'nlp')
 
     def generate_test_case_html(self, model_name: str, test_case: Dict) -> str:
-        """Generate HTML for a single test case."""
+        """Generate HTML for a single test case with side-by-side field comparison."""
         test_name = test_case.get('name', 'unnamed')
         input_data = test_case.get('input', {})
         expected = test_case.get('expected', {})
@@ -1015,7 +1015,7 @@ class TestDetailsPageRenderer:
         # Format input data for display
         input_display = json.dumps(input_data, indent=2) if input_data else 'N/A'
 
-        # Format expected output - include all relevant fields from golden data
+        # Extract expected values
         expected_shape = expected.get('expected_shape', [])
         expected_labels = expected.get('expected_labels', expected.get('expected_keywords', []))
         min_elements = expected.get('min_elements', 0)
@@ -1023,34 +1023,17 @@ class TestDetailsPageRenderer:
         output_name = expected.get('output_name', '')
         case_insensitive = expected.get('case_insensitive', False)
 
-        expected_lines = [f"validation_type: {validation_type}"]
+        # Get response and validation details
+        response = self.response_data.get(model_name, {})
+        details = validation_result.get('details', {})
 
-        # Only show output_name if explicitly specified in golden data
-        if output_name:
-            expected_lines.append(f"output_name: {output_name}")
-
-        if expected_shape:
-            expected_lines.append(f"expected_shape: {expected_shape}")
-        if min_elements:
-            expected_lines.append(f"min_elements: {min_elements}")
-        if min_output_size:
-            expected_lines.append(f"min_output_size: {min_output_size} bytes")
-        if expected_labels:
-            expected_lines.append(f"expected_keywords: {expected_labels}")
-            if case_insensitive:
-                expected_lines.append("case_insensitive: true")
-        if notes:
-            expected_lines.append(f"notes: {notes}")
-        expected_display = '\n'.join(expected_lines)
-
-        # Determine validation status from actual validation results
+        # Determine overall validation status
         if validation_result:
             passed = validation_result.get('passed', False)
             validation_class = 'validation-passed' if passed else 'validation-failed'
             validation_text = 'PASSED' if passed else 'FAILED'
             validation_message = validation_result.get('message', '')
         else:
-            # Fall back to metrics-based status
             status = model_metrics.get('inference_status', 'unknown')
             if status == 'success':
                 validation_class = 'validation-skipped'
@@ -1063,86 +1046,88 @@ class TestDetailsPageRenderer:
                 validation_text = 'NOT RUN'
             validation_message = ''
 
-        # Format actual output from validation results and response data
-        details = validation_result.get('details', {})
-        actual_lines = []
+        # Build comparison table rows
+        comparison_rows = []
 
-        # Get response data for this model (contains actual tensor values)
-        response = self.response_data.get(model_name, {})
+        # Row 1: Validation Type (always shown)
+        comparison_rows.append(self._make_comparison_row(
+            'Validation Type', validation_type, validation_type, True, 'info'
+        ))
 
-        # Get actual output_size for comparison (from response or details)
-        actual_output_size = response.get('output_size', details.get('output_size', 0))
+        # Row 2: Status
+        actual_status = response.get('status', details.get('status', model_metrics.get('inference_status', 'unknown')))
+        if validation_type == 'status_success':
+            status_passed = actual_status == 'success'
+            comparison_rows.append(self._make_comparison_row(
+                'Status', 'success', actual_status, status_passed
+            ))
 
-        if details:
-            if 'actual_shape' in details:
-                actual_lines.append(f"actual_shape: {details['actual_shape']}")
-            if 'length' in details:
-                actual_lines.append(f"output_length: {details['length']}")
-            if 'output_name' in details:
-                actual_lines.append(f"output_name: {details['output_name']}")
+        # Row 3: Output Shape (for shape validation)
+        if expected_shape:
+            actual_shape = details.get('actual_shape', response.get('output_shape', []))
+            shape_passed = list(actual_shape) == list(expected_shape) if actual_shape else False
+            comparison_rows.append(self._make_comparison_row(
+                'Output Shape', str(expected_shape), str(actual_shape) if actual_shape else 'N/A', shape_passed
+            ))
 
-            # Show output_size with comparison if min_output_size was expected
-            if actual_output_size and min_output_size:
-                status = "PASS" if actual_output_size >= min_output_size else "FAIL"
-                actual_lines.append(f"output_size: {actual_output_size} bytes ({status} >= {min_output_size})")
-            elif actual_output_size:
-                actual_lines.append(f"output_size: {actual_output_size} bytes")
+        # Row 4: Min Output Size
+        if min_output_size:
+            actual_output_size = response.get('output_size', details.get('output_size', 0))
+            size_passed = actual_output_size >= min_output_size if actual_output_size else False
+            comparison_rows.append(self._make_comparison_row(
+                'Output Size', f'>= {min_output_size:,} bytes',
+                f'{actual_output_size:,} bytes' if actual_output_size else 'N/A',
+                size_passed
+            ))
 
-            if 'inference_time_us' in details:
-                actual_lines.append(f"inference_time: {details['inference_time_us'] / 1000:.2f} ms")
-            elif response and 'inference_time_us' in response:
-                actual_lines.append(f"inference_time: {response['inference_time_us'] / 1000:.2f} ms")
-            if 'validation_source' in details:
-                actual_lines.append(f"validation_source: {details['validation_source']}")
-            if 'top_k_indices' in details:
-                actual_lines.append(f"top_k_indices: {details['top_k_indices']}")
-            if 'found_indices' in details:
-                actual_lines.append(f"found_indices: {details['found_indices']}")
-            if 'generated_text' in details:
-                actual_lines.append(f"generated_text: {details['generated_text']}")
-        elif response:
-            # Use response data when validation details not available
-            if 'output_size' in response:
-                if min_output_size:
-                    status = "PASS" if response['output_size'] >= min_output_size else "FAIL"
-                    actual_lines.append(f"output_size: {response['output_size']} bytes ({status} >= {min_output_size})")
-                else:
-                    actual_lines.append(f"output_size: {response['output_size']} bytes")
-            if 'inference_time_us' in response:
-                actual_lines.append(f"inference_time: {response['inference_time_us'] / 1000:.2f} ms")
-        else:
-            # Fallback to metrics
-            output_size = model_metrics.get('output_size', 'N/A')
-            inference_time = model_metrics.get('inference_time_ms', model_metrics.get('inference_small_ms', 'N/A'))
-            actual_lines.append(f"output_size: {output_size} bytes")
-            actual_lines.append(f"inference_time: {inference_time} ms")
-            actual_lines.append("(validation data not available)")
+        # Row 5: Min Elements
+        if min_elements:
+            actual_length = details.get('length', 0)
+            elements_passed = actual_length >= min_elements if actual_length else False
+            comparison_rows.append(self._make_comparison_row(
+                'Output Elements', f'>= {min_elements:,}',
+                f'{actual_length:,}' if actual_length else 'N/A',
+                elements_passed
+            ))
 
-        # Add actual tensor output values from response data
-        if response and 'outputs' in response:
-            actual_lines.append("")
-            actual_lines.append("─── Tensor Output Values ───")
-            outputs = response['outputs']
-            for output_key, values in outputs.items():
-                if isinstance(values, list):
-                    num_values = len(values)
-                    # Show first few and last few values
-                    if num_values <= 10:
-                        formatted_values = [f"{v:.4f}" if isinstance(v, float) else str(v) for v in values]
-                        actual_lines.append(f"{output_key}: [{', '.join(formatted_values)}]")
+        # Row 6: Expected Keywords (for LLM generation_contains)
+        if expected_labels:
+            generated_text = details.get('generated_text', '')
+            if generated_text:
+                # Check if any expected keyword is found
+                found_keywords = []
+                for kw in expected_labels:
+                    if case_insensitive:
+                        if kw.lower() in generated_text.lower():
+                            found_keywords.append(kw)
                     else:
-                        first_5 = [f"{v:.4f}" if isinstance(v, float) else str(v) for v in values[:5]]
-                        last_3 = [f"{v:.4f}" if isinstance(v, float) else str(v) for v in values[-3:]]
-                        actual_lines.append(f"{output_key}: [{', '.join(first_5)}, ... , {', '.join(last_3)}]")
-                        actual_lines.append(f"  (total: {num_values} values)")
-                else:
-                    actual_lines.append(f"{output_key}: {values}")
+                        if kw in generated_text:
+                            found_keywords.append(kw)
+                keywords_passed = len(found_keywords) > 0
+                actual_display = f'Found: {found_keywords}' if found_keywords else 'None found'
+                comparison_rows.append(self._make_comparison_row(
+                    'Expected Keywords', str(expected_labels), actual_display, keywords_passed
+                ))
+                # Show the actual generated text
+                truncated_text = generated_text[:200] + '...' if len(generated_text) > 200 else generated_text
+                comparison_rows.append(self._make_comparison_row(
+                    'Generated Text', '(any containing keywords)', f'"{truncated_text}"', keywords_passed, 'text'
+                ))
+            else:
+                comparison_rows.append(self._make_comparison_row(
+                    'Expected Keywords', str(expected_labels), 'No generation output', False
+                ))
 
-        actual_display = '\n'.join(actual_lines)
+        # Row 7: Inference Time (info only)
+        inference_time_us = details.get('inference_time_us', response.get('inference_time_us', 0))
+        if inference_time_us:
+            inference_time_ms = inference_time_us / 1000
+            comparison_rows.append(self._make_comparison_row(
+                'Inference Time', '-', f'{inference_time_ms:.2f} ms', True, 'info'
+            ))
 
-        # Add validation message if present
-        if validation_message:
-            actual_display = f"result: {validation_message}\n\n{actual_display}"
+        # Build the comparison table HTML
+        comparison_html = '\n'.join(comparison_rows)
 
         # Data source link
         data_source = "HuggingFace Model Hub"
@@ -1151,29 +1136,68 @@ class TestDetailsPageRenderer:
             data_source = "ONNX Model Zoo / ImageNet"
             data_source_url = "https://github.com/onnx/models"
 
+        # Notes section
+        notes_html = f'<div class="test-notes"><strong>Notes:</strong> {notes}</div>' if notes else ''
+
         return f'''
         <div class="test-case-card">
             <div class="test-case-header">
                 <span class="test-name">{test_name}</span>
                 <span class="validation-result {validation_class}">{validation_text}</span>
             </div>
-            <div class="test-grid">
-                <div class="test-section">
-                    <h5>Input Data</h5>
-                    <div class="code-block">{input_display}</div>
-                </div>
-                <div class="test-section">
-                    <h5>Expected Output</h5>
-                    <div class="code-block">{expected_display}</div>
-                </div>
-                <div class="test-section">
-                    <h5>Actual Output</h5>
-                    <div class="code-block">{actual_display}</div>
-                </div>
+
+            <!-- Input Section -->
+            <div class="test-section" style="margin-bottom: 1rem;">
+                <h5>Input Data</h5>
+                <div class="code-block">{input_display}</div>
             </div>
-            {f'<p class="data-source">Note: {notes}</p>' if notes else ''}
+
+            <!-- Side-by-Side Comparison Table -->
+            <div class="comparison-table-wrapper">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%;">Field</th>
+                            <th style="width: 30%;">Expected</th>
+                            <th style="width: 30%;">Actual</th>
+                            <th style="width: 15%;">Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {comparison_html}
+                    </tbody>
+                </table>
+            </div>
+
+            {notes_html}
             <p class="data-source">Source: <a href="{data_source_url}" target="_blank">{data_source}</a></p>
         </div>
+        '''
+
+    def _make_comparison_row(self, field: str, expected: str, actual: str, passed: bool, row_type: str = 'check') -> str:
+        """Generate a single comparison table row with PASS/FAIL indicator."""
+        if row_type == 'info':
+            result_html = '<span class="result-info">INFO</span>'
+        elif row_type == 'text':
+            result_class = 'result-pass' if passed else 'result-fail'
+            result_text = 'MATCH' if passed else 'NO MATCH'
+            result_html = f'<span class="{result_class}">{result_text}</span>'
+        else:
+            result_class = 'result-pass' if passed else 'result-fail'
+            result_text = 'PASS' if passed else 'FAIL'
+            result_html = f'<span class="{result_class}">{result_text}</span>'
+
+        # Escape HTML in values
+        expected_safe = str(expected).replace('<', '&lt;').replace('>', '&gt;')
+        actual_safe = str(actual).replace('<', '&lt;').replace('>', '&gt;')
+
+        return f'''
+            <tr>
+                <td class="field-name">{field}</td>
+                <td class="expected-value">{expected_safe}</td>
+                <td class="actual-value">{actual_safe}</td>
+                <td class="result-cell">{result_html}</td>
+            </tr>
         '''
 
     def generate_model_section_html(self, model_name: str, model_data: Dict) -> str:

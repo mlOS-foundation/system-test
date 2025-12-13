@@ -314,6 +314,17 @@ models:
         expected:
           validation_type: "generation_contains"
           expected_keywords: ["4"]
+          notes: "Simple arithmetic - answer must contain '4'"
+
+      - name: "multiplication"
+        input:
+          prompt: "What is 3 * 5? Answer with just the number."
+          max_tokens: 8
+          temperature: 0.1
+        expected:
+          validation_type: "generation_contains"
+          expected_keywords: ["15"]
+          notes: "Simple multiplication - answer must contain '15'"
 
       - name: "greeting_response"
         input:
@@ -338,6 +349,17 @@ models:
         expected:
           validation_type: "generation_contains"
           expected_keywords: ["Tokyo"]
+          notes: "Geography knowledge - answer must contain 'Tokyo'"
+
+      - name: "simple_math"
+        input:
+          prompt: "What is 7 + 8? Answer with just the number."
+          max_tokens: 8
+          temperature: 0.1
+        expected:
+          validation_type: "generation_contains"
+          expected_keywords: ["15"]
+          notes: "Simple addition - answer must contain '15'"
 
   # ---------------------------------------------------------------------------
   # DeepSeek Coder 1.3B - Code Generation
