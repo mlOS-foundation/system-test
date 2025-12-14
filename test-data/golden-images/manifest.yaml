@@ -1,0 +1,98 @@
+# Golden Image Manifest for Vision Model Semantic Validation
+# ============================================================================
+#
+# This file maps golden test images to their expected ImageNet class indices.
+# Images are downloaded from Wikimedia Commons (CC0/Public Domain) via the
+# download-golden-images.sh script.
+#
+# ImageNet class indices reference:
+# https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a
+#
+# Usage:
+#   These images are used by the system-test framework to validate that
+#   vision models (ResNet, ViT, MobileNet, etc.) produce semantically
+#   correct classification outputs.
+#
+# ============================================================================
+
+version: "1.0"
+
+# Dataset configuration
+dataset:
+  name: "imagenet-mini"
+  description: "Curated subset of ImageNet validation images for CI testing"
+  image_size: 224
+  preprocessing: "imagenet"  # mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+
+# Golden test images with expected classifications
+images:
+  # ---------------------------------------------------------------------------
+  # Animals
+  # ---------------------------------------------------------------------------
+  cat_tabby.jpg:
+    description: "Orange tabby cat sitting"
+    expected_class_index: 281
+    expected_class_label: "tabby, tabby cat"
+    top_k: 5
+    alternative_classes: [282, 283, 284, 285]  # Other cat classes
+    source_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/1200px-Cat_November_2010-1a.jpg"
+    license: "CC BY-SA 3.0"
+
+  dog_golden_retriever.jpg:
+    description: "Golden retriever dog"
+    expected_class_index: 207
+    expected_class_label: "golden retriever"
+    top_k: 5
+    alternative_classes: [206, 208, 209]  # Similar dog breeds
+    source_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Golden_Retriever_Duffy.jpg/1200px-Golden_Retriever_Duffy.jpg"
+    license: "CC BY-SA 2.5"
+
+  # ---------------------------------------------------------------------------
+  # Objects
+  # ---------------------------------------------------------------------------
+  coffee_mug.jpg:
+    description: "White coffee mug"
+    expected_class_index: 504
+    expected_class_label: "coffee mug"
+    top_k: 5
+    alternative_classes: [968]  # cup
+    source_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Coffee_Mug.jpg/1200px-Coffee_Mug.jpg"
+    license: "CC0 1.0"
+
+  clock_analog.jpg:
+    description: "Analog wall clock"
+    expected_class_index: 409
+    expected_class_label: "analog clock"
+    top_k: 5
+    alternative_classes: [530, 892]  # digital clock, wall clock
+    source_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Analog_clock_animation.gif/220px-Analog_clock_animation.gif"
+    license: "CC0 1.0"
+
+  sports_car.jpg:
+    description: "Red sports car"
+    expected_class_index: 817
+    expected_class_label: "sports car, sport car"
+    top_k: 5
+    alternative_classes: [511, 609, 627, 656, 717, 751, 817, 864]  # Various car classes
+    source_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Ferrari_458_Italia_%28Red%29.jpg/1200px-Ferrari_458_Italia_%28Red%29.jpg"
+    license: "CC BY-SA 3.0"
+
+# Validation configuration
+validation:
+  # Default top-K for validation (model must have correct class in top-K)
+  default_top_k: 5
+
+  # Minimum confidence threshold (optional, not enforced by default)
+  min_confidence: null
+
+  # Whether to allow alternative classes as valid
+  allow_alternatives: true
+
+# Models that should use this golden dataset
+applicable_models:
+  - resnet
+  - vit
+  - mobilenet
+  - convnext
+  - deit
+  - efficientnet

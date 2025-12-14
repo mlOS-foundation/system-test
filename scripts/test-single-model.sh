@@ -7,12 +7,17 @@
 # Tests a single model end-to-end: install → register → inference
 # Designed to run in parallel with other model tests
 #
-# Usage: ./test-single-model.sh <model_name> [--output-dir <dir>]
+# Usage: ./test-single-model.sh <model_name> [--output-dir <dir>] [--golden-images]
+#
+# Options:
+#   --golden-images  Use golden images for semantic validation (vision models)
+#                    NOTE: Blocked by Core issue #49 (ONNX external data loading)
 #
 # Environment variables:
 #   AXON_VERSION    - Axon version (default: v3.1.7)
 #   CORE_VERSION    - Core version (default: 3.2.13-alpha)
 #   CORE_URL        - URL to MLOS Core server (default: http://127.0.0.1:18080)
+#   GOLDEN_IMAGES   - Use golden images (default: false)
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 set -e
@@ -38,6 +43,7 @@ INSTALL_TIMEOUT="${INSTALL_TIMEOUT:-900}"  # 15 minutes
 LLM_INSTALL_TIMEOUT="${LLM_INSTALL_TIMEOUT:-2400}"  # 40 minutes for LLM/GGUF
 INFERENCE_TIMEOUT="${INFERENCE_TIMEOUT:-120}"
 LLM_INFERENCE_TIMEOUT="${LLM_INFERENCE_TIMEOUT:-300}"  # 5 minutes for LLM generation
+GOLDEN_IMAGES="${GOLDEN_IMAGES:-false}"  # Use golden images for semantic validation
 
 # Parse arguments
 MODEL_NAME=""
@@ -58,6 +64,10 @@ while [[ $# -gt 0 ]]; do
         --install-timeout)
             INSTALL_TIMEOUT="$2"
             shift 2
+            ;;
+        --golden-images)
+            GOLDEN_IMAGES="true"
+            shift
             ;;
         -*)
             echo "Unknown option: $1" >&2
@@ -320,8 +330,56 @@ print(json.dumps({'input_ids': encoder_ids[:$max_len], 'attention_mask': encoder
             esac
             ;;
         vision)
-            # Vision: flat 1D array of pixel values (batch*channels*height*width)
+            # Vision: Check for golden image test cases first, then fall back to synthetic
+            # Golden images provide semantic validation (e.g., cat should be classified as cat)
+            # NOTE: Semantic validation blocked by Core issue #49 (ONNX external data loading)
+            local golden_data="$CONFIG_DIR/golden-test-data.yaml"
             local img_size=224
+
+            # Try to find a golden image path from the test data
+            if [ -f "$golden_data" ] && [ "$GOLDEN_IMAGES" = "true" ]; then
+                local golden_image=$(python3 -c "
+import yaml
+import sys
+try:
+    with open('$golden_data') as f:
+        data = yaml.safe_load(f)
+    model_data = data.get('models', {}).get('$model_name', {})
+    test_cases = model_data.get('test_cases', [])
+
+    # For 'small' size, use first golden image test case
+    # For 'large' size, use second golden image test case (if exists)
+    golden_cases = [tc for tc in test_cases if tc.get('input', {}).get('golden_image')]
+    if golden_cases:
+        if '$size' == 'large' and len(golden_cases) > 1:
+            print(golden_cases[1]['input']['golden_image'])
+        else:
+            print(golden_cases[0]['input']['golden_image'])
+except:
+    pass
+" 2>/dev/null)
+
+                if [ -n "$golden_image" ]; then
+                    # Check if the golden image file exists
+                    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+                    local repo_root="$(dirname "$script_dir")"
+                    local full_image_path="$repo_root/$golden_image"
+
+                    if [ -f "$full_image_path" ]; then
+                        log "  Using golden image: $golden_image"
+                        local result=$(python3 "$script_dir/generate-test-input.py" "$model_name" --image "$full_image_path" 2>/dev/null)
+                        if [ -n "$result" ] && [ "$result" != "{}" ] && [ "$result" != "null" ]; then
+                            echo "$result"
+                            return 0
+                        fi
+                        log_warn "  Failed to process golden image, falling back to synthetic"
+                    else
+                        log_warn "  Golden image not found: $full_image_path"
+                    fi
+                fi
+            fi
+
+            # Fall back to synthetic random image (structural validation only)
             python3 -c "
 import random
 import json
