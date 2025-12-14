@@ -360,65 +360,79 @@ print(json.dumps({'input_ids': text_ids, 'attention_mask': text_mask, 'pixel_val
         llm)
             # LLM/GGUF models - prompt-based text generation
             # These models use Core's llama.cpp plugin
-            case "$model_name" in
-                tinyllama)
-                    local prompt="What is the capital of France?"
-                    [ "$size" = "large" ] && prompt="Explain the theory of relativity in simple terms."
-                    local max_tokens=32
-                    [ "$size" = "large" ] && max_tokens=256
-                    python3 -c "
+            # Use golden test data prompts to ensure validation alignment
+            local golden_data="$CONFIG_DIR/golden-test-data.yaml"
+            python3 -c "
+import yaml
 import json
+import sys
+
+model_name = '$model_name'
+size = '$size'
+golden_file = '$golden_data'
+
+# Default prompts (fallback if golden data not available)
+defaults = {
+    'tinyllama': {
+        'small': ('What is the capital of France?', 32),
+        'large': ('Explain the theory of relativity in simple terms.', 256)
+    },
+    'phi2': {
+        'small': ('Write a Python function to calculate fibonacci numbers.', 64),
+        'large': ('Explain how neural networks learn through backpropagation.', 256)
+    },
+    'qwen2-0.5b': {
+        'small': ('What is 2 + 2? Answer with just the number.', 8),
+        'large': ('Summarize the key developments in artificial intelligence over the past decade.', 256)
+    },
+    'llama-3.2-1b': {
+        'small': ('What is the capital of Japan? Answer in one word.', 16),
+        'large': ('Explain the importance of renewable energy.', 256)
+    },
+    'deepseek-coder-1.3b': {
+        'small': ('Write a Python function called add that takes two numbers and returns their sum.', 64),
+        'large': ('Write a Python class for a binary search tree.', 256)
+    }
+}
+
+prompt = 'Hello, how are you?'
+max_tokens = 32
+
+# Try to get prompt from golden test data first
+try:
+    with open(golden_file) as f:
+        golden = yaml.safe_load(f)
+    model_data = golden.get('models', {}).get(model_name, {})
+    test_cases = model_data.get('test_cases', [])
+
+    if test_cases:
+        # For 'small' size, use the first test case
+        # For 'large' size, use the last test case (or second if multiple)
+        if size == 'large' and len(test_cases) > 1:
+            test_case = test_cases[-1]  # Use last test case for large
+        else:
+            test_case = test_cases[0]  # Use first test case for small
+
+        prompt = test_case.get('input', {}).get('prompt', prompt)
+        max_tokens = test_case.get('input', {}).get('max_tokens', max_tokens)
+
+except Exception as e:
+    # Fall back to hardcoded defaults
+    pass
+
+# If no prompt from golden data, use defaults
+if prompt == 'Hello, how are you?':
+    if model_name in defaults:
+        prompt, max_tokens = defaults[model_name].get(size, (prompt, max_tokens))
+
+# Use low temperature for deterministic output during testing
 print(json.dumps({
-    'prompt': '''$prompt''',
-    'max_tokens': $max_tokens,
-    'temperature': 0.7,
+    'prompt': prompt,
+    'max_tokens': max_tokens,
+    'temperature': 0.1,  # Low temp for reproducible results
     'top_p': 0.9
 }))
 "
-                    ;;
-                phi2)
-                    local prompt="Write a Python function to calculate fibonacci numbers."
-                    [ "$size" = "large" ] && prompt="Explain how neural networks learn through backpropagation."
-                    local max_tokens=64
-                    [ "$size" = "large" ] && max_tokens=256
-                    python3 -c "
-import json
-print(json.dumps({
-    'prompt': '''$prompt''',
-    'max_tokens': $max_tokens,
-    'temperature': 0.7,
-    'top_p': 0.9
-}))
-"
-                    ;;
-                qwen2-0.5b)
-                    local prompt="Hello, how are you?"
-                    [ "$size" = "large" ] && prompt="Summarize the benefits of machine learning in healthcare."
-                    local max_tokens=32
-                    [ "$size" = "large" ] && max_tokens=128
-                    python3 -c "
-import json
-print(json.dumps({
-    'prompt': '''$prompt''',
-    'max_tokens': $max_tokens,
-    'temperature': 0.7,
-    'top_p': 0.9
-}))
-"
-                    ;;
-                *)
-                    # Generic LLM fallback
-                    python3 -c "
-import json
-print(json.dumps({
-    'prompt': 'Hello, how are you?',
-    'max_tokens': 32,
-    'temperature': 0.7,
-    'top_p': 0.9
-}))
-"
-                    ;;
-            esac
             ;;
         *)
             echo '{"input_ids": [101, 7592, 102]}'
@@ -851,7 +865,8 @@ run_inference() {
         if [ -f "$validator" ] && [ "$VALIDATE_OUTPUT" != "false" ]; then
             log "  🔍 Validating inference output..."
             # Response is already saved directly to file by curl (avoids bash variable size limits)
-            local validation_result=$(python3 "$validator" --model "$MODEL_NAME" --output "$response_file" --json 2>/dev/null || echo "[]")
+            # Pass --test $size to validate only the test case matching the inference size
+            local validation_result=$(python3 "$validator" --model "$MODEL_NAME" --output "$response_file" --test "$size" --json 2>/dev/null || echo "[]")
 
             if [ -n "$validation_result" ] && [ "$validation_result" != "[]" ]; then
                 # Check if any validations failed

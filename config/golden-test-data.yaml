@@ -277,10 +277,12 @@ models:
   # ---------------------------------------------------------------------------
   # TinyLlama - Small Chat Model
   # ---------------------------------------------------------------------------
+  # NOTE: Test case names MUST be "small" or "large" to match the inference size
+  # passed by test-single-model.sh via --test parameter
   tinyllama:
     description: "TinyLlama 1.1B GGUF - validates text generation"
     test_cases:
-      - name: "basic_generation"
+      - name: "small"
         input:
           prompt: "What is the capital of France?"
           max_tokens: 32
@@ -289,24 +291,24 @@ models:
           validation_type: "generation_contains"
           expected_keywords: ["Paris"]
           case_insensitive: true
-
-      - name: "math_question"
+      - name: "large"
         input:
-          prompt: "What is 2 + 2?"
-          max_tokens: 16
+          prompt: "Write a detailed explanation of the theory of relativity and its implications for modern physics."
+          max_tokens: 256
           temperature: 0.1
         expected:
           validation_type: "generation_contains"
-          expected_keywords: ["4", "four"]
+          expected_keywords: ["Einstein", "relativity", "physics", "time", "space"]
           case_insensitive: true
 
   # ---------------------------------------------------------------------------
   # Qwen2 0.5B - Ultra-small Instruction Model
   # ---------------------------------------------------------------------------
+  # NOTE: Test case names MUST be "small" or "large" to match the inference size
   qwen2-0.5b:
     description: "Qwen2 0.5B GGUF - validates instruction following"
     test_cases:
-      - name: "simple_math"
+      - name: "small"
         input:
           prompt: "What is 2 + 2? Answer with just the number."
           max_tokens: 8
@@ -315,33 +317,24 @@ models:
           validation_type: "generation_contains"
           expected_keywords: ["4"]
           notes: "Simple arithmetic - answer must contain '4'"
-
-      - name: "multiplication"
+      - name: "large"
         input:
-          prompt: "What is 3 * 5? Answer with just the number."
-          max_tokens: 8
+          prompt: "Summarize the key developments in artificial intelligence over the past decade."
+          max_tokens: 256
           temperature: 0.1
         expected:
           validation_type: "generation_contains"
-          expected_keywords: ["15"]
-          notes: "Simple multiplication - answer must contain '15'"
-
-      - name: "greeting_response"
-        input:
-          prompt: "Say hello in one word."
-          max_tokens: 8
-          temperature: 0.1
-        expected:
-          validation_type: "generation_contains"
-          expected_keywords: ["Hello", "hello", "Hi", "hi"]
+          expected_keywords: ["AI", "learning", "neural", "model"]
+          case_insensitive: true
 
   # ---------------------------------------------------------------------------
   # Llama 3.2 1B - Meta's Small Model
   # ---------------------------------------------------------------------------
+  # NOTE: Test case names MUST be "small" or "large" to match the inference size
   llama-3.2-1b:
     description: "Llama 3.2 1B GGUF - validates instruction following"
     test_cases:
-      - name: "capital_question"
+      - name: "small"
         input:
           prompt: "What is the capital of Japan? Answer in one word."
           max_tokens: 16
@@ -350,24 +343,24 @@ models:
           validation_type: "generation_contains"
           expected_keywords: ["Tokyo"]
           notes: "Geography knowledge - answer must contain 'Tokyo'"
-
-      - name: "simple_math"
+      - name: "large"
         input:
-          prompt: "What is 7 + 8? Answer with just the number."
-          max_tokens: 8
+          prompt: "Explain the principles of machine learning in simple terms."
+          max_tokens: 256
           temperature: 0.1
         expected:
           validation_type: "generation_contains"
-          expected_keywords: ["15"]
-          notes: "Simple addition - answer must contain '15'"
+          expected_keywords: ["data", "learn", "train", "model", "algorithm"]
+          case_insensitive: true
 
   # ---------------------------------------------------------------------------
   # DeepSeek Coder 1.3B - Code Generation
   # ---------------------------------------------------------------------------
+  # NOTE: Test case names MUST be "small" or "large" to match the inference size
   deepseek-coder-1.3b:
     description: "DeepSeek Coder 1.3B GGUF - validates code generation"
     test_cases:
-      - name: "python_function"
+      - name: "small"
         input:
           prompt: "Write a Python function called 'add' that takes two numbers and returns their sum."
           max_tokens: 64
@@ -375,15 +368,16 @@ models:
         expected:
           validation_type: "generation_contains"
           expected_keywords: ["def add", "return"]
-
-      - name: "reverse_string"
+          notes: "Simple function - answer must contain 'def add' and 'return'"
+      - name: "large"
         input:
-          prompt: "Write a Python one-liner to reverse a string s."
-          max_tokens: 32
+          prompt: "Write a Python function to implement binary search on a sorted list."
+          max_tokens: 256
           temperature: 0.1
         expected:
           validation_type: "generation_contains"
-          expected_keywords: ["[::-1]", "reverse"]
+          expected_keywords: ["def", "binary", "return"]
+          case_insensitive: true
 
 # ===============================================================================
 # ImageNet Class Labels Reference
