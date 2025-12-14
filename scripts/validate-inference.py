@@ -611,8 +611,9 @@ class InferenceValidator:
         )
 
     def _validate_output_exists(self, test_name: str, expected: Dict, output: Dict) -> ValidationResult:
-        """Validate that a specific output exists in the response."""
+        """Validate that a specific output exists in the response with optional min size check."""
         output_name = expected.get('output_name', 'output')
+        min_elements = expected.get('min_elements', 0)
 
         # Check in outputs dict if this is a Core response with tensor data
         tensor_data = self._extract_tensor_data(output) if self._has_tensor_outputs(output) else output
@@ -620,11 +621,21 @@ class InferenceValidator:
         if output_name in tensor_data:
             data = tensor_data[output_name]
             data_len = len(data) if isinstance(data, list) else 1
+
+            # Check minimum elements if specified
+            if min_elements > 0 and data_len < min_elements:
+                return ValidationResult(
+                    test_name=test_name,
+                    passed=False,
+                    message=f"Output '{output_name}' has {data_len} elements, expected >= {min_elements}",
+                    details={"output_name": output_name, "length": data_len, "min_expected": min_elements}
+                )
+
             return ValidationResult(
                 test_name=test_name,
                 passed=True,
                 message=f"Output '{output_name}' found with {data_len} elements",
-                details={"output_name": output_name, "length": data_len}
+                details={"output_name": output_name, "length": data_len, "min_expected": min_elements}
             )
         else:
             return ValidationResult(
@@ -635,23 +646,45 @@ class InferenceValidator:
             )
 
     def _validate_status_success(self, test_name: str, expected: Dict, output: Dict) -> ValidationResult:
-        """Validate that the response status is success."""
+        """Validate that the response status is success and optionally check min_output_size."""
         status = output.get('status')
+        output_size = output.get('output_size', 0)
+        min_output_size = expected.get('min_output_size', 0)
 
-        if status == 'success':
-            return ValidationResult(
-                test_name=test_name,
-                passed=True,
-                message="Status is success",
-                details={"status": status, "model_id": output.get('model_id', 'unknown')}
-            )
-        else:
+        if status != 'success':
             return ValidationResult(
                 test_name=test_name,
                 passed=False,
                 message=f"Expected status 'success', got '{status}'",
                 details={"status": status, "message": output.get('message', '')}
             )
+
+        # Optionally check min_output_size if specified
+        if min_output_size > 0 and output_size < min_output_size:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message=f"output_size {output_size:,} < min_output_size {min_output_size:,}",
+                details={
+                    "status": status,
+                    "output_size": output_size,
+                    "min_output_size": min_output_size,
+                    "model_id": output.get('model_id', 'unknown')
+                }
+            )
+
+        return ValidationResult(
+            test_name=test_name,
+            passed=True,
+            message=f"Status is success, output_size={output_size:,}",
+            details={
+                "status": status,
+                "output_size": output_size,
+                "min_output_size": min_output_size,
+                "model_id": output.get('model_id', 'unknown'),
+                "inference_time_us": output.get('inference_time_us', 0)
+            }
+        )
 
     def _get_tensor_shape(self, data: Any) -> List[int]:
         """Recursively determine shape of nested list (tensor)."""

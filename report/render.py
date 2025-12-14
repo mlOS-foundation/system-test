@@ -933,7 +933,7 @@ class TestDetailsPageRenderer:
         return True
 
     def _load_validation_results(self) -> None:
-        """Load validation results from model-results/{model}-validation-small.json files."""
+        """Load validation results from model-results/{model}-validation-*.json files."""
         results_dir = self.metrics_path.parent / "model-results"
         if not results_dir.exists():
             results_dir = self.golden_data_path.parent.parent / "model-results"
@@ -942,18 +942,29 @@ class TestDetailsPageRenderer:
             print(f"⚠️ Model results directory not found: {results_dir}")
             return
 
-        for validation_file in results_dir.glob("*-validation-small.json"):
-            model_name = validation_file.stem.replace("-validation-small", "")
-            try:
-                with open(validation_file, 'r', encoding='utf-8') as f:
-                    results = json.load(f)
-                    # Index results by test_name for easy lookup
-                    self.validation_results[model_name] = {
-                        r.get('test_name', ''): r for r in results
-                    }
-                print(f"  📊 Loaded validation results for {model_name}")
-            except Exception as e:
-                print(f"  ⚠️ Failed to load validation for {model_name}: {e}")
+        # Load both small and large validation files (LLMs have separate files per test size)
+        for pattern in ["*-validation-small.json", "*-validation-large.json"]:
+            for validation_file in results_dir.glob(pattern):
+                # Extract model name and size from filename
+                stem = validation_file.stem
+                if "-validation-small" in stem:
+                    model_name = stem.replace("-validation-small", "")
+                else:
+                    model_name = stem.replace("-validation-large", "")
+
+                try:
+                    with open(validation_file, 'r', encoding='utf-8') as f:
+                        results = json.load(f)
+                        # Merge results by test_name (don't overwrite existing)
+                        if model_name not in self.validation_results:
+                            self.validation_results[model_name] = {}
+                        for r in results:
+                            test_name = r.get('test_name', '')
+                            if test_name not in self.validation_results[model_name]:
+                                self.validation_results[model_name][test_name] = r
+                    print(f"  📊 Loaded validation results for {model_name} from {validation_file.name}")
+                except Exception as e:
+                    print(f"  ⚠️ Failed to load validation for {model_name}: {e}")
 
         # Also load response files to get actual inference output data
         self._load_response_data(results_dir)

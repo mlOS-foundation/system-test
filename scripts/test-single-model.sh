@@ -865,8 +865,13 @@ run_inference() {
         if [ -f "$validator" ] && [ "$VALIDATE_OUTPUT" != "false" ]; then
             log "  🔍 Validating inference output..."
             # Response is already saved directly to file by curl (avoids bash variable size limits)
-            # Pass --test $size to validate only the test case matching the inference size
-            local validation_result=$(python3 "$validator" --model "$MODEL_NAME" --output "$response_file" --test "$size" --json 2>/dev/null || echo "[]")
+            # For LLM models: pass --test $size to validate only the test case matching the inference size
+            # For ONNX models: don't filter by test name (they have different test case names)
+            local test_filter=""
+            if [ "$CATEGORY" = "llm" ]; then
+                test_filter="--test $size"
+            fi
+            local validation_result=$(python3 "$validator" --model "$MODEL_NAME" --output "$response_file" $test_filter --json 2>/dev/null || echo "[]")
 
             if [ -n "$validation_result" ] && [ "$validation_result" != "[]" ]; then
                 # Check if any validations failed
