@@ -253,20 +253,22 @@ models:
     category: llm
     format: gguf
     prompts:
+      # Must match golden-test-data.yaml for validation to pass
       small: "What is the capital of France?"
-      medium: "Explain how computers work in simple terms."
+      medium: "What is 2 + 2?"
       large: "Write a detailed explanation of the theory of relativity and its implications for modern physics."
     max_tokens:
       small: 32
-      medium: 128
+      medium: 16
       large: 256
-    temperature: 0.7
+    temperature: 0.1
     top_p: 0.9
 
   phi2:
     category: llm
     format: gguf
     prompts:
+      # Must match golden-test-data.yaml for validation to pass
       small: "Write a Python function to calculate fibonacci numbers."
       medium: "Explain the concept of recursion in programming with examples."
       large: "Explain how neural networks learn through backpropagation, including the mathematical foundations."
@@ -274,20 +276,51 @@ models:
       small: 64
       medium: 256
       large: 512
-    temperature: 0.7
+    temperature: 0.1
     top_p: 0.9
 
   qwen2-0.5b:
     category: llm
     format: gguf
     prompts:
-      small: "Hello, how are you?"
-      medium: "What are the benefits of machine learning in healthcare?"
-      large: "Summarize the key developments in artificial intelligence over the past decade and predict future trends."
+      # Must match golden-test-data.yaml for validation to pass
+      small: "What is 2 + 2? Answer with just the number."
+      medium: "Explain the concept of recursion in programming."
+      large: "Summarize the key developments in artificial intelligence over the past decade."
     max_tokens:
-      small: 32
+      small: 8
       medium: 128
       large: 256
-    temperature: 0.7
+    temperature: 0.1
+    top_p: 0.9
+
+  llama-3.2-1b:
+    category: llm
+    format: gguf
+    prompts:
+      # Must match golden-test-data.yaml for validation to pass
+      small: "What is the capital of Japan? Answer in one word."
+      medium: "What is 7 + 8? Answer with just the number."
+      large: "Explain the principles of machine learning in simple terms."
+    max_tokens:
+      small: 16
+      medium: 8
+      large: 256
+    temperature: 0.1
+    top_p: 0.9
+
+  deepseek-coder-1.3b:
+    category: llm
+    format: gguf
+    prompts:
+      # Must match golden-test-data.yaml for validation to pass
+      small: "Write a Python function called 'add' that takes two numbers and returns their sum."
+      medium: "Write a Python one-liner to reverse a string s."
+      large: "Write a Python function to implement binary search on a sorted list."
+    max_tokens:
+      small: 64
+      medium: 32
+      large: 256
+    temperature: 0.1
     top_p: 0.9
 
