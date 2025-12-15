@@ -31,7 +31,8 @@ NC='\033[0m'
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$REPO_ROOT/config"
 CONFIG_FILE="$CONFIG_DIR/models.yaml"
 
 # Default configuration
@@ -970,6 +971,169 @@ run_inference() {
 }
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PHASE 4: Run Golden Image Semantic Tests (separate inference per image)
+#━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+run_golden_image_tests() {
+    local size="$1"  # small or large - used to associate results with the inference phase
+
+    # Only run for vision models
+    if [ "$CATEGORY" != "vision" ]; then
+        log "  Skipping golden image tests (not a vision model)"
+        return 0
+    fi
+
+    local golden_data="$CONFIG_DIR/golden-test-data.yaml"
+    if [ ! -f "$golden_data" ]; then
+        log "  Skipping golden image tests (no golden-test-data.yaml)"
+        return 0
+    fi
+
+    log "🖼️  Phase 4: Running golden image semantic tests ($size)..."
+
+    # Extract golden image test cases for this model
+    local test_cases=$(python3 -c "
+import yaml
+import json
+import sys
+
+try:
+    with open('$golden_data') as f:
+        data = yaml.safe_load(f)
+
+    model_data = data.get('models', {}).get('$MODEL_NAME', {})
+    test_cases = model_data.get('test_cases', [])
+
+    # Find test cases with golden_image input that use top_k_class_match validation
+    golden_tests = []
+    for tc in test_cases:
+        input_config = tc.get('input', {})
+        expected = tc.get('expected', {})
+        golden_image = input_config.get('golden_image')
+        validation_type = expected.get('validation_type')
+
+        if golden_image and validation_type == 'top_k_class_match':
+            golden_tests.append({
+                'name': tc.get('name'),
+                'golden_image': golden_image,
+                'expected_class': expected.get('expected_class_index'),
+                'top_k': expected.get('top_k', 5),
+                'alternative_classes': expected.get('alternative_classes', [])
+            })
+
+    print(json.dumps(golden_tests))
+except Exception as e:
+    print('[]', file=sys.stderr)
+    print('[]')
+" 2>/dev/null)
+
+    if [ -z "$test_cases" ] || [ "$test_cases" = "[]" ]; then
+        log "  No golden image test cases found for $MODEL_NAME"
+        return 0
+    fi
+
+    local num_tests=$(echo "$test_cases" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+    log "  Found $num_tests golden image test case(s)"
+
+    local encoded_model_id=$(url_encode "$AXON_ID")
+    local all_validation_results="[]"
+    local total_passed=0
+    local total_failed=0
+
+    # Process each golden image test case
+    echo "$test_cases" | python3 -c "
+import json
+import sys
+
+tests = json.load(sys.stdin)
+for t in tests:
+    print(f\"{t['name']}|{t['golden_image']}|{t['expected_class']}|{t['top_k']}|{','.join(map(str, t.get('alternative_classes', [])))}\")
+" 2>/dev/null | while IFS='|' read -r test_name golden_image expected_class top_k alt_classes; do
+        if [ -z "$test_name" ]; then
+            continue
+        fi
+
+        log "  Testing: $test_name"
+
+        # Resolve golden image path
+        local full_image_path="$REPO_ROOT/$golden_image"
+        if [ ! -f "$full_image_path" ]; then
+            log_warn "    Golden image not found: $golden_image"
+            total_failed=$((total_failed + 1))
+            continue
+        fi
+
+        # Generate input from golden image
+        local test_input=$(python3 "$SCRIPT_DIR/generate-test-input.py" "$MODEL_NAME" --image "$full_image_path" 2>/dev/null)
+        if [ -z "$test_input" ] || [ "$test_input" = "null" ]; then
+            log_error "    Failed to generate input from golden image"
+            total_failed=$((total_failed + 1))
+            continue
+        fi
+
+        # Write input to temp file
+        local tmp_input="/tmp/golden_${MODEL_NAME}_${test_name}_$$.json"
+        echo "$test_input" > "$tmp_input"
+
+        # Run inference with tensor outputs
+        local response_file="$OUTPUT_DIR/${MODEL_NAME}-response-golden-${test_name}.json"
+        local inference_url="$CORE_URL/models/${encoded_model_id}/inference?include_outputs=true"
+
+        local http_code=$(curl -s -w "%{http_code}" --max-time "$INFERENCE_TIMEOUT" \
+            -X POST "$inference_url" \
+            -H "Content-Type: application/json" \
+            -d "@$tmp_input" \
+            -o "$response_file" 2>/dev/null)
+
+        rm -f "$tmp_input"
+
+        if [ "$http_code" != "200" ]; then
+            log_error "    Inference failed (HTTP $http_code)"
+            total_failed=$((total_failed + 1))
+            continue
+        fi
+
+        # Validate this specific test case
+        local validator="$SCRIPT_DIR/validate-inference.py"
+        local validation_result=$(python3 "$validator" --model "$MODEL_NAME" --output "$response_file" --test "$test_name" --json 2>/dev/null || echo "[]")
+
+        if [ -n "$validation_result" ] && [ "$validation_result" != "[]" ]; then
+            # Check if validation passed
+            local passed=$(echo "$validation_result" | python3 -c "import json,sys; data=json.load(sys.stdin); print('true' if all(r.get('passed', False) for r in data) else 'false')" 2>/dev/null || echo "false")
+
+            if [ "$passed" = "true" ]; then
+                log "    ✅ $test_name PASSED"
+                total_passed=$((total_passed + 1))
+            else
+                log_warn "    ❌ $test_name FAILED"
+                # Show details
+                echo "$validation_result" | python3 -c "
+import json,sys
+data = json.load(sys.stdin)
+for r in data:
+    if not r.get('passed', True):
+        details = r.get('details', {})
+        top_k = details.get('top_k_indices', [])[:5]
+        expected = details.get('expected_class')
+        print(f'       Expected class {expected}, top-5: {top_k}')
+" 2>/dev/null
+                total_failed=$((total_failed + 1))
+            fi
+
+            # Save validation result
+            echo "$validation_result" > "$OUTPUT_DIR/${MODEL_NAME}-validation-golden-${test_name}.json"
+        else
+            log_warn "    ⚠️  No validation result for $test_name"
+            total_failed=$((total_failed + 1))
+        fi
+    done
+
+    # Summary
+    log "  Golden image tests: $total_passed passed, $total_failed failed"
+
+    return 0
+}
+
+#━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Main Pipeline
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 main() {
@@ -1003,8 +1167,12 @@ main() {
     if ! run_inference "small"; then
         overall_status="partial"
     fi
-    
-    # Phase 4: Large inference (optional, don't fail the whole pipeline)
+
+    # Phase 4: Golden image semantic tests (for vision models)
+    # These run separate inference per golden image to validate semantic correctness
+    run_golden_image_tests "small"
+
+    # Phase 5: Large inference (optional, don't fail the whole pipeline)
     if ! run_inference "large"; then
         if [ "$overall_status" = "success" ]; then
             overall_status="partial"
