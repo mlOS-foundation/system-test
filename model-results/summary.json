@@ -1,0 +1,609 @@
+{
+  "generated_at": "2025-12-15T04:44:25.005749Z",
+  "total_models": 18,
+  "successful_models": 18,
+  "partial_models": 0,
+  "failed_models": 0,
+  "total_inferences": 36,
+  "successful_inferences": 36,
+  "models": {
+    "clip": {
+      "tested": true,
+      "category": "multimodal",
+      "install_time_ms": 0,
+      "register_time_ms": 393,
+      "inference_time_ms": 1092,
+      "inference_large_time_ms": 1083,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 393
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 1092
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 1083
+        }
+      },
+      "total_time_ms": 2568
+    },
+    "t5": {
+      "tested": true,
+      "category": "nlp",
+      "install_time_ms": 0,
+      "register_time_ms": 275,
+      "inference_time_ms": 36,
+      "inference_large_time_ms": 141,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 275
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 36
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 141
+        }
+      },
+      "total_time_ms": 452
+    },
+    "sentence-transformers": {
+      "tested": true,
+      "category": "nlp",
+      "install_time_ms": 35,
+      "register_time_ms": 152,
+      "inference_time_ms": 148,
+      "inference_large_time_ms": 115,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 35
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 152
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 148
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 115
+        }
+      },
+      "total_time_ms": 450
+    },
+    "vit": {
+      "tested": true,
+      "category": "vision",
+      "install_time_ms": 0,
+      "register_time_ms": 239,
+      "inference_time_ms": 1126,
+      "inference_large_time_ms": 1143,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 239
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 1126
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 1143
+        }
+      },
+      "total_time_ms": 2508
+    },
+    "bert": {
+      "tested": true,
+      "category": "nlp",
+      "install_time_ms": 0,
+      "register_time_ms": 244,
+      "inference_time_ms": 193,
+      "inference_large_time_ms": 491,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 244
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 193
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 491
+        }
+      },
+      "total_time_ms": 928
+    },
+    "albert": {
+      "tested": true,
+      "category": "nlp",
+      "install_time_ms": 18234,
+      "register_time_ms": 175,
+      "inference_time_ms": 182,
+      "inference_large_time_ms": 517,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 18234
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 175
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 182
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 517
+        }
+      },
+      "total_time_ms": 19108
+    },
+    "efficientnet": {
+      "tested": true,
+      "category": "vision",
+      "install_time_ms": 0,
+      "register_time_ms": 123,
+      "inference_time_ms": 1072,
+      "inference_large_time_ms": 1072,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 123
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 1072
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 1072
+        }
+      },
+      "total_time_ms": 2267
+    },
+    "tinyllama": {
+      "tested": true,
+      "category": "llm",
+      "install_time_ms": 0,
+      "register_time_ms": 228,
+      "inference_time_ms": 251,
+      "inference_large_time_ms": 1758,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 228
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 251
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 1758
+        }
+      },
+      "total_time_ms": 2237
+    },
+    "distilbert": {
+      "tested": true,
+      "category": "nlp",
+      "install_time_ms": 39996,
+      "register_time_ms": 147,
+      "inference_time_ms": 130,
+      "inference_large_time_ms": 147,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 39996
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 147
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 130
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 147
+        }
+      },
+      "total_time_ms": 40420
+    },
+    "resnet": {
+      "tested": true,
+      "category": "vision",
+      "install_time_ms": 0,
+      "register_time_ms": 130,
+      "inference_time_ms": 1110,
+      "inference_large_time_ms": 1111,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 130
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 1110
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 1111
+        }
+      },
+      "total_time_ms": 2351
+    },
+    "deepseek-coder-1.3b": {
+      "tested": true,
+      "category": "llm",
+      "install_time_ms": 0,
+      "register_time_ms": 522,
+      "inference_time_ms": 730,
+      "inference_large_time_ms": 2322,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 522
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 730
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 2322
+        }
+      },
+      "total_time_ms": 3574
+    },
+    "convnext": {
+      "tested": true,
+      "category": "vision",
+      "install_time_ms": 0,
+      "register_time_ms": 137,
+      "inference_time_ms": 1112,
+      "inference_large_time_ms": 1107,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 137
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 1112
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 1107
+        }
+      },
+      "total_time_ms": 2356
+    },
+    "qwen2-0.5b": {
+      "tested": true,
+      "category": "llm",
+      "install_time_ms": 0,
+      "register_time_ms": 235,
+      "inference_time_ms": 161,
+      "inference_large_time_ms": 1408,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 235
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 161
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 1408
+        }
+      },
+      "total_time_ms": 1804
+    },
+    "llama-3.2-1b": {
+      "tested": true,
+      "category": "llm",
+      "install_time_ms": 0,
+      "register_time_ms": 574,
+      "inference_time_ms": 214,
+      "inference_large_time_ms": 2134,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 574
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 214
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 2134
+        }
+      },
+      "total_time_ms": 2922
+    },
+    "mobilenet": {
+      "tested": true,
+      "category": "vision",
+      "install_time_ms": 0,
+      "register_time_ms": 120,
+      "inference_time_ms": 1077,
+      "inference_large_time_ms": 1066,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 120
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 1077
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 1066
+        }
+      },
+      "total_time_ms": 2263
+    },
+    "gpt2": {
+      "tested": true,
+      "category": "nlp",
+      "install_time_ms": 0,
+      "register_time_ms": 226,
+      "inference_time_ms": 133,
+      "inference_large_time_ms": 178,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 226
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 133
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 178
+        }
+      },
+      "total_time_ms": 537
+    },
+    "deit": {
+      "tested": true,
+      "category": "vision",
+      "install_time_ms": 0,
+      "register_time_ms": 140,
+      "inference_time_ms": 1089,
+      "inference_large_time_ms": 1086,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 140
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 1089
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 1086
+        }
+      },
+      "total_time_ms": 2315
+    },
+    "roberta": {
+      "tested": true,
+      "category": "nlp",
+      "install_time_ms": 0,
+      "register_time_ms": 176,
+      "inference_time_ms": 38,
+      "inference_large_time_ms": 179,
+      "inference_status": "success",
+      "inference_large_status": "success",
+      "inference_large_tested": true,
+      "status": "success",
+      "phases": {
+        "install": {
+          "status": "success",
+          "time_ms": 0
+        },
+        "register": {
+          "status": "success",
+          "time_ms": 176
+        },
+        "inference_small": {
+          "status": "success",
+          "time_ms": 38
+        },
+        "inference_large": {
+          "status": "success",
+          "time_ms": 179
+        }
+      },
+      "total_time_ms": 393
+    }
+  },
+  "total_time_ms": 89453,
+  "versions": {
+    "axon": "v3.1.4",
+    "core": "3.2.10-alpha"
+  },
+  "hardware": {
+    "os": "Linux",
+    "os_version": "Unknown",
+    "arch": "x86_64",
+    "cpu_model": "Unknown",
+    "cpu_cores": 2,
+    "cpu_threads": 2,
+    "memory_gb": 7,
+    "gpu_count": 0,
+    "gpu_name": "None",
+    "gpu_memory": "N/A",
+    "disk_total": "N/A",
+    "disk_available": "N/A"
+  },
+  "resources": {
+    "core_idle_cpu": 0,
+    "core_idle_mem_mb": 0,
+    "core_load_cpu_avg": 0,
+    "core_load_cpu_max": 0,
+    "core_load_mem_avg_mb": 0,
+    "core_load_mem_max_mb": 0,
+    "axon_cpu": 0,
+    "axon_mem_mb": 0,
+    "gpu_status": "Not used (CPU-only inference)"
+  },
+  "timings": {
+    "axon_download_ms": 0,
+    "core_download_ms": 0,
+    "core_startup_ms": 0,
+    "total_model_install_ms": 58265,
+    "total_register_ms": 4236,
+    "total_inference_ms": 26952,
+    "total_duration_s": 89.5
+  },
+  "success_rate": 100.0
+}

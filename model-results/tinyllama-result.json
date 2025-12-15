@@ -1,8 +1,8 @@
 {
   "model_name": "tinyllama",
-  "started_at": "2025-12-08T17:48:41Z",
-  "axon_version": "v3.1.4",
-  "core_version": "3.2.10-alpha",
+  "started_at": "2025-12-15T04:43:36Z",
+  "axon_version": "v3.1.7",
+  "core_version": "4.1.3-alpha",
   "status": "success",
   "phases": {
     "install": {
@@ -11,17 +11,17 @@
     },
     "register": {
       "status": "success",
-      "time_ms": 213
+      "time_ms": 228
     },
     "inference_small": {
       "status": "success",
-      "time_ms": 893
+      "time_ms": 251
     },
     "inference_large": {
       "status": "success",
-      "time_ms": 896
+      "time_ms": 1758
     }
   },
-  "completed_at": "2025-12-08T17:48:44Z",
-  "total_time_ms": 2002
+  "completed_at": "2025-12-15T04:43:39Z",
+  "total_time_ms": 2237
 }
