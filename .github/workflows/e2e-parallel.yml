@@ -690,8 +690,8 @@ jobs:
       - name: Aggregate results
         if: always()
         env:
-          AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.7' }}
-          CORE_VERSION: ${{ github.event.inputs.core_version || '4.1.3-alpha' }}
+          AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.8' }}
+          CORE_VERSION: ${{ github.event.inputs.core_version || '4.1.4-alpha' }}
         run: |
           mkdir -p output metrics
 
