@@ -1,0 +1,24 @@
+# Requirements for MLOS System-Test Framework
+# ============================================
+#
+# Install with: pip install -r requirements.txt
+#
+# Core dependencies for test generation and validation
+
+# YAML parsing for configuration files
+PyYAML>=6.0
+
+# HTTP requests for inference API calls
+requests>=2.28.0
+
+# Image processing for vision model tests (golden image loading)
+Pillow>=9.0.0
+
+# Numerical operations for tensor manipulation
+numpy>=1.20.0
+
+# HuggingFace transformers for tokenization (optional but recommended)
+# Enables proper tokenization for NLP model tests
+# transformers>=4.20.0  # Uncomment if tokenization is needed
+
+# Note: The test framework can run without transformers by using fallback tokenization

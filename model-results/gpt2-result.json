@@ -1,8 +1,8 @@
 {
   "model_name": "gpt2",
-  "started_at": "2025-12-08T17:48:14Z",
-  "axon_version": "v3.1.4",
-  "core_version": "3.2.10-alpha",
+  "started_at": "2025-12-15T04:43:18Z",
+  "axon_version": "v3.1.7",
+  "core_version": "4.1.3-alpha",
   "status": "success",
   "phases": {
     "install": {
@@ -11,17 +11,17 @@
     },
     "register": {
       "status": "success",
-      "time_ms": 149
+      "time_ms": 226
     },
     "inference_small": {
       "status": "success",
-      "time_ms": 139
+      "time_ms": 133
     },
     "inference_large": {
       "status": "success",
-      "time_ms": 149
+      "time_ms": 178
     }
   },
-  "completed_at": "2025-12-08T17:48:14Z",
-  "total_time_ms": 437
+  "completed_at": "2025-12-15T04:43:29Z",
+  "total_time_ms": 537
 }

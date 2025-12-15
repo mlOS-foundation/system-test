@@ -7,13 +7,15 @@ proper test inputs using model tokenizers and preprocessors.
 
 Usage:
     python generate-test-input.py <model_name> [size]
-    
+    python generate-test-input.py <model_name> --image <path>
+
     size: small (default), medium, large
-    
+
 Examples:
     python generate-test-input.py bert small
     python generate-test-input.py resnet
     python generate-test-input.py gpt2 large
+    python generate-test-input.py resnet --image test-data/golden-images/imagenet/cat_tabby.jpg
 """
 
 import argparse
@@ -110,24 +112,100 @@ def generate_nlp_fallback(model_config: dict, size: str = "small") -> dict:
     return result
 
 
+def load_image_input(image_path: str, model_config: dict) -> dict:
+    """Load and preprocess a real image file for vision model inference.
+
+    This function uses HuggingFace's AutoImageProcessor when available for
+    exact preprocessing match. Falls back to manual preprocessing otherwise.
+
+    Args:
+        image_path: Path to the image file (JPEG, PNG, etc.)
+        model_config: Model configuration from test-inputs.yaml
+
+    Returns:
+        Dictionary with preprocessed pixel_values for Core API
+    """
+    input_name = model_config.get("input_name", "pixel_values")
+    preprocessor_name = model_config.get("preprocessor", "microsoft/resnet-50")
+
+    try:
+        from PIL import Image
+        import numpy as np
+    except ImportError:
+        print("Error: PIL (Pillow) and numpy are required for image loading.", file=sys.stderr)
+        print("Install with: pip install pillow numpy", file=sys.stderr)
+        sys.exit(1)
+
+    # Load image
+    img = Image.open(image_path).convert('RGB')
+
+    # Try using HuggingFace processor for exact preprocessing
+    try:
+        from transformers import AutoImageProcessor
+        processor = AutoImageProcessor.from_pretrained(preprocessor_name)
+        inputs = processor(images=img, return_tensors="np")
+        pixel_values = inputs['pixel_values'][0]  # Remove batch dim
+        return {input_name: pixel_values.flatten().tolist()}
+    except ImportError:
+        print("Warning: transformers not installed, using fallback preprocessing", file=sys.stderr)
+    except Exception as e:
+        print(f"Warning: HuggingFace processor failed ({e}), using fallback", file=sys.stderr)
+
+    # Fallback: Manual preprocessing matching HuggingFace's ConvNextImageProcessor
+    image_size = model_config.get("image_size", 224)
+    normalization = model_config.get("normalization", {})
+    mean = normalization.get("mean", [0.485, 0.456, 0.406])
+    std = normalization.get("std", [0.229, 0.224, 0.225])
+
+    width, height = img.size
+
+    # Resize so shortest edge is image_size (maintain aspect ratio)
+    if width < height:
+        new_width = image_size
+        new_height = int(height * image_size / width)
+    else:
+        new_height = image_size
+        new_width = int(width * image_size / height)
+
+    img = img.resize((new_width, new_height), Image.Resampling.BILINEAR)
+
+    # Center crop to image_size x image_size
+    left = (new_width - image_size) // 2
+    top = (new_height - image_size) // 2
+    right = left + image_size
+    bottom = top + image_size
+    img = img.crop((left, top, right, bottom))
+
+    # Convert to numpy and normalize
+    data = np.array(img, dtype=np.float32) / 255.0
+    mean_arr = np.array(mean, dtype=np.float32)
+    std_arr = np.array(std, dtype=np.float32)
+    data = (data - mean_arr) / std_arr
+
+    # Transpose from HWC to CHW format
+    data = data.transpose(2, 0, 1)
+
+    return {input_name: data.flatten().tolist()}
+
+
 def generate_vision_input(model_config: dict, size: str = "small") -> dict:
-    """Generate vision model input (normalized image tensor)."""
+    """Generate vision model input (normalized random image tensor)."""
     input_name = model_config.get("input_name", "pixel_values")
     image_size = model_config.get("image_size", 224)
     channels = model_config.get("channels", 3)
     seed = model_config.get("test_seed", 42)
     normalization = model_config.get("normalization", {})
-    
+
     mean = normalization.get("mean", [0.485, 0.456, 0.406])
     std = normalization.get("std", [0.229, 0.224, 0.225])
-    
+
     # Set random seed for reproducibility
     random.seed(seed)
-    
+
     # Generate normalized random image data
     # Shape: [batch, channels, height, width] = [1, 3, 224, 224]
     total_elements = 1 * channels * image_size * image_size
-    
+
     # Generate values normalized around ImageNet mean/std
     data = []
     for i in range(total_elements):
@@ -136,7 +214,7 @@ def generate_vision_input(model_config: dict, size: str = "small") -> dict:
         # Most values will be in range [-2, 2] after normalization
         value = random.gauss(0, 1)  # Standard normal
         data.append(value)
-    
+
     return {input_name: data}
 
 
@@ -261,45 +339,59 @@ def main():
     )
     parser.add_argument("model", help="Model name (e.g., bert, resnet, gpt2)")
     parser.add_argument(
-        "size", 
-        nargs="?", 
+        "size",
+        nargs="?",
         default="small",
         choices=["small", "medium", "large"],
         help="Input size (default: small)"
     )
     parser.add_argument(
-        "--pretty", 
+        "--image",
+        help="Path to image file for vision model semantic testing"
+    )
+    parser.add_argument(
+        "--pretty",
         action="store_true",
         help="Pretty-print JSON output"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Load configuration
     config = load_config()
     models = config.get("models", {})
-    
+
     if args.model not in models:
         print(f"Error: Unknown model '{args.model}'", file=sys.stderr)
         print(f"Available models: {', '.join(models.keys())}", file=sys.stderr)
         sys.exit(1)
-    
+
     model_config = models[args.model]
     category = model_config.get("category", "nlp")
-    
-    # Generate input based on category
-    if category == "nlp":
-        result = generate_nlp_input(model_config, args.size)
-    elif category == "vision":
-        result = generate_vision_input(model_config, args.size)
-    elif category == "multimodal":
-        result = generate_multimodal_input(model_config, args.size)
-    elif category == "llm":
-        result = generate_llm_input(model_config, args.size)
+
+    # If --image is provided, load real image for vision models
+    if args.image:
+        if category != "vision":
+            print(f"Error: --image flag only supported for vision models, not '{category}'", file=sys.stderr)
+            sys.exit(1)
+        if not Path(args.image).exists():
+            print(f"Error: Image file not found: {args.image}", file=sys.stderr)
+            sys.exit(1)
+        result = load_image_input(args.image, model_config)
     else:
-        print(f"Error: Unknown category '{category}'", file=sys.stderr)
-        sys.exit(1)
-    
+        # Generate synthetic input based on category
+        if category == "nlp":
+            result = generate_nlp_input(model_config, args.size)
+        elif category == "vision":
+            result = generate_vision_input(model_config, args.size)
+        elif category == "multimodal":
+            result = generate_multimodal_input(model_config, args.size)
+        elif category == "llm":
+            result = generate_llm_input(model_config, args.size)
+        else:
+            print(f"Error: Unknown category '{category}'", file=sys.stderr)
+            sys.exit(1)
+
     # Output JSON
     if args.pretty:
         print(json.dumps(result, indent=2))

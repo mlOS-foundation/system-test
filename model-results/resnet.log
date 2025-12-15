@@ -78,3 +78,29 @@
 [0;32m[23:18:19][0m [resnet]   Results: ./model-results/resnet-result.json
 [0;32m[23:18:19][0m [resnet]   Log: ./model-results/resnet.log
 [0;32m[23:18:19][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[10:13:10][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[10:13:10][0m [resnet] 🚀 Single Model Test Pipeline: resnet
+[0;32m[10:13:10][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[10:13:10][0m [resnet] 📥 Phase 1: Installing model...
+[0;32m[10:13:10][0m [resnet]   Axon ID: hf/microsoft/resnet-50@latest
+[0;32m[10:13:10][0m [resnet]   Category: vision
+[0;32m[10:13:10][0m [resnet] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/microsoft/resnet-50/latest/model.onnx
+[0;32m[10:13:10][0m [resnet] 📝 Phase 2: Registering model with Core...
+[0;32m[10:13:10][0m [resnet]   Running: /Users/shaileshpant/.local/bin/axon register hf/microsoft/resnet-50@latest
+[0;32m[10:13:10][0m [resnet] ✅ Model registered (130ms)
+[0;32m[10:13:10][0m [resnet] 🧪 Phase 3: Running small inference test...
+[0;32m[10:13:11][0m [resnet]   Including tensor outputs for validation
+[0;32m[10:13:12][0m [resnet] ✅ small inference successful (1110ms)
+[0;32m[10:13:12][0m [resnet]   🔍 Validating inference output...
+[1;33m[10:13:12] WARN:[0m [resnet]   ⚠️  Output validation: 2/3 tests failed
+[0;32m[10:13:12][0m [resnet] 🧪 Phase 3: Running large inference test...
+[0;32m[10:13:13][0m [resnet]   Including tensor outputs for validation
+[0;32m[10:13:14][0m [resnet] ✅ large inference successful (1111ms)
+[0;32m[10:13:14][0m [resnet]   🔍 Validating inference output...
+[1;33m[10:13:14] WARN:[0m [resnet]   ⚠️  Output validation: 2/3 tests failed
+[0;32m[10:13:14][0m [resnet] 
+[0;32m[10:13:14][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[10:13:14][0m [resnet] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[10:13:14][0m [resnet]   Results: ./model-results/resnet-result.json
+[0;32m[10:13:14][0m [resnet]   Log: ./model-results/resnet.log
+[0;32m[10:13:14][0m [resnet] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

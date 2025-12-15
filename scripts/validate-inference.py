@@ -309,6 +309,24 @@ class InferenceValidator:
                 result.details['inference_time_us'] = inference_time
                 result.details['validation_source'] = 'core_response'
                 return result
+            elif validation_type == 'top_k_class_match':
+                # Vision semantic validation: check if expected class is in top-K predictions
+                result = self._validate_top_k_class_match(test_name, expected, tensor_data)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'mlm_prediction':
+                # NLP semantic validation: check if MLM predicts expected token at mask position
+                result = self._validate_mlm_prediction(test_name, expected, tensor_data)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'tensor_data'
+                return result
+            elif validation_type == 'embedding_similarity':
+                # Embedding semantic validation: check cosine similarity threshold
+                result = self._validate_embedding_similarity(test_name, expected, tensor_data)
+                result.details['inference_time_us'] = inference_time
+                result.details['validation_source'] = 'tensor_data'
+                return result
             else:
                 return ValidationResult(
                     test_name=test_name,
@@ -683,6 +701,263 @@ class InferenceValidator:
                 "min_output_size": min_output_size,
                 "model_id": output.get('model_id', 'unknown'),
                 "inference_time_us": output.get('inference_time_us', 0)
+            }
+        )
+
+    def _validate_top_k_class_match(self, test_name: str, expected: Dict, output: Dict) -> ValidationResult:
+        """Validate that expected class index is in top-K predictions (vision semantic validation).
+
+        This validation type is used for vision models with golden images to verify
+        semantic correctness - i.e., that the model correctly classifies known images.
+
+        Args:
+            test_name: Name of the test
+            expected: Expected configuration with:
+                - output_name: Name of output tensor (default: "output")
+                - top_k: Number of top predictions to check (default: 5)
+                - expected_class_index: The ImageNet class index expected in top-K
+                - alternative_classes: Optional list of acceptable alternative classes
+            output: Model inference output
+
+        Returns:
+            ValidationResult with pass/fail and ranking details
+        """
+        output_name = expected.get('output_name', 'output')
+        top_k = expected.get('top_k', 5)
+        expected_class = expected.get('expected_class_index')
+        alternative_classes = expected.get('alternative_classes', [])
+
+        if expected_class is None:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message="No expected_class_index specified in test config"
+            )
+
+        if output_name not in output:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message=f"Output '{output_name}' not found in response",
+                details={"available_keys": list(output.keys())}
+            )
+
+        logits = output[output_name]
+
+        # Handle nested lists (batch dimension)
+        if isinstance(logits, list) and logits and isinstance(logits[0], list):
+            logits = logits[0]  # Take first batch item
+
+        # Get top-K class indices sorted by probability/logit
+        if isinstance(logits, list):
+            indexed = list(enumerate(logits))
+            indexed.sort(key=lambda x: x[1], reverse=True)
+            top_k_indices = [idx for idx, _ in indexed[:top_k]]
+            top_k_scores = [score for _, score in indexed[:top_k]]
+        else:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message="Output is not a list of logits",
+                details={"output_type": type(logits).__name__}
+            )
+
+        # Check if expected class or alternatives are in top-K
+        all_acceptable = [expected_class] + alternative_classes
+        found_classes = [cls for cls in all_acceptable if cls in top_k_indices]
+        passed = len(found_classes) > 0
+
+        # Get rank of found class
+        rank = None
+        found_class = None
+        for cls in all_acceptable:
+            if cls in top_k_indices:
+                rank = top_k_indices.index(cls) + 1
+                found_class = cls
+                break
+
+        message = f"Class {expected_class}"
+        if passed:
+            if found_class == expected_class:
+                message += f" found at rank {rank}"
+            else:
+                message += f" not found, but alternative {found_class} at rank {rank}"
+        else:
+            message += f" not in top-{top_k}"
+
+        return ValidationResult(
+            test_name=test_name,
+            passed=passed,
+            message=message,
+            details={
+                "expected_class": expected_class,
+                "alternative_classes": alternative_classes,
+                "found_class": found_class,
+                "rank": rank,
+                "top_k_indices": top_k_indices,
+                "top_k_scores": top_k_scores[:5] if len(top_k_scores) > 5 else top_k_scores
+            }
+        )
+
+    def _validate_mlm_prediction(self, test_name: str, expected: Dict, output: Dict) -> ValidationResult:
+        """Validate masked language model predicts expected token at mask position.
+
+        This validation type is for BERT-style MLM models to verify semantic correctness
+        by checking that the model predicts the expected token at a [MASK] position.
+
+        Args:
+            test_name: Name of the test
+            expected: Expected configuration with:
+                - output_name: Name of output tensor (default: "output")
+                - mask_position: Position of [MASK] token in sequence
+                - expected_token_ids: List of acceptable token IDs
+                - top_k: Number of top predictions to check (default: 10)
+            output: Model inference output
+
+        Returns:
+            ValidationResult with pass/fail and token prediction details
+        """
+        output_name = expected.get('output_name', 'output')
+        mask_position = expected.get('mask_position')
+        expected_tokens = expected.get('expected_token_ids', [])
+        top_k = expected.get('top_k', 10)
+
+        if mask_position is None:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message="No mask_position specified in test config"
+            )
+
+        if output_name not in output:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message=f"Output '{output_name}' not found in response"
+            )
+
+        logits = output[output_name]
+
+        # Navigate to logits at mask position
+        # Expected shape: [batch, seq_len, vocab_size]
+        if isinstance(logits, list) and logits:
+            if isinstance(logits[0], list):
+                if isinstance(logits[0][0], list):
+                    # [batch, seq, vocab]
+                    mask_logits = logits[0][mask_position]
+                else:
+                    # [seq, vocab] or [batch, vocab]
+                    mask_logits = logits[mask_position] if len(logits) > mask_position else logits[-1]
+            else:
+                mask_logits = logits
+        else:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message="Output is not properly structured for MLM validation"
+            )
+
+        # Get top-K token indices
+        indexed = list(enumerate(mask_logits))
+        indexed.sort(key=lambda x: x[1], reverse=True)
+        top_k_tokens = [idx for idx, _ in indexed[:top_k]]
+
+        # Check if expected tokens are in top-K
+        found_tokens = [tok for tok in expected_tokens if tok in top_k_tokens]
+        passed = len(found_tokens) > 0
+
+        return ValidationResult(
+            test_name=test_name,
+            passed=passed,
+            message=f"Found {len(found_tokens)}/{len(expected_tokens)} expected tokens in top-{top_k}",
+            details={
+                "mask_position": mask_position,
+                "expected_tokens": expected_tokens,
+                "found_tokens": found_tokens,
+                "top_k_tokens": top_k_tokens
+            }
+        )
+
+    def _validate_embedding_similarity(self, test_name: str, expected: Dict, output: Dict) -> ValidationResult:
+        """Validate embedding similarity between test input and pre-computed reference.
+
+        This validation type is for embedding models (sentence-transformers) to verify
+        semantic correctness by computing cosine similarity with a reference embedding.
+
+        Args:
+            test_name: Name of the test
+            expected: Expected configuration with:
+                - output_name: Name of output tensor (default: "output")
+                - reference_embedding: Pre-computed reference embedding (list of floats)
+                - min_cosine_similarity: Minimum similarity threshold (default: 0.7)
+            output: Model inference output
+
+        Returns:
+            ValidationResult with pass/fail and similarity score
+        """
+        output_name = expected.get('output_name', 'output')
+        reference_embedding = expected.get('reference_embedding')
+        min_similarity = expected.get('min_cosine_similarity', 0.7)
+
+        if reference_embedding is None:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message="No reference_embedding specified in test config"
+            )
+
+        if output_name not in output:
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message=f"Output '{output_name}' not found in response"
+            )
+
+        embedding = output[output_name]
+
+        # Flatten if needed (handle batch dimension)
+        if isinstance(embedding, list) and embedding:
+            if isinstance(embedding[0], list):
+                # Take mean or first item depending on structure
+                if isinstance(embedding[0][0], list):
+                    # [batch, seq, hidden] - take CLS token or mean
+                    embedding = embedding[0][0]  # CLS token
+                else:
+                    # [batch, hidden] or [seq, hidden]
+                    embedding = embedding[0]
+
+        # Compute cosine similarity
+        if not isinstance(embedding, list) or not isinstance(reference_embedding, list):
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message="Embeddings must be lists of floats"
+            )
+
+        # Ensure same dimension
+        if len(embedding) != len(reference_embedding):
+            return ValidationResult(
+                test_name=test_name,
+                passed=False,
+                message=f"Embedding dimension mismatch: {len(embedding)} vs {len(reference_embedding)}"
+            )
+
+        # Cosine similarity
+        dot_product = sum(a * b for a, b in zip(embedding, reference_embedding))
+        norm_a = math.sqrt(sum(a * a for a in embedding))
+        norm_b = math.sqrt(sum(b * b for b in reference_embedding))
+        similarity = dot_product / (norm_a * norm_b) if norm_a > 0 and norm_b > 0 else 0
+
+        passed = similarity >= min_similarity
+
+        return ValidationResult(
+            test_name=test_name,
+            passed=passed,
+            message=f"Cosine similarity: {similarity:.4f} (threshold: {min_similarity})",
+            details={
+                "cosine_similarity": similarity,
+                "min_threshold": min_similarity,
+                "embedding_dim": len(embedding)
             }
         )
 
