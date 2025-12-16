@@ -934,7 +934,14 @@ class TestDetailsPageRenderer:
 
     def _load_validation_results(self) -> None:
         """Load validation results from model-results/{model}-validation-*.json files."""
-        results_dir = self.metrics_path.parent / "model-results"
+        # Try multiple locations for model-results directory
+        # 1. In CI: model-results is at repo root
+        # 2. Locally: may be relative to metrics or golden data
+        script_dir = Path(__file__).parent.parent  # system-test root
+        results_dir = script_dir / "model-results"
+
+        if not results_dir.exists():
+            results_dir = self.metrics_path.parent / "model-results"
         if not results_dir.exists():
             results_dir = self.golden_data_path.parent.parent / "model-results"
 
@@ -966,8 +973,40 @@ class TestDetailsPageRenderer:
                 except Exception as e:
                     print(f"  ⚠️ Failed to load validation for {model_name}: {e}")
 
+        # Load golden image validation files
+        self._load_golden_validation_results(results_dir)
+
         # Also load response files to get actual inference output data
         self._load_response_data(results_dir)
+
+    def _load_golden_validation_results(self, results_dir: Path) -> None:
+        """Load golden image validation results from model-results/{model}-validation-golden-*.json files."""
+        if not hasattr(self, 'golden_validation_results'):
+            self.golden_validation_results = {}
+
+        for validation_file in results_dir.glob("*-validation-golden-*.json"):
+            # Extract model name and test name from filename
+            # Format: {model}-validation-golden-{test_name}.json
+            stem = validation_file.stem
+            parts = stem.split('-validation-golden-')
+            if len(parts) == 2:
+                model_name = parts[0]
+                test_name = parts[1]
+            else:
+                continue
+
+            try:
+                with open(validation_file, 'r', encoding='utf-8') as f:
+                    results = json.load(f)
+                    if model_name not in self.golden_validation_results:
+                        self.golden_validation_results[model_name] = {}
+                    # Store results by test name
+                    for r in results:
+                        result_test_name = r.get('test_name', test_name)
+                        self.golden_validation_results[model_name][result_test_name] = r
+                print(f"  🖼️  Loaded golden validation for {model_name}/{test_name}")
+            except Exception as e:
+                print(f"  ⚠️ Failed to load golden validation for {model_name}/{test_name}: {e}")
 
     def _load_response_data(self, results_dir: Path) -> None:
         """Load inference response data from model-results/{model}-response-small.json files."""
@@ -1310,6 +1349,168 @@ class TestDetailsPageRenderer:
         </div>
         '''
 
+    def generate_golden_image_tests_html(self) -> str:
+        """Generate HTML section for golden image classification tests."""
+        if not hasattr(self, 'golden_validation_results') or not self.golden_validation_results:
+            return ''  # No golden image tests to show
+
+        html_parts = []
+        total_golden_tests = 0
+        total_golden_passed = 0
+        total_golden_failed = 0
+        total_golden_skipped = 0
+
+        # Group tests by model
+        for model_name, tests in sorted(self.golden_validation_results.items()):
+            model_tests_html = []
+
+            for test_name, result in sorted(tests.items()):
+                total_golden_tests += 1
+                passed = result.get('passed', False)
+                details = result.get('details', {})
+                is_skipped = details.get('skipped', False)
+                message = result.get('message', '')
+
+                if is_skipped:
+                    total_golden_skipped += 1
+                    status_class = 'validation-skipped'
+                    status_text = 'SKIPPED'
+                elif passed:
+                    total_golden_passed += 1
+                    status_class = 'validation-passed'
+                    status_text = 'PASSED'
+                else:
+                    total_golden_failed += 1
+                    status_class = 'validation-failed'
+                    status_text = 'FAILED'
+
+                # Build test details
+                golden_image = details.get('golden_image', '')
+                expected_class = details.get('expected_class', '')
+                found_class = details.get('found_class', '')
+                rank = details.get('rank', '')
+                top_k_indices = details.get('top_k_indices', [])
+
+                # Build comparison rows
+                comparison_rows = []
+
+                # Golden image path
+                if golden_image:
+                    comparison_rows.append(self._make_comparison_row(
+                        'Golden Image', golden_image, '-', True, 'info'
+                    ))
+
+                if is_skipped:
+                    # Show skip reason
+                    skip_reason = details.get('reason', 'Skipped')
+                    comparison_rows.append(self._make_comparison_row(
+                        'Status', 'Classification test', 'Skipped', True, 'info'
+                    ))
+                    comparison_rows.append(self._make_comparison_row(
+                        'Reason', '-', skip_reason, True, 'info'
+                    ))
+                else:
+                    # Show actual classification results
+                    if expected_class:
+                        comparison_rows.append(self._make_comparison_row(
+                            'Expected Class', str(expected_class), '-', True, 'info'
+                        ))
+
+                    if top_k_indices:
+                        top_k_str = ', '.join(map(str, top_k_indices[:5]))
+                        comparison_rows.append(self._make_comparison_row(
+                            'Top-5 Predictions', '-', top_k_str, True, 'info'
+                        ))
+
+                    if found_class is not None:
+                        result_str = f'Class {found_class} at rank {rank}' if rank else f'Class {found_class}'
+                        comparison_rows.append(self._make_comparison_row(
+                            'Classification Result', f'Class in top-K', result_str, passed
+                        ))
+
+                comparison_html = '\n'.join(comparison_rows)
+
+                model_tests_html.append(f'''
+                <div class="test-case-card golden-test-card">
+                    <div class="test-case-header">
+                        <span class="test-name">{test_name}</span>
+                        <span class="validation-result {status_class}">{status_text}</span>
+                    </div>
+
+                    <p class="golden-message" style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.85rem;">
+                        {message}
+                    </p>
+
+                    <div class="comparison-table-wrapper">
+                        <table class="comparison-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%;">Field</th>
+                                    <th style="width: 30%;">Expected</th>
+                                    <th style="width: 30%;">Actual</th>
+                                    <th style="width: 15%;">Result</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {comparison_html}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                ''')
+
+            # Model section header
+            category = self.get_category_for_model(model_name)
+            category_icons = {'nlp': '🔤', 'vision': '👁️', 'multimodal': '🎨', 'llm': '🤖'}
+            category_icon = category_icons.get(category, '🖼️')
+
+            html_parts.append(f'''
+            <div class="model-section golden-model-section">
+                <div class="model-section-header">
+                    <h3>{category_icon} {model_name.upper()}</h3>
+                    <span class="category-badge category-vision">VISION</span>
+                </div>
+                {''.join(model_tests_html)}
+            </div>
+            ''')
+
+        if not html_parts:
+            return ''
+
+        # Build the full section with header and summary
+        summary_html = f'''
+        <div class="golden-summary-stats" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="stat-item">
+                <div class="stat-value" style="color: #48bb78;">{total_golden_passed}</div>
+                <div class="stat-label">Passed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" style="color: #f56565;">{total_golden_failed}</div>
+                <div class="stat-label">Failed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" style="color: #a0aec0;">{total_golden_skipped}</div>
+                <div class="stat-label">Skipped</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{total_golden_tests}</div>
+                <div class="stat-label">Total Tests</div>
+            </div>
+        </div>
+        '''
+
+        return f'''
+        <div class="section golden-tests-section" style="margin-top: 2rem; margin-bottom: 2rem;">
+            <h2>🖼️ Golden Image Classification Tests</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                Semantic validation tests using real images from the ImageNet dataset to verify that vision models
+                correctly classify known objects. These tests run in Phase 4 of the pipeline using actual image inference.
+            </p>
+            {summary_html}
+            {''.join(html_parts)}
+        </div>
+        '''
+
     def build_replacements(self) -> Dict[str, str]:
         """Build template replacement values."""
         models = self.golden_data.get('models', {})
@@ -1349,6 +1550,7 @@ class TestDetailsPageRenderer:
             '{{TOTAL_MODELS}}': str(len(models)),
             '{{TOTAL_TEST_CASES}}': str(total_tests),
             '{{MODEL_TEST_DETAILS_HTML}}': '\n'.join(html_parts),
+            '{{GOLDEN_IMAGE_TESTS_HTML}}': self.generate_golden_image_tests_html(),
             '{{TIMESTAMP}}': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         }
 
