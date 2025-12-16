@@ -1131,57 +1131,77 @@ class TestDetailsPageRenderer:
 
         # Row 7: Top-K Class Match (for vision semantic validation)
         if validation_type == 'top_k_class_match':
-            expected_class = expected.get('expected_class_index', details.get('expected_class'))
-            top_k = expected.get('top_k', 5)
-            expected_label = expected.get('expected_label', '')
-            alternative_classes = details.get('alternative_classes', [])
+            # Check if this test was skipped (synthetic inference)
+            is_skipped = details.get('skipped', False)
 
-            # Get actual results from validation details
-            top_k_indices = details.get('top_k_indices', [])
-            top_k_scores = details.get('top_k_scores', [])
-            found_class = details.get('found_class')
-            rank = details.get('rank')
+            if is_skipped:
+                # For skipped tests, show a simplified view
+                skip_reason = details.get('reason', 'Skipped for synthetic inference')
+                golden_image = details.get('golden_image', '')
 
-            # Display expected class
-            expected_display = f'Class {expected_class}'
-            if expected_label:
-                expected_display = f'{expected_label} (class {expected_class})'
-            if alternative_classes:
-                alt_str = ', '.join(map(str, alternative_classes))
-                expected_display += f' or [{alt_str}]'
-
-            comparison_rows.append(self._make_comparison_row(
-                'Expected Class', expected_display, '-', True, 'info'
-            ))
-
-            # Display top-K threshold
-            comparison_rows.append(self._make_comparison_row(
-                'Top-K Threshold', str(top_k), '-', True, 'info'
-            ))
-
-            # Display actual top-K predictions
-            if top_k_indices:
-                # Format top-K as readable string with scores
-                top_k_display = []
-                for i, idx in enumerate(top_k_indices[:5]):
-                    score = top_k_scores[i] if i < len(top_k_scores) else 0
-                    top_k_display.append(f'{idx}({score:.3f})')
-                actual_str = ', '.join(top_k_display)
                 comparison_rows.append(self._make_comparison_row(
-                    'Top-5 Predictions', '-', actual_str, True, 'info'
+                    'Status', 'Semantic validation', 'Skipped', True, 'info'
+                ))
+                comparison_rows.append(self._make_comparison_row(
+                    'Reason', '-', skip_reason, True, 'info'
+                ))
+                if golden_image:
+                    comparison_rows.append(self._make_comparison_row(
+                        'Golden Image', golden_image, 'Pending actual image test', True, 'info'
+                    ))
+            else:
+                # Normal validation - show full details
+                expected_class = expected.get('expected_class_index', details.get('expected_class'))
+                top_k = expected.get('top_k', 5)
+                expected_label = expected.get('expected_label', '')
+                alternative_classes = details.get('alternative_classes', [])
+
+                # Get actual results from validation details
+                top_k_indices = details.get('top_k_indices', [])
+                top_k_scores = details.get('top_k_scores', [])
+                found_class = details.get('found_class')
+                rank = details.get('rank')
+
+                # Display expected class
+                expected_display = f'Class {expected_class}'
+                if expected_label:
+                    expected_display = f'{expected_label} (class {expected_class})'
+                if alternative_classes:
+                    alt_str = ', '.join(map(str, alternative_classes))
+                    expected_display += f' or [{alt_str}]'
+
+                comparison_rows.append(self._make_comparison_row(
+                    'Expected Class', expected_display, '-', True, 'info'
                 ))
 
-            # Display result: found or not
-            if found_class is not None:
-                class_passed = True
-                result_str = f'Found class {found_class} at rank {rank}'
-            else:
-                class_passed = False
-                result_str = f'Class {expected_class} not in top-{top_k}'
+                # Display top-K threshold
+                comparison_rows.append(self._make_comparison_row(
+                    'Top-K Threshold', str(top_k), '-', True, 'info'
+                ))
 
-            comparison_rows.append(self._make_comparison_row(
-                'Classification Result', f'Class {expected_class} in top-{top_k}', result_str, class_passed
-            ))
+                # Display actual top-K predictions
+                if top_k_indices:
+                    # Format top-K as readable string with scores
+                    top_k_display = []
+                    for i, idx in enumerate(top_k_indices[:5]):
+                        score = top_k_scores[i] if i < len(top_k_scores) else 0
+                        top_k_display.append(f'{idx}({score:.3f})')
+                    actual_str = ', '.join(top_k_display)
+                    comparison_rows.append(self._make_comparison_row(
+                        'Top-5 Predictions', '-', actual_str, True, 'info'
+                    ))
+
+                # Display result: found or not
+                if found_class is not None:
+                    class_passed = True
+                    result_str = f'Found class {found_class} at rank {rank}'
+                else:
+                    class_passed = False
+                    result_str = f'Class {expected_class} not in top-{top_k}'
+
+                comparison_rows.append(self._make_comparison_row(
+                    'Classification Result', f'Class {expected_class} in top-{top_k}', result_str, class_passed
+                ))
 
         # Row 8: Inference Time (info only)
         inference_time_us = details.get('inference_time_us', response.get('inference_time_us', 0))
