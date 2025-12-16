@@ -118,7 +118,10 @@ class InferenceValidator:
             if test_name and test.get('name') != test_name:
                 continue
 
-            result = self._run_single_validation(test, output)
+            # When a specific test_name is provided, force_run=True to run even golden image tests
+            # (this indicates we're being called from run_golden_image_tests in test-single-model.sh)
+            force_run = bool(test_name)
+            result = self._run_single_validation(test, output, force_run=force_run)
             results.append(result)
 
         return results
@@ -139,8 +142,14 @@ class InferenceValidator:
             return output['outputs']
         return output
 
-    def _run_single_validation(self, test: Dict, output: Dict) -> ValidationResult:
-        """Run a single validation test."""
+    def _run_single_validation(self, test: Dict, output: Dict, force_run: bool = False) -> ValidationResult:
+        """Run a single validation test.
+
+        Args:
+            test: Test case configuration
+            output: Inference output to validate
+            force_run: If True, skip the "skip golden image" logic (used when running targeted golden tests)
+        """
         test_name = test.get('name', 'unnamed_test')
         expected = test.get('expected', {})
         validation_type = expected.get('validation_type')
@@ -148,8 +157,9 @@ class InferenceValidator:
         # Skip semantic validation tests that require golden images when running against synthetic inference
         # These tests should only run when the actual golden image was used as input
         # (determined by run_golden_image_tests in test-single-model.sh)
+        # BUT: if force_run=True (used when --test is specified for a golden image test), run the actual validation
         input_config = test.get('input', {})
-        if input_config.get('golden_image') and validation_type == 'top_k_class_match':
+        if not force_run and input_config.get('golden_image') and validation_type == 'top_k_class_match':
             return ValidationResult(
                 test_name=test_name,
                 passed=True,
