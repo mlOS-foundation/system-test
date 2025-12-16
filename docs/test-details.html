@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLOS Release E2E Validation Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🚀 MLOS Release E2E Validation</h1>
+            <p>Comprehensive testing of Axon and MLOS Core releases</p>
+        </header>
+
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+            <div class="summary-card">
+                <h3>Overall Status</h3>
+                <div class="big-number">100.0%</div>
+            </div>
+            <div class="summary-card">
+                <h3>Total Duration</h3>
+                <div class="big-number">0s</div>
+            </div>
+            <div class="summary-card">
+                <h3>Inferences</h3>
+                <div class="big-number">18/18</div>
+            </div>
+            <div class="summary-card">
+                <h3>Models Tested</h3>
+                <div class="big-number">9</div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="content-grid">
+            <!-- Release Versions -->
+            <div class="section">
+                <h2>📦 Release Versions</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h4>Axon Version</h4>
+                        <div class="metric-value">v3.1.1</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>MLOS Core Version</h4>
+                        <div class="metric-value">3.2.5-alpha</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Runtime Mode</h4>
+                        <div class="metric-value">Userspace Only (No Kernel Optimizations)</div>
+                        <div class="metric-detail">Kernel Module: No</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hardware Specifications -->
+            <div class="section">
+                <h2>💻 Hardware Specifications</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h4>Operating System</h4>
+                        <div class="metric-value">Unknown </div>
+                        <div class="metric-detail">Architecture: Unknown</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>CPU</h4>
+                        <div class="metric-value">Unknown</div>
+                        <div class="metric-detail">Cores: 0 | Threads: 0</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Memory</h4>
+                        <div class="metric-value">0 GB</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>GPU</h4>
+                        <div class="metric-value">None detected</div>
+                        <div class="metric-detail">Count: 0 | Memory: N/A</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Disk</h4>
+                        <div class="metric-value">N/A</div>
+                        <div class="metric-detail">Available: N/A</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resource Usage -->
+            <div class="section">
+                <h2>📊 Resource Usage</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h4>MLOS Core (Idle)</h4>
+                        <div class="metric-value">CPU: 0% | Memory: 0 MB</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>MLOS Core (Under Load)</h4>
+                        <div class="metric-value">CPU: 0% (max: 0%)</div>
+                        <div class="metric-detail">Memory: 0 MB (max: 0 MB)</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Axon</h4>
+                        <div class="metric-value">CPU: 0% | Memory: 0 MB</div>
+                    </div>
+                </div>
+                <div class="info-box">
+                    <h4>Resource Type</h4>
+                    <p><strong>CPU:</strong> Used for model inference execution, ONNX Runtime operations, and HTTP request handling.</p>
+                    <p><strong>Memory:</strong> Used for model loading, input/output tensor buffers, and ONNX Runtime workspace.</p>
+                    <p><strong>GPU:</strong> Not used (CPU-only inference)</p>
+                </div>
+            </div>
+
+            <!-- Installation & Setup Times -->
+            <div class="section">
+                <h2>⏱️ Installation & Setup Times</h2>
+                <div class="chart-container">
+                    <canvas id="installationChart"></canvas>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h4>Axon Download Time</h4>
+                        <div class="metric-value">0 ms</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Core Download Time</h4>
+                        <div class="metric-value">0 ms</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Core Startup Time</h4>
+                        <div class="metric-value">0 ms</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Total Model Install Time</h4>
+                        <div class="metric-value">0 ms</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inference Performance -->
+            <div class="section">
+                <h2>🚀 Inference Performance</h2>
+                <div class="chart-container">
+                    <canvas id="inferenceChart"></canvas>
+                </div>
+                <div class="metrics-grid" id="inferenceMetricsGrid">
+                    <div class="category-section"><h4 style="color: #667eea; margin-bottom: 8px; margin-top: 0;">🔤 NLP Models</h4>
+<div class="metrics-grid">
+
+                    <div class="metric-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">GPT2</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">45 ms</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">120 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">ROBERTA</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">50 ms</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">150 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">BERT</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">55 ms</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">160 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+</div>
+</div>
+<div class="category-section"><h4 style="color: #17998e; margin-bottom: 8px; margin-top: 20px;">👁️ Vision Models</h4>
+<div class="metrics-grid">
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">RESNET</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">166 ms</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">200 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">VIT</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">180 ms</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">220 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">CONVNEXT</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">150 ms</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">190 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">MOBILENET</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">80 ms</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">100 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">DEIT</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">170 ms</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">210 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">EFFICIENTNET</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Small Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">140 ms</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Large Inference</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">180 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+</div>
+</div>
+                </div>
+            </div>
+
+            <!-- Model Support by Category -->
+            <div class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="margin: 0;">🤖 Model Support by Category</h2>
+                    <div style="display: flex; gap: 1rem;">
+                        <a href="test-details.html" class="config-link">🧪 Test Details →</a>
+                        <a href="models.html" class="config-link">📦 View Full Config →</a>
+                    </div>
+                </div>
+                <div class="category-grid">
+                    <!-- NLP Models Card -->
+                    <div class="category-card nlp">
+                        <h3>😊 NLP Models</h3>
+                        <ul>
+                            <li><span class="status-badge success">✅</span> GPT-2</li>
+                            <li><span class="status-badge success">✅</span> BERT</li>
+                            <li><span class="status-badge success">✅</span> RoBERTa</li>
+                            <li><span class="status-badge ready_not_tested">⏳</span> T5</li>
+                        </ul>
+                        <div class="category-status">
+                            <strong>Status:</strong> <span class="status-badge success">✅ Passing</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Vision Models Card -->
+                    <div class="category-card vision">
+                        <h3>🔥 Vision Models</h3>
+                        <ul>
+                            <li><span class="status-badge success">✅</span> ResNet-50</li>
+                            <li><span class="status-badge success">✅</span> ViT</li>
+                            <li><span class="status-badge success">✅</span> ConvNeXt</li>
+                            <li><span class="status-badge success">✅</span> MobileNet</li>
+                            <li><span class="status-badge success">✅</span> DeiT</li>
+                            <li><span class="status-badge success">✅</span> EfficientNet</li>
+                        </ul>
+                        <div class="category-status">
+                            <strong>Status:</strong> <span class="status-badge success">✅ Passing</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Multi-Modal Card -->
+                    <div class="category-card multimodal">
+                        <h3>🎨 Multi-Modal</h3>
+                        <ul>
+                            <li><span class="status-badge ready_not_tested">⏳</span> CLIP</li>
+                            <li><span class="status-badge ready_not_tested">⏳</span> Wav2Vec2 <small>(audio)</small></li>
+                        </ul>
+                        <div class="category-status">
+                            <strong>Status:</strong> <span class="status-badge ready_not_tested">⏳ Ready</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Model Details -->
+            <div class="section">
+                <h2>📊 Model Details</h2>
+                <div class="category-section"><h4 style="color: #667eea; margin-bottom: 8px; margin-top: 0;">🔤 NLP Models</h4>
+<div class="metrics-grid">
+
+                    <div class="metric-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">GPT2</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">5.0s</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">200 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">ROBERTA</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">6.0s</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">200 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">BERT</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">5.5s</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">200 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+</div>
+</div>
+<div class="category-section"><h4 style="color: #17998e; margin-bottom: 8px; margin-top: 20px;">👁️ Vision Models</h4>
+<div class="metrics-grid">
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">RESNET</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">3.0s</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">100 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">VIT</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">4.0s</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">150 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">CONVNEXT</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">3.5s</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">100 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">MOBILENET</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">2.5s</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">80 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">DEIT</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">4.2s</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">120 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+
+                    <div class="metric-card" style="border-left-color: #17998e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">EFFICIENTNET</h4>
+                            <span class="status-badge success">✅</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Install Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">3.8s</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Register Time</div>
+                                <div class="metric-value" style="font-size: 1.1rem;">110 ms</div>
+                            </div>
+                        </div>
+                    </div>
+                
+</div>
+</div>
+            </div>
+
+            <!-- Performance Breakdown -->
+            <div class="section">
+                <h2>📈 Performance Breakdown</h2>
+                <div class="chart-container">
+                    <canvas id="breakdownChart"></canvas>
+                </div>
+                <div class="callout-box">
+                    <h4>📦 Model Installation (not shown in chart)</h4>
+                    <div class="big-number">0 ms</div>
+                    <p>Model installation includes downloading from HuggingFace and ONNX conversion via Docker. This dominates the total time (~99%) so it's shown separately.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p><strong>MLOS Foundation</strong> - Signal. Propagate. Myelinate. 🧠</p>
+            <p>Generated: 2024-12-03T15:30:00Z</p>
+            <p>Test Directory: N/A</p>
+        </footer>
+    </div>
+
+    <!-- Chart.js Configuration -->
+    <script>
+        // Installation Chart (Bar with log scale)
+        const installationCtx = document.getElementById('installationChart').getContext('2d');
+        new Chart(installationCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Axon Download", "Core Download", "Core Startup", "Model Install"],
+                datasets: [{
+                    label: 'Time (ms)',
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ["#667eea", "#764ba2", "#38ef7d", "#11998e"],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'logarithmic',
+                        beginAtZero: false,
+                        title: { display: true, text: 'Time (ms) - Log Scale' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Inference Chart (Bar)
+        const inferenceCtx = document.getElementById('inferenceChart').getContext('2d');
+        new Chart(inferenceCtx, {
+            type: 'bar',
+            data: {
+                labels: ["GPT2 (small)", "GPT2 (large)", "ROBERTA (small)", "ROBERTA (large)", "BERT (small)", "BERT (large)", "RESNET (small)", "RESNET (large)", "VIT (small)", "VIT (large)", "CONVNEXT (small)", "CONVNEXT (large)", "MOBILENET (small)", "MOBILENET (large)", "DEIT (small)", "DEIT (large)", "EFFICIENTNET (small)", "EFFICIENTNET (large)"],
+                datasets: [{
+                    label: 'Inference Time (ms)',
+                    data: [45, 120, 50, 150, 55, 160, 166, 200, 180, 220, 150, 190, 80, 100, 170, 210, 140, 180],
+                    backgroundColor: ["#667eea", "#667eea", "#f093fb", "#f093fb", "#764ba2", "#764ba2", "#11998e", "#11998e", "#10b981", "#10b981", "#06b6d4", "#06b6d4", "#ec4899", "#ec4899", "#14b8a6", "#14b8a6", "#84cc16", "#84cc16"],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Time (ms)' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Breakdown Chart (Pie/Doughnut)
+        const breakdownCtx = document.getElementById('breakdownChart').getContext('2d');
+        new Chart(breakdownCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ["Axon Download", "Core Download", "Core Startup", "Registration", "Inference"],
+                datasets: [{
+                    data: [0, 0, 0, 0, 0],
+                    backgroundColor: ["#667eea", "#764ba2", "#38ef7d", "#f093fb", "#11998e"]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Quick Operations Time Distribution'
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
