@@ -18,6 +18,10 @@ output-latest/
 model-results/*-response-*.json
 model-results/*-validation-*.json
 
+# But keep golden validation results (committed reference data for GitHub Pages)
+!model-results/*-validation-golden-*.json
+!model-results/*-response-golden-*.json
+
 # Generated output
 output/
 

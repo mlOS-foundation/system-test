@@ -1,0 +1,34 @@
+[
+  {
+    "test_name": "cat_classification",
+    "passed": false,
+    "message": "Class 281 not in top-5",
+    "details": {
+      "expected_class": 281,
+      "alternative_classes": [
+        282,
+        283,
+        284,
+        285
+      ],
+      "found_class": null,
+      "rank": null,
+      "top_k_indices": [
+        227,
+        334,
+        278,
+        274,
+        841
+      ],
+      "top_k_scores": [
+        46.270378,
+        37.553284,
+        29.375502,
+        24.643311,
+        23.589533
+      ],
+      "inference_time_us": 29412,
+      "validation_source": "tensor_data"
+    }
+  }
+]

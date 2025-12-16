@@ -1,0 +1,33 @@
+[
+  {
+    "test_name": "dog_classification",
+    "passed": false,
+    "message": "Class 207 not in top-5",
+    "details": {
+      "expected_class": 207,
+      "alternative_classes": [
+        206,
+        208,
+        209
+      ],
+      "found_class": null,
+      "rank": null,
+      "top_k_indices": [
+        227,
+        334,
+        274,
+        278,
+        841
+      ],
+      "top_k_scores": [
+        52.776775,
+        39.568108,
+        38.271656,
+        36.028923,
+        18.172926
+      ],
+      "inference_time_us": 31091,
+      "validation_source": "tensor_data"
+    }
+  }
+]
