@@ -1387,9 +1387,12 @@ class TestDetailsPageRenderer:
                 # Build test details
                 golden_image = details.get('golden_image', '')
                 expected_class = details.get('expected_class', '')
-                found_class = details.get('found_class', '')
-                rank = details.get('rank', '')
+                alternative_classes = details.get('alternative_classes', [])
+                found_class = details.get('found_class')
+                rank = details.get('rank')
                 top_k_indices = details.get('top_k_indices', [])
+                top_k_scores = details.get('top_k_scores', [])
+                inference_time_us = details.get('inference_time_us', 0)
 
                 # Build comparison rows
                 comparison_rows = []
@@ -1410,22 +1413,49 @@ class TestDetailsPageRenderer:
                         'Reason', '-', skip_reason, True, 'info'
                     ))
                 else:
-                    # Show actual classification results
+                    # Show actual classification results - this is real inference data!
+
+                    # Expected class with alternatives
                     if expected_class:
+                        expected_display = f'Class {expected_class}'
+                        if alternative_classes:
+                            alt_str = ', '.join(map(str, alternative_classes))
+                            expected_display += f' (or {alt_str})'
                         comparison_rows.append(self._make_comparison_row(
-                            'Expected Class', str(expected_class), '-', True, 'info'
+                            'Expected Class', expected_display, '-', True, 'info'
                         ))
 
+                    # Top-5 predictions with scores
                     if top_k_indices:
-                        top_k_str = ', '.join(map(str, top_k_indices[:5]))
+                        top_k_display = []
+                        for i, idx in enumerate(top_k_indices[:5]):
+                            if i < len(top_k_scores):
+                                top_k_display.append(f'{idx} ({top_k_scores[i]:.2f})')
+                            else:
+                                top_k_display.append(str(idx))
+                        top_k_str = ', '.join(top_k_display)
                         comparison_rows.append(self._make_comparison_row(
                             'Top-5 Predictions', '-', top_k_str, True, 'info'
                         ))
 
+                    # Classification result - PASS or FAIL
                     if found_class is not None:
-                        result_str = f'Class {found_class} at rank {rank}' if rank else f'Class {found_class}'
+                        result_str = f'Class {found_class} at rank {rank}'
                         comparison_rows.append(self._make_comparison_row(
-                            'Classification Result', f'Class in top-K', result_str, passed
+                            'Classification Result', f'Class {expected_class} in top-5', result_str, passed
+                        ))
+                    else:
+                        # Class was NOT found in top-5
+                        result_str = f'Class {expected_class} not in top-5'
+                        comparison_rows.append(self._make_comparison_row(
+                            'Classification Result', f'Class {expected_class} in top-5', result_str, passed
+                        ))
+
+                    # Inference time
+                    if inference_time_us:
+                        inference_ms = inference_time_us / 1000
+                        comparison_rows.append(self._make_comparison_row(
+                            'Inference Time', '-', f'{inference_ms:.2f} ms', True, 'info'
                         ))
 
                 comparison_html = '\n'.join(comparison_rows)
