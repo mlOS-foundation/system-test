@@ -12,7 +12,7 @@ on:
       core_version:
         description: 'Core version to test'
         required: false
-        default: '4.1.4-alpha'
+        default: '4.1.9-alpha'
       models:
         description: |
           Models to test (comma or space separated).
@@ -84,7 +84,8 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install pyyaml
+          # Core dependencies + HuggingFace transformers for semantic validation
+          pip install pyyaml pillow numpy transformers
           sudo apt-get update && sudo apt-get install -y curl tar jq
       
       - name: Get enabled models from config/models.yaml
@@ -261,7 +262,7 @@ jobs:
         run: |
           START_TIME=$(date +%s%3N)
 
-          VERSION="${{ github.event.inputs.core_version || '4.1.0-alpha' }}"
+          VERSION="${{ github.event.inputs.core_version || '4.1.9-alpha' }}"
           # Normalize version: strip 'v' prefix for artifact filename (Core always publishes without v prefix)
           VERSION_NO_V="${VERSION#v}"
           # Release tag always has 'v' prefix
@@ -691,7 +692,7 @@ jobs:
         if: always()
         env:
           AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.8' }}
-          CORE_VERSION: ${{ github.event.inputs.core_version || '4.1.4-alpha' }}
+          CORE_VERSION: ${{ github.event.inputs.core_version || '4.1.9-alpha' }}
         run: |
           mkdir -p output metrics
 
