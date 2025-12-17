@@ -23,7 +23,12 @@ import json
 import os
 import random
 import sys
+import warnings
 from pathlib import Path
+
+# Suppress all warnings from transformers/PIL before importing
+warnings.filterwarnings("ignore")
+os.environ["TRANSFORMERS_VERBOSITY"] = "error"
 
 import yaml
 
@@ -115,8 +120,9 @@ def generate_nlp_fallback(model_config: dict, size: str = "small") -> dict:
 def load_image_input(image_path: str, model_config: dict) -> dict:
     """Load and preprocess a real image file for vision model inference.
 
-    This function uses HuggingFace's AutoImageProcessor when available for
-    exact preprocessing match. Falls back to manual preprocessing otherwise.
+    Uses HuggingFace's AutoImageProcessor for exact preprocessing match.
+    This ensures deterministic, reproducible results matching the model's
+    expected input format.
 
     Args:
         image_path: Path to the image file (JPEG, PNG, etc.)
@@ -124,10 +130,14 @@ def load_image_input(image_path: str, model_config: dict) -> dict:
 
     Returns:
         Dictionary with preprocessed pixel_values for Core API
+
+    Raises:
+        SystemExit: If required dependencies (PIL, numpy, transformers) are missing
     """
     input_name = model_config.get("input_name", "pixel_values")
     preprocessor_name = model_config.get("preprocessor", "microsoft/resnet-50")
 
+    # Check for required dependencies
     try:
         from PIL import Image
         import numpy as np
@@ -136,56 +146,21 @@ def load_image_input(image_path: str, model_config: dict) -> dict:
         print("Install with: pip install pillow numpy", file=sys.stderr)
         sys.exit(1)
 
+    try:
+        from transformers import AutoImageProcessor
+    except ImportError:
+        print("Error: transformers is required for semantic vision tests.", file=sys.stderr)
+        print("Install with: pip install transformers", file=sys.stderr)
+        sys.exit(1)
+
     # Load image
     img = Image.open(image_path).convert('RGB')
 
-    # Try using HuggingFace processor for exact preprocessing
-    try:
-        from transformers import AutoImageProcessor
-        processor = AutoImageProcessor.from_pretrained(preprocessor_name)
-        inputs = processor(images=img, return_tensors="np")
-        pixel_values = inputs['pixel_values'][0]  # Remove batch dim
-        return {input_name: pixel_values.flatten().tolist()}
-    except ImportError:
-        print("Warning: transformers not installed, using fallback preprocessing", file=sys.stderr)
-    except Exception as e:
-        print(f"Warning: HuggingFace processor failed ({e}), using fallback", file=sys.stderr)
-
-    # Fallback: Manual preprocessing matching HuggingFace's ConvNextImageProcessor
-    image_size = model_config.get("image_size", 224)
-    normalization = model_config.get("normalization", {})
-    mean = normalization.get("mean", [0.485, 0.456, 0.406])
-    std = normalization.get("std", [0.229, 0.224, 0.225])
-
-    width, height = img.size
-
-    # Resize so shortest edge is image_size (maintain aspect ratio)
-    if width < height:
-        new_width = image_size
-        new_height = int(height * image_size / width)
-    else:
-        new_height = image_size
-        new_width = int(width * image_size / height)
-
-    img = img.resize((new_width, new_height), Image.Resampling.BILINEAR)
-
-    # Center crop to image_size x image_size
-    left = (new_width - image_size) // 2
-    top = (new_height - image_size) // 2
-    right = left + image_size
-    bottom = top + image_size
-    img = img.crop((left, top, right, bottom))
-
-    # Convert to numpy and normalize
-    data = np.array(img, dtype=np.float32) / 255.0
-    mean_arr = np.array(mean, dtype=np.float32)
-    std_arr = np.array(std, dtype=np.float32)
-    data = (data - mean_arr) / std_arr
-
-    # Transpose from HWC to CHW format
-    data = data.transpose(2, 0, 1)
-
-    return {input_name: data.flatten().tolist()}
+    # Use HuggingFace processor for exact preprocessing
+    processor = AutoImageProcessor.from_pretrained(preprocessor_name)
+    inputs = processor(images=img, return_tensors="np")
+    pixel_values = inputs['pixel_values'][0]  # Remove batch dim
+    return {input_name: pixel_values.flatten().tolist()}
 
 
 def generate_vision_input(model_config: dict, size: str = "small") -> dict:
