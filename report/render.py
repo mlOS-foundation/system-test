@@ -1048,11 +1048,18 @@ class TestDetailsPageRenderer:
         return metrics_model.get('category', 'nlp')
 
     def generate_test_case_html(self, model_name: str, test_case: Dict) -> str:
-        """Generate HTML for a single test case with side-by-side field comparison."""
+        """Generate HTML for a single test case with side-by-side field comparison.
+
+        Skip top_k_class_match tests here - they are shown in the golden image section.
+        """
         test_name = test_case.get('name', 'unnamed')
         input_data = test_case.get('input', {})
         expected = test_case.get('expected', {})
         validation_type = expected.get('validation_type', 'unknown')
+
+        # Skip top_k_class_match tests - they are displayed in the golden image section
+        if validation_type == 'top_k_class_match':
+            return ''
         notes = expected.get('notes', '')
 
         # Get metrics data for this model
@@ -1350,7 +1357,10 @@ class TestDetailsPageRenderer:
         '''
 
     def generate_golden_image_tests_html(self) -> str:
-        """Generate HTML section for golden image classification tests."""
+        """Generate HTML section for golden image classification tests.
+
+        Shows one card per model with tests horizontally aligned side-by-side.
+        """
         if not hasattr(self, 'golden_validation_results') or not self.golden_validation_results:
             return ''  # No golden image tests to show
 
@@ -1394,113 +1404,70 @@ class TestDetailsPageRenderer:
                 top_k_scores = details.get('top_k_scores', [])
                 inference_time_us = details.get('inference_time_us', 0)
 
-                # Build comparison rows
-                comparison_rows = []
-
-                # Golden image path
-                if golden_image:
-                    comparison_rows.append(self._make_comparison_row(
-                        'Golden Image', golden_image, '-', True, 'info'
-                    ))
-
+                # Build compact test card for horizontal layout
                 if is_skipped:
-                    # Show skip reason
                     skip_reason = details.get('reason', 'Skipped')
-                    comparison_rows.append(self._make_comparison_row(
-                        'Status', 'Classification test', 'Skipped', True, 'info'
-                    ))
-                    comparison_rows.append(self._make_comparison_row(
-                        'Reason', '-', skip_reason, True, 'info'
-                    ))
+                    result_html = f'<span style="color: #a0aec0;">Skipped: {skip_reason}</span>'
                 else:
-                    # Show actual classification results - this is real inference data!
+                    # Show expected class and result
+                    expected_display = f'Class {expected_class}'
+                    if alternative_classes:
+                        alt_str = ', '.join(map(str, alternative_classes[:2]))
+                        expected_display += f' (or {alt_str}...)'
 
-                    # Expected class with alternatives
-                    if expected_class:
-                        expected_display = f'Class {expected_class}'
-                        if alternative_classes:
-                            alt_str = ', '.join(map(str, alternative_classes))
-                            expected_display += f' (or {alt_str})'
-                        comparison_rows.append(self._make_comparison_row(
-                            'Expected Class', expected_display, '-', True, 'info'
-                        ))
-
-                    # Top-5 predictions with scores
+                    # Top-5 predictions formatted compactly
                     if top_k_indices:
                         top_k_display = []
                         for i, idx in enumerate(top_k_indices[:5]):
                             if i < len(top_k_scores):
-                                top_k_display.append(f'{idx} ({top_k_scores[i]:.2f})')
+                                top_k_display.append(f'{idx}({top_k_scores[i]:.1f})')
                             else:
                                 top_k_display.append(str(idx))
                         top_k_str = ', '.join(top_k_display)
-                        comparison_rows.append(self._make_comparison_row(
-                            'Top-5 Predictions', '-', top_k_str, True, 'info'
-                        ))
-
-                    # Classification result - PASS or FAIL
-                    if found_class is not None:
-                        result_str = f'Class {found_class} at rank {rank}'
-                        comparison_rows.append(self._make_comparison_row(
-                            'Classification Result', f'Class {expected_class} in top-5', result_str, passed
-                        ))
                     else:
-                        # Class was NOT found in top-5
-                        result_str = f'Class {expected_class} not in top-5'
-                        comparison_rows.append(self._make_comparison_row(
-                            'Classification Result', f'Class {expected_class} in top-5', result_str, passed
-                        ))
+                        top_k_str = 'N/A'
 
-                    # Inference time
+                    # Result line
+                    if found_class is not None:
+                        result_line = f'<span style="color: #48bb78;">Found at rank {rank}</span>'
+                    else:
+                        result_line = f'<span style="color: #f56565;">Not in top-5</span>'
+
+                    result_html = f'''
+                        <div style="font-size: 0.8rem; margin-bottom: 0.25rem;"><strong>Expected:</strong> {expected_display}</div>
+                        <div style="font-size: 0.8rem; margin-bottom: 0.25rem;"><strong>Top-5:</strong> {top_k_str}</div>
+                        <div style="font-size: 0.8rem;">{result_line}</div>
+                    '''
                     if inference_time_us:
                         inference_ms = inference_time_us / 1000
-                        comparison_rows.append(self._make_comparison_row(
-                            'Inference Time', '-', f'{inference_ms:.2f} ms', True, 'info'
-                        ))
+                        result_html += f'<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Inference: {inference_ms:.1f}ms</div>'
 
-                comparison_html = '\n'.join(comparison_rows)
-
+                # Compact card for horizontal layout
                 model_tests_html.append(f'''
-                <div class="test-case-card golden-test-card">
-                    <div class="test-case-header">
-                        <span class="test-name">{test_name}</span>
-                        <span class="validation-result {status_class}">{status_text}</span>
+                <div class="golden-test-item" style="flex: 1; min-width: 280px; max-width: 400px; padding: 1rem; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <span style="font-weight: 600; font-size: 0.9rem;">{test_name}</span>
+                        <span class="validation-result {status_class}" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">{status_text}</span>
                     </div>
-
-                    <p class="golden-message" style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.85rem;">
-                        {message}
-                    </p>
-
-                    <div class="comparison-table-wrapper">
-                        <table class="comparison-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 25%;">Field</th>
-                                    <th style="width: 30%;">Expected</th>
-                                    <th style="width: 30%;">Actual</th>
-                                    <th style="width: 15%;">Result</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {comparison_html}
-                            </tbody>
-                        </table>
-                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">{message}</div>
+                    <div>{result_html}</div>
                 </div>
                 ''')
 
-            # Model section header
+            # Model section with horizontal layout for tests
             category = self.get_category_for_model(model_name)
             category_icons = {'nlp': '🔤', 'vision': '👁️', 'multimodal': '🎨', 'llm': '🤖'}
             category_icon = category_icons.get(category, '🖼️')
 
             html_parts.append(f'''
-            <div class="model-section golden-model-section">
-                <div class="model-section-header">
-                    <h3>{category_icon} {model_name.upper()}</h3>
-                    <span class="category-badge category-vision">VISION</span>
+            <div class="golden-model-card" style="background: var(--section-bg); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; border-left: 4px solid #17998e;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0; font-size: 1.1rem;">{category_icon} {model_name.upper()}</h3>
+                    <span class="category-badge category-vision" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">VISION</span>
                 </div>
-                {''.join(model_tests_html)}
+                <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
+                    {''.join(model_tests_html)}
+                </div>
             </div>
             ''')
 
@@ -1509,22 +1476,22 @@ class TestDetailsPageRenderer:
 
         # Build the full section with header and summary
         summary_html = f'''
-        <div class="golden-summary-stats" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-            <div class="stat-item">
-                <div class="stat-value" style="color: #48bb78;">{total_golden_passed}</div>
-                <div class="stat-label">Passed</div>
+        <div class="golden-summary-stats" style="display: flex; gap: 2rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+            <div class="stat-item" style="text-align: center;">
+                <div class="stat-value" style="color: #48bb78; font-size: 1.5rem; font-weight: bold;">{total_golden_passed}</div>
+                <div class="stat-label" style="font-size: 0.8rem; color: var(--text-muted);">Passed</div>
             </div>
-            <div class="stat-item">
-                <div class="stat-value" style="color: #f56565;">{total_golden_failed}</div>
-                <div class="stat-label">Failed</div>
+            <div class="stat-item" style="text-align: center;">
+                <div class="stat-value" style="color: #f56565; font-size: 1.5rem; font-weight: bold;">{total_golden_failed}</div>
+                <div class="stat-label" style="font-size: 0.8rem; color: var(--text-muted);">Failed</div>
             </div>
-            <div class="stat-item">
-                <div class="stat-value" style="color: #a0aec0;">{total_golden_skipped}</div>
-                <div class="stat-label">Skipped</div>
+            <div class="stat-item" style="text-align: center;">
+                <div class="stat-value" style="color: #a0aec0; font-size: 1.5rem; font-weight: bold;">{total_golden_skipped}</div>
+                <div class="stat-label" style="font-size: 0.8rem; color: var(--text-muted);">Skipped</div>
             </div>
-            <div class="stat-item">
-                <div class="stat-value">{total_golden_tests}</div>
-                <div class="stat-label">Total Tests</div>
+            <div class="stat-item" style="text-align: center;">
+                <div class="stat-value" style="font-size: 1.5rem; font-weight: bold;">{total_golden_tests}</div>
+                <div class="stat-label" style="font-size: 0.8rem; color: var(--text-muted);">Total Tests</div>
             </div>
         </div>
         '''
@@ -1552,12 +1519,14 @@ class TestDetailsPageRenderer:
         html_parts = []
         for model_name, model_data in models.items():
             test_cases = model_data.get('test_cases', [])
-            total_tests += len(test_cases)
+            # Only count non-golden-image tests here (golden image tests counted separately)
+            non_golden_tests = [tc for tc in test_cases if tc.get('expected', {}).get('validation_type') != 'top_k_class_match']
+            total_tests += len(non_golden_tests)
 
             # Use actual validation results if available
             model_validations = self.validation_results.get(model_name, {})
             if model_validations:
-                for test_case in test_cases:
+                for test_case in non_golden_tests:
                     test_name = test_case.get('name', '')
                     result = model_validations.get(test_name, {})
                     if result.get('passed', False):
@@ -1568,11 +1537,25 @@ class TestDetailsPageRenderer:
                 # Fall back to metrics-based counting
                 model_metrics = self.metrics.get('models', {}).get(model_name, {})
                 if model_metrics.get('inference_status') == 'success':
-                    total_passed += len(test_cases)
+                    total_passed += len(non_golden_tests)
                 elif model_metrics.get('inference_status') == 'failed':
-                    total_failed += len(test_cases)
+                    total_failed += len(non_golden_tests)
 
             html_parts.append(self.generate_model_section_html(model_name, model_data))
+
+        # Add golden image test counts to the totals
+        if hasattr(self, 'golden_validation_results') and self.golden_validation_results:
+            for model_name, tests in self.golden_validation_results.items():
+                for test_name, result in tests.items():
+                    total_tests += 1
+                    details = result.get('details', {})
+                    is_skipped = details.get('skipped', False)
+                    if is_skipped:
+                        pass  # Don't count skipped tests in pass/fail
+                    elif result.get('passed', False):
+                        total_passed += 1
+                    else:
+                        total_failed += 1
 
         return {
             '{{TOTAL_PASSED}}': str(total_passed),
