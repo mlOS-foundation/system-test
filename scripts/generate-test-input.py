@@ -185,6 +185,7 @@ def preprocess_torchvision(img, model_config: dict, input_name: str = "pixel_val
     Returns:
         Dictionary with preprocessed pixel_values for Core API
     """
+    from PIL import Image
     import numpy as np
 
     image_size = model_config.get("image_size", 224)
