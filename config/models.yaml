@@ -106,9 +106,10 @@ models:
   resnet:
     enabled: true
     category: vision
-    axon_id: "hf/microsoft/resnet-50@latest"
-    description: "ResNet-50 - Image classification (1000 classes)"
+    axon_id: "pytorch/vision/resnet50@latest"
+    description: "ResNet-50 - Image classification (1000 classes) - Native PyTorch"
     input_type: image
+    notes: "Using PyTorch Hub for native libtorch inference (no ONNX conversion)"
     small_input:
       width: 64
       height: 64

@@ -137,15 +137,19 @@ models:
   
   resnet:
     category: vision
-    preprocessor: "microsoft/resnet-50"
+    # Using native PyTorch Hub model (pytorch/vision/resnet50)
+    # Standard torchvision preprocessing: resize + center crop + normalize
+    preprocessor: "torchvision"  # Use standard torchvision preprocessing
     input_name: "pixel_values"
     image_size: 224
     channels: 3
-    # ImageNet normalization
+    # Standard ImageNet normalization (torchvision.transforms.Normalize)
     normalization:
       mean: [0.485, 0.456, 0.406]
       std: [0.229, 0.224, 0.225]
-    # Generate random normalized image data
+    # torchvision preprocessing includes center crop
+    center_crop: true
+    resize: 256  # Resize short edge to 256, then center crop to 224
     test_seed: 42  # For reproducibility
     
   vit:

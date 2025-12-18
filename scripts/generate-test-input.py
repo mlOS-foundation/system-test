@@ -120,9 +120,9 @@ def generate_nlp_fallback(model_config: dict, size: str = "small") -> dict:
 def load_image_input(image_path: str, model_config: dict) -> dict:
     """Load and preprocess a real image file for vision model inference.
 
-    Uses HuggingFace's AutoImageProcessor for exact preprocessing match.
-    This ensures deterministic, reproducible results matching the model's
-    expected input format.
+    Uses HuggingFace's AutoImageProcessor or standard torchvision transforms
+    for exact preprocessing match. This ensures deterministic, reproducible
+    results matching the model's expected input format.
 
     Args:
         image_path: Path to the image file (JPEG, PNG, etc.)
@@ -146,6 +146,14 @@ def load_image_input(image_path: str, model_config: dict) -> dict:
         print("Install with: pip install pillow numpy", file=sys.stderr)
         sys.exit(1)
 
+    # Load image
+    img = Image.open(image_path).convert('RGB')
+
+    # Check if using standard torchvision preprocessing (for PyTorch Hub models)
+    if preprocessor_name == "torchvision":
+        return preprocess_torchvision(img, model_config, input_name)
+
+    # Use HuggingFace processor for HF models
     try:
         from transformers import AutoImageProcessor
     except ImportError:
@@ -153,14 +161,70 @@ def load_image_input(image_path: str, model_config: dict) -> dict:
         print("Install with: pip install transformers", file=sys.stderr)
         sys.exit(1)
 
-    # Load image
-    img = Image.open(image_path).convert('RGB')
-
     # Use HuggingFace processor for exact preprocessing
     processor = AutoImageProcessor.from_pretrained(preprocessor_name)
     inputs = processor(images=img, return_tensors="np")
     pixel_values = inputs['pixel_values'][0]  # Remove batch dim
     return {input_name: pixel_values.flatten().tolist()}
+
+
+def preprocess_torchvision(img, model_config: dict, input_name: str = "pixel_values") -> dict:
+    """Preprocess image using standard torchvision transforms.
+
+    This matches the official PyTorch/torchvision preprocessing pipeline:
+    1. Resize shortest edge to 256
+    2. Center crop to 224x224
+    3. Convert to tensor (scale to [0, 1])
+    4. Normalize with ImageNet mean/std
+
+    Args:
+        img: PIL Image
+        model_config: Model configuration from test-inputs.yaml
+        input_name: Name of the input tensor (default: "pixel_values")
+
+    Returns:
+        Dictionary with preprocessed pixel_values for Core API
+    """
+    import numpy as np
+
+    image_size = model_config.get("image_size", 224)
+    resize_size = model_config.get("resize", 256)
+    center_crop = model_config.get("center_crop", True)
+    normalization = model_config.get("normalization", {})
+    mean = normalization.get("mean", [0.485, 0.456, 0.406])
+    std = normalization.get("std", [0.229, 0.224, 0.225])
+
+    # Step 1: Resize (shortest edge to resize_size)
+    width, height = img.size
+    if width < height:
+        new_width = resize_size
+        new_height = int(height * resize_size / width)
+    else:
+        new_height = resize_size
+        new_width = int(width * resize_size / height)
+    img = img.resize((new_width, new_height), Image.Resampling.BILINEAR)
+
+    # Step 2: Center crop to image_size x image_size
+    if center_crop:
+        width, height = img.size
+        left = (width - image_size) // 2
+        top = (height - image_size) // 2
+        right = left + image_size
+        bottom = top + image_size
+        img = img.crop((left, top, right, bottom))
+
+    # Step 3: Convert to numpy and scale to [0, 1]
+    img_array = np.array(img, dtype=np.float32) / 255.0
+
+    # Step 4: Normalize with ImageNet mean/std
+    # Shape: [H, W, C] -> normalize each channel
+    for c in range(3):
+        img_array[:, :, c] = (img_array[:, :, c] - mean[c]) / std[c]
+
+    # Step 5: Transpose to [C, H, W] format (PyTorch expects NCHW)
+    img_array = np.transpose(img_array, (2, 0, 1))
+
+    return {input_name: img_array.flatten().tolist()}
 
 
 def generate_vision_input(model_config: dict, size: str = "small") -> dict:
