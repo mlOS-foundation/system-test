@@ -1040,14 +1040,8 @@ except Exception as e:
     local total_failed=0
 
     # Process each golden image test case
-    echo "$test_cases" | python3 -c "
-import json
-import sys
-
-tests = json.load(sys.stdin)
-for t in tests:
-    print(f\"{t['name']}|{t['golden_image']}|{t['expected_class']}|{t['top_k']}|{','.join(map(str, t.get('alternative_classes', [])))}\")
-" 2>/dev/null | while IFS='|' read -r test_name golden_image expected_class top_k alt_classes; do
+    # Note: Use process substitution to avoid subshell, so counters persist
+    while IFS='|' read -r test_name golden_image expected_class top_k alt_classes; do
         if [ -z "$test_name" ]; then
             continue
         fi
