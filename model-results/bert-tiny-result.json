@@ -1,0 +1,25 @@
+{
+  "model_name": "bert-tiny",
+  "started_at": "2025-12-17T07:22:07Z",
+  "axon_version": "v3.1.8",
+  "core_version": "4.1.4-alpha",
+  "status": "failed",
+  "phases": {
+    "install": {
+      "status": "failed",
+      "time_ms": 36,
+      "error": "Exit code: 1"
+    },
+    "register": {
+      "status": "pending"
+    },
+    "inference_small": {
+      "status": "pending"
+    },
+    "inference_large": {
+      "status": "pending"
+    }
+  },
+  "completed_at": "2025-12-17T07:22:07Z",
+  "total_time_ms": 36
+}

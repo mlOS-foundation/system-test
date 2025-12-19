@@ -1,0 +1,18 @@
+[0;32m[12:52:07][0m [bert-tiny] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[12:52:07][0m [bert-tiny] 🚀 Single Model Test Pipeline: bert-tiny
+[0;32m[12:52:07][0m [bert-tiny] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[12:52:07][0m [bert-tiny] 📥 Phase 1: Installing model...
+[0;32m[12:52:07][0m [bert-tiny]   Axon ID: 
+[0;32m[12:52:07][0m [bert-tiny]   Category: 
+[0;32m[12:52:07][0m [bert-tiny]   Running: /Users/shaileshpant/.local/bin/axon install  (timeout: 900s)
+Error: accepts 1 arg(s), received 0
+Usage:
+  axon install [namespace/name[@version]] [flags]
+
+Flags:
+  -f, --format string   Target format: auto, pytorch, onnx, gguf, native (default "auto")
+  -h, --help            help for install
+
+Error: accepts 1 arg(s), received 0
+[0;31m[12:52:07] ERROR:[0m [bert-tiny] Installation failed (exit code: 1)
+[0;31m[12:52:07] ERROR:[0m [bert-tiny] Pipeline failed at install phase

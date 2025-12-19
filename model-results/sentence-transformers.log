@@ -127,3 +127,33 @@ Propagating hf/sentence-transformers/all-MiniLM-L6-v2@latest...
 [0;32m[10:13:36][0m [sentence-transformers]   Results: ./model-results/sentence-transformers-result.json
 [0;32m[10:13:36][0m [sentence-transformers]   Log: ./model-results/sentence-transformers.log
 [0;32m[10:13:36][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[12:12:39][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[12:12:39][0m [sentence-transformers] 🚀 Single Model Test Pipeline: sentence-transformers
+[0;32m[12:12:39][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[12:12:39][0m [sentence-transformers] 📥 Phase 1: Installing model...
+[0;32m[12:12:39][0m [sentence-transformers]   Axon ID: hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[12:12:39][0m [sentence-transformers]   Category: nlp
+[0;32m[12:12:39][0m [sentence-transformers]   Running: /Users/shaileshpant/.local/bin/axon install hf/sentence-transformers/all-MiniLM-L6-v2@latest (timeout: 900s)
+Propagating hf/sentence-transformers/all-MiniLM-L6-v2@latest...
+✓ Model hf/sentence-transformers/all-MiniLM-L6-v2@latest already installed
+[0;32m[12:12:39][0m [sentence-transformers] ✅ Model found at: /Users/shaileshpant/.axon/cache/models/hf/sentence-transformers/all-MiniLM-L6-v2/latest/onnx/model.onnx (36ms)
+[0;32m[12:12:39][0m [sentence-transformers] 📝 Phase 2: Registering model with Core...
+[0;32m[12:12:39][0m [sentence-transformers]   Running: /Users/shaileshpant/.local/bin/axon register hf/sentence-transformers/all-MiniLM-L6-v2@latest
+[0;32m[12:12:40][0m [sentence-transformers] ✅ Model registered (148ms)
+[0;32m[12:12:40][0m [sentence-transformers] 🧪 Phase 3: Running small inference test...
+[0;32m[12:12:42][0m [sentence-transformers]   Metadata-only response (status_success validation)
+[0;32m[12:12:42][0m [sentence-transformers] ✅ small inference successful (115ms)
+[0;32m[12:12:42][0m [sentence-transformers]   🔍 Validating inference output...
+[0;32m[12:12:42][0m [sentence-transformers]   ✅ Output validation passed (1 tests)
+[0;32m[12:12:42][0m [sentence-transformers]   Skipping golden image tests (not a vision model)
+[0;32m[12:12:42][0m [sentence-transformers] 🧪 Phase 3: Running large inference test...
+[0;32m[12:12:45][0m [sentence-transformers]   Metadata-only response (status_success validation)
+[0;32m[12:12:45][0m [sentence-transformers] ✅ large inference successful (135ms)
+[0;32m[12:12:45][0m [sentence-transformers]   🔍 Validating inference output...
+[0;32m[12:12:45][0m [sentence-transformers]   ✅ Output validation passed (1 tests)
+[0;32m[12:12:45][0m [sentence-transformers] 
+[0;32m[12:12:45][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[12:12:45][0m [sentence-transformers] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[12:12:45][0m [sentence-transformers]   Results: ./model-results/sentence-transformers-result.json
+[0;32m[12:12:45][0m [sentence-transformers]   Log: ./model-results/sentence-transformers.log
+[0;32m[12:12:45][0m [sentence-transformers] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

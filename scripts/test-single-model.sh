@@ -658,7 +658,7 @@ install_model() {
         local model_path="$model_dir/model.onnx"
         local manifest_path="$model_dir/onnx_manifest.json"
         local encoder_path="$model_dir/encoder_model.onnx"
-        
+
         if [ -f "$model_path" ]; then
             log "✅ Model installed successfully (${install_time}ms)"
             update_result "install" "success" "$install_time"
@@ -671,6 +671,17 @@ install_model() {
             return 0
         elif [ -f "$encoder_path" ]; then
             log "✅ Encoder-decoder model installed successfully (encoder at: $encoder_path, ${install_time}ms)"
+            update_result "install" "success" "$install_time"
+            return 0
+        fi
+
+        # Check for native PyTorch models (.pth files or .axon packages)
+        # PyTorch Hub models use the native libtorch runtime in Core
+        local pth_file=$(find "$model_dir" -name "*.pth" -type f 2>/dev/null | head -1)
+        local axon_file=$(find "$model_dir" -name "*.axon" -type f 2>/dev/null | head -1)
+        if [ -n "$pth_file" ] || [ -n "$axon_file" ]; then
+            local found_file="${pth_file:-$axon_file}"
+            log "✅ Native PyTorch model installed successfully at: $found_file (${install_time}ms)"
             update_result "install" "success" "$install_time"
             return 0
         fi
@@ -727,6 +738,16 @@ install_model() {
             fi
         fi
 
+        # Search for native PyTorch models (.pth or .axon)
+        local found_pth=$(find "$HOME/.axon/cache/models" -name "*.pth" -path "*${model_name_for_search}*" 2>/dev/null | head -1)
+        local found_axon=$(find "$HOME/.axon/cache/models" -name "*.axon" -path "*${model_name_for_search}*" 2>/dev/null | head -1)
+        if [ -n "$found_pth" ] || [ -n "$found_axon" ]; then
+            local found_native="${found_pth:-$found_axon}"
+            log "✅ Native PyTorch model found at: $found_native (${install_time}ms)"
+            update_result "install" "success" "$install_time"
+            return 0
+        fi
+
         # List what files were actually created for debugging
         if [ -d "$model_dir" ]; then
             log_error "Model directory exists but no model files found: $model_dir"
@@ -742,6 +763,7 @@ install_model() {
         log_error "  - $manifest_path (multi-encoder ONNX manifest)"
         log_error "  - $encoder_path (encoder-decoder ONNX model)"
         log_error "  - *.gguf (LLM/GGUF model)"
+        log_error "  - *.pth/*.axon (Native PyTorch model)"
         log_error "Searched for: *${model_name_for_search}*"
         update_result "install" "failed" "$install_time" "Model file not found"
         return 1

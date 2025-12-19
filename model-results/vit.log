@@ -84,3 +84,36 @@
 [0;32m[10:13:18][0m [vit]   Results: ./model-results/vit-result.json
 [0;32m[10:13:18][0m [vit]   Log: ./model-results/vit.log
 [0;32m[10:13:18][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[12:13:02][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[12:13:02][0m [vit] 🚀 Single Model Test Pipeline: vit
+[0;32m[12:13:02][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[12:13:02][0m [vit] 📥 Phase 1: Installing model...
+[0;32m[12:13:02][0m [vit]   Axon ID: hf/google/vit-base-patch16-224@latest
+[0;32m[12:13:02][0m [vit]   Category: vision
+[0;32m[12:13:02][0m [vit] ✅ Model already installed at: /Users/shaileshpant/.axon/cache/models/hf/google/vit-base-patch16-224/latest/model.onnx
+[0;32m[12:13:02][0m [vit] 📝 Phase 2: Registering model with Core...
+[0;32m[12:13:02][0m [vit]   Running: /Users/shaileshpant/.local/bin/axon register hf/google/vit-base-patch16-224@latest
+[0;32m[12:13:02][0m [vit] ✅ Model registered (229ms)
+[0;32m[12:13:02][0m [vit] 🧪 Phase 3: Running small inference test...
+[0;32m[12:13:03][0m [vit]   Including tensor outputs for validation
+[0;32m[12:13:04][0m [vit] ✅ small inference successful (1143ms)
+[0;32m[12:13:04][0m [vit]   🔍 Validating inference output...
+[0;32m[12:13:04][0m [vit]   ✅ Output validation passed (3 tests)
+[0;32m[12:13:04][0m [vit] 🖼️  Phase 4: Running golden image semantic tests (small)...
+[0;32m[12:13:04][0m [vit]   Found 2 golden image test case(s)
+[0;32m[12:13:04][0m [vit]   Testing: cat_classification
+[0;32m[12:13:09][0m [vit]     ✅ cat_classification PASSED
+[0;32m[12:13:09][0m [vit]   Testing: coffee_mug_classification
+[0;32m[12:13:13][0m [vit]     ✅ coffee_mug_classification PASSED
+[0;32m[12:13:13][0m [vit]   Golden image tests: 0 passed, 0 failed
+[0;32m[12:13:13][0m [vit] 🧪 Phase 3: Running large inference test...
+[0;32m[12:13:14][0m [vit]   Including tensor outputs for validation
+[0;32m[12:13:15][0m [vit] ✅ large inference successful (1133ms)
+[0;32m[12:13:15][0m [vit]   🔍 Validating inference output...
+[0;32m[12:13:15][0m [vit]   ✅ Output validation passed (3 tests)
+[0;32m[12:13:15][0m [vit] 
+[0;32m[12:13:15][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[0;32m[12:13:15][0m [vit] ✅ [0;32mPipeline completed successfully![0m
+[0;32m[12:13:15][0m [vit]   Results: ./model-results/vit-result.json
+[0;32m[12:13:15][0m [vit]   Log: ./model-results/vit.log
+[0;32m[12:13:15][0m [vit] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
