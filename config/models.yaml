@@ -106,10 +106,10 @@ models:
   resnet:
     enabled: true
     category: vision
-    axon_id: "pytorch/vision/resnet50@latest"
-    description: "ResNet-50 - Image classification (1000 classes) - Native PyTorch"
+    axon_id: "hf/microsoft/resnet-50@latest"
+    description: "ResNet-50 - Image classification (1000 classes) - HuggingFace ONNX"
     input_type: image
-    notes: "Using PyTorch Hub for native libtorch inference (no ONNX conversion)"
+    notes: "Using HuggingFace with ONNX conversion. Preprocessing uses torchvision-style (resize 256 + center crop 224)"
     small_input:
       width: 64
       height: 64
