@@ -84,9 +84,14 @@ jobs:
       
       - name: Install dependencies
         run: |
-          # Core dependencies + HuggingFace transformers for semantic validation
-          pip install pyyaml pillow numpy transformers
+          # Core dependencies + HuggingFace transformers + torchvision for semantic validation
+          pip install pyyaml pillow numpy transformers torch torchvision
           sudo apt-get update && sudo apt-get install -y curl tar jq
+
+      - name: Download golden images for vision model testing
+        run: |
+          chmod +x scripts/download-golden-images.sh
+          ./scripts/download-golden-images.sh
       
       - name: Get enabled models from config/models.yaml
         id: get-models
@@ -533,14 +538,16 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           
           # Run Vision models sequentially (large models, need disk cleanup between)
+          # Enable golden images for semantic classification validation
           for model in $VISION_MODELS; do
             [ -z "$model" ] && continue
             echo "🔄 [Vision] Starting: $model"
             ./scripts/test-single-model.sh "$model" \
             --output-dir model-results \
             --core-url http://127.0.0.1:18080 \
+            --golden-images \
               || echo "⚠️ $model had issues"
-            
+
             # Show disk space after each vision model
             echo "📊 Disk after $model: $(df -h / | tail -1 | awk '{print $4}') free"
           done
