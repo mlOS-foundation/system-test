@@ -72,37 +72,37 @@ download_image() {
 
 # Download cat image
 if download_image "cat_tabby.jpg" "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/320px-Cat_November_2010-1a.jpg"; then
-    ((SUCCESS++))
+    SUCCESS=$((SUCCESS + 1))
 else
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
 fi
 
 # Download dog image - Using a golden retriever image
 if download_image "dog_golden_retriever.jpg" "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/YellowLabradorLooking_new.jpg/320px-YellowLabradorLooking_new.jpg"; then
-    ((SUCCESS++))
+    SUCCESS=$((SUCCESS + 1))
 else
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
 fi
 
 # Download coffee mug image - Using a clear coffee cup image
 if download_image "coffee_mug.jpg" "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/A_small_cup_of_coffee.JPG/320px-A_small_cup_of_coffee.JPG"; then
-    ((SUCCESS++))
+    SUCCESS=$((SUCCESS + 1))
 else
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
 fi
 
 # Download clock image - analog wall clock
 if download_image "clock_analog.jpg" "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Brodjonegoro_DPRD_Clock.jpg/320px-Brodjonegoro_DPRD_Clock.jpg"; then
-    ((SUCCESS++))
+    SUCCESS=$((SUCCESS + 1))
 else
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
 fi
 
 # Download sports car image - Ferrari
 if download_image "sports_car.jpg" "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Ferrari_575M_Maranello_2002.jpg/320px-Ferrari_575M_Maranello_2002.jpg"; then
-    ((SUCCESS++))
+    SUCCESS=$((SUCCESS + 1))
 else
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
 fi
 
 echo ""
