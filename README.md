@@ -229,8 +229,8 @@ make serve
 > 📋 Models are configured in `config/models.yaml`. View full details at **[models.html](https://mlos-foundation.github.io/system-test/models.html)**.
 
 ### Current Tested Versions
-- **Axon**: v3.1.7 (Seq2seq + Multi-encoder + GGUF support)
-- **Core**: v4.0.0-alpha (Kernel module support + GGUF/LLM runtime)
+- **Axon**: v3.1.9 (Docker ONNX converter fix + Seq2seq + Multi-encoder + GGUF support)
+- **Core**: v5.0.1-alpha (PyTorch plugin selection fix + Kernel tensor operations)
 
 ### Supported Formats (Core PR #39)
 

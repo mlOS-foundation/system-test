@@ -19,8 +19,8 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 # Default values
 PLATFORM="${1:-linux/arm64}"
 TEST_MODEL="${2:-gpt2}"
-AXON_VERSION="${AXON_VERSION:-v3.1.8}"
-CORE_VERSION="${CORE_VERSION:-4.1.4-alpha}"
+AXON_VERSION="${AXON_VERSION:-v3.1.9}"
+CORE_VERSION="${CORE_VERSION:-5.0.1-alpha}"
 
 # Colors
 RED='\033[0;31m'
