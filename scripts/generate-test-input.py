@@ -120,7 +120,7 @@ def generate_nlp_fallback(model_config: dict, size: str = "small") -> dict:
 def load_image_input(image_path: str, model_config: dict) -> dict:
     """Load and preprocess a real image file for vision model inference.
 
-    Uses HuggingFace's AutoImageProcessor for exact preprocessing match.
+    Uses standard torchvision transforms that match ONNX export preprocessing.
     This ensures deterministic, reproducible results matching the model's
     expected input format.
 
@@ -132,10 +132,13 @@ def load_image_input(image_path: str, model_config: dict) -> dict:
         Dictionary with preprocessed pixel_values for Core API
 
     Raises:
-        SystemExit: If required dependencies (PIL, numpy, transformers) are missing
+        SystemExit: If required dependencies (PIL, numpy, torchvision) are missing
     """
     input_name = model_config.get("input_name", "pixel_values")
-    preprocessor_name = model_config.get("preprocessor", "microsoft/resnet-50")
+    image_size = model_config.get("image_size", 224)
+    normalization = model_config.get("normalization", {})
+    mean = normalization.get("mean", [0.485, 0.456, 0.406])
+    std = normalization.get("std", [0.229, 0.224, 0.225])
 
     # Check for required dependencies
     try:
@@ -147,19 +150,31 @@ def load_image_input(image_path: str, model_config: dict) -> dict:
         sys.exit(1)
 
     try:
-        from transformers import AutoImageProcessor
+        from torchvision import transforms
     except ImportError:
-        print("Error: transformers is required for semantic vision tests.", file=sys.stderr)
-        print("Install with: pip install transformers", file=sys.stderr)
+        print("Error: torchvision is required for vision model preprocessing.", file=sys.stderr)
+        print("Install with: pip install torchvision", file=sys.stderr)
         sys.exit(1)
 
     # Load image
     img = Image.open(image_path).convert('RGB')
 
-    # Use HuggingFace processor for exact preprocessing
-    processor = AutoImageProcessor.from_pretrained(preprocessor_name)
-    inputs = processor(images=img, return_tensors="np")
-    pixel_values = inputs['pixel_values'][0]  # Remove batch dim
+    # Use standard ImageNet preprocessing that matches ONNX export
+    # This is the standard preprocessing used by torchvision models
+    transform = transforms.Compose([
+        transforms.Resize(256),           # Resize to 256 on shortest edge
+        transforms.CenterCrop(image_size), # Center crop to target size
+        transforms.ToTensor(),             # Convert to tensor (0-1 range)
+        transforms.Normalize(mean=mean, std=std)
+    ])
+
+    # Apply transforms and convert to numpy
+    pixel_values = transform(img).numpy()
+
+    # Ensure NCHW format with batch dimension
+    if pixel_values.ndim == 3:  # CHW format
+        pixel_values = np.expand_dims(pixel_values, 0)  # Add batch dim
+
     return {input_name: pixel_values.flatten().tolist()}
 
 
