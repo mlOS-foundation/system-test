@@ -246,6 +246,29 @@ models:
           output_name: "output"
           # ImageNet: 1000 classes
           expected_shape: [1000]
+      # Semantic validation using golden images
+      - name: "cat_classification"
+        input:
+          golden_image: "test-data/golden-images/imagenet/cat_tabby.jpg"
+        expected:
+          validation_type: "top_k_class_match"
+          output_name: "output"
+          top_k: 5
+          expected_class_index: 281
+          expected_label: "tabby cat"
+          alternative_classes: [282, 283, 284, 285]
+          notes: "Validates ConvNeXt correctly classifies tabby cat image"
+      - name: "dog_classification"
+        input:
+          golden_image: "test-data/golden-images/imagenet/dog_golden_retriever.jpg"
+        expected:
+          validation_type: "top_k_class_match"
+          output_name: "output"
+          top_k: 5
+          expected_class_index: 207
+          expected_label: "golden retriever"
+          alternative_classes: [206, 208, 209, 210]
+          notes: "Validates ConvNeXt correctly classifies golden retriever image"
 
   # ---------------------------------------------------------------------------
   # MobileNet - Efficient Mobile Architecture
@@ -305,6 +328,29 @@ models:
           output_name: "output"
           # ImageNet: 1000 classes
           expected_shape: [1000]
+      # Semantic validation using golden images
+      - name: "cat_classification"
+        input:
+          golden_image: "test-data/golden-images/imagenet/cat_tabby.jpg"
+        expected:
+          validation_type: "top_k_class_match"
+          output_name: "output"
+          top_k: 5
+          expected_class_index: 281
+          expected_label: "tabby cat"
+          alternative_classes: [282, 283, 284, 285]
+          notes: "Validates DeiT correctly classifies tabby cat image"
+      - name: "coffee_mug_classification"
+        input:
+          golden_image: "test-data/golden-images/imagenet/coffee_mug.jpg"
+        expected:
+          validation_type: "top_k_class_match"
+          output_name: "output"
+          top_k: 5
+          expected_class_index: 504
+          expected_label: "coffee mug"
+          alternative_classes: [968, 505, 506]
+          notes: "Validates DeiT correctly classifies coffee mug image"
 
   # ---------------------------------------------------------------------------
   # EfficientNet - Compound Scaling CNN
@@ -322,6 +368,29 @@ models:
           output_name: "output"
           # ImageNet: 1000 classes
           expected_shape: [1000]
+      # Semantic validation using golden images
+      - name: "sports_car_classification"
+        input:
+          golden_image: "test-data/golden-images/imagenet/sports_car.jpg"
+        expected:
+          validation_type: "top_k_class_match"
+          output_name: "output"
+          top_k: 5
+          expected_class_index: 817
+          expected_label: "sports car"
+          alternative_classes: [511, 609, 627, 656, 717, 751, 864, 853]
+          notes: "Validates EfficientNet correctly classifies sports car image"
+      - name: "clock_classification"
+        input:
+          golden_image: "test-data/golden-images/imagenet/clock_analog.jpg"
+        expected:
+          validation_type: "top_k_class_match"
+          output_name: "output"
+          top_k: 5
+          expected_class_index: 409
+          expected_label: "analog clock"
+          alternative_classes: [410, 530, 892]
+          notes: "Validates EfficientNet correctly classifies analog clock image"
 
 # ===============================================================================
 # MULTIMODAL MODELS
