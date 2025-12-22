@@ -1,0 +1,633 @@
+name: E2E Kernel-Enabled Pipeline
+
+# This workflow runs E2E tests with the MLOS kernel module loaded
+# Requires a self-hosted runner with:
+#   - Linux kernel 5.15+ with module support
+#   - Root access or CAP_SYS_MODULE capability
+#   - Pre-built mlos-ml.ko kernel module installed
+
+on:
+  workflow_dispatch:
+    inputs:
+      axon_version:
+        description: 'Axon version to test'
+        required: false
+        default: 'v3.1.9'
+      core_version:
+        description: 'Core version to test'
+        required: false
+        default: '5.0.1-alpha'
+      kernel_mode:
+        description: 'Kernel module mode'
+        required: true
+        type: choice
+        options:
+          - basic       # Memory manager only
+          - scheduler   # Memory + ML scheduler
+          - full        # Memory + scheduler + GPU manager
+        default: 'scheduler'
+      compare_userspace:
+        description: 'Also run userspace baseline for comparison'
+        required: false
+        type: boolean
+        default: true
+      models:
+        description: 'Models to test (comma-separated, empty = all enabled)'
+        required: false
+        default: ''
+      debug_kernel:
+        description: 'Enable kernel module debug logging (level 0-5)'
+        required: false
+        default: '2'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  # ==========================================================================
+  # KERNEL MODULE E2E TEST
+  # Runs on self-hosted runner with kernel module support
+  # ==========================================================================
+  kernel-e2e-test:
+    name: E2E Test (Kernel Mode - ${{ github.event.inputs.kernel_mode }})
+    runs-on: [self-hosted, linux, kernel-capable]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify kernel module capability
+        id: kernel-check
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔧 Kernel Module Capability Check"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # Check kernel version
+          KERNEL_VERSION=$(uname -r)
+          echo "kernel_version=$KERNEL_VERSION" >> $GITHUB_OUTPUT
+          echo "Kernel: $KERNEL_VERSION"
+
+          # Check if we can load modules
+          if ! command -v modprobe &> /dev/null; then
+            echo "❌ modprobe not found - kernel module loading not available"
+            exit 1
+          fi
+
+          # Check for mlos-ml.ko
+          MODULE_PATH=""
+          if [ -f "/lib/modules/$(uname -r)/extra/mlos-ml.ko" ]; then
+            MODULE_PATH="/lib/modules/$(uname -r)/extra/mlos-ml.ko"
+          elif [ -f "/opt/mlos/kernel/mlos-ml.ko" ]; then
+            MODULE_PATH="/opt/mlos/kernel/mlos-ml.ko"
+          elif [ -f "$HOME/mlos-ml.ko" ]; then
+            MODULE_PATH="$HOME/mlos-ml.ko"
+          fi
+
+          if [ -z "$MODULE_PATH" ]; then
+            echo "❌ mlos-ml.ko not found"
+            echo "   Expected locations:"
+            echo "     - /lib/modules/$(uname -r)/extra/mlos-ml.ko"
+            echo "     - /opt/mlos/kernel/mlos-ml.ko"
+            echo "     - $HOME/mlos-ml.ko"
+            exit 1
+          fi
+
+          echo "module_path=$MODULE_PATH" >> $GITHUB_OUTPUT
+          echo "✅ Found kernel module: $MODULE_PATH"
+
+          # Check module info
+          modinfo "$MODULE_PATH" 2>/dev/null || true
+
+      - name: Unload existing kernel module
+        run: |
+          # Remove existing module if loaded
+          if lsmod | grep -q "mlos_ml\|mlos-ml"; then
+            echo "🔄 Unloading existing mlos-ml module..."
+            sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
+            sleep 2
+          fi
+
+      - name: Load kernel module with specified mode
+        id: load-kernel
+        env:
+          KERNEL_MODE: ${{ github.event.inputs.kernel_mode }}
+          DEBUG_LEVEL: ${{ github.event.inputs.debug_kernel }}
+        run: |
+          MODULE_PATH="${{ steps.kernel-check.outputs.module_path }}"
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🚀 Loading MLOS Kernel Module"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "   Mode: $KERNEL_MODE"
+          echo "   Debug Level: $DEBUG_LEVEL"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # Set module parameters based on mode
+          PARAMS="debug_level=$DEBUG_LEVEL"
+
+          case "$KERNEL_MODE" in
+            basic)
+              PARAMS="$PARAMS enable_tmm=1 enable_scheduler=0 enable_gpu_manager=0"
+              ;;
+            scheduler)
+              PARAMS="$PARAMS enable_tmm=1 enable_scheduler=1 enable_gpu_manager=0"
+              ;;
+            full)
+              PARAMS="$PARAMS enable_tmm=1 enable_scheduler=1 enable_gpu_manager=1"
+              ;;
+          esac
+
+          echo "Module parameters: $PARAMS"
+
+          # Load the module
+          sudo insmod "$MODULE_PATH" $PARAMS
+
+          # Verify loading
+          sleep 2
+          if lsmod | grep -q "mlos_ml\|mlos-ml"; then
+            echo "✅ Kernel module loaded successfully"
+
+            # Check device file
+            if [ -c /dev/mlos-ml ]; then
+              echo "✅ Device file /dev/mlos-ml created"
+              ls -la /dev/mlos-ml
+            else
+              echo "⚠️ Device file /dev/mlos-ml not found"
+            fi
+
+            # Show module info
+            echo ""
+            echo "Module status:"
+            lsmod | grep mlos
+
+            # Show parameters (if sysfs available)
+            if [ -d /sys/module/mlos_ml/parameters ]; then
+              echo ""
+              echo "Module parameters:"
+              for param in /sys/module/mlos_ml/parameters/*; do
+                echo "  $(basename $param) = $(cat $param 2>/dev/null || echo 'N/A')"
+              done
+            fi
+          else
+            echo "❌ Failed to load kernel module"
+            dmesg | tail -50
+            exit 1
+          fi
+
+          echo "kernel_loaded=true" >> $GITHUB_OUTPUT
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml pillow numpy transformers torch torchvision
+          sudo apt-get update && sudo apt-get install -y curl tar jq
+
+      - name: Download golden images
+        run: |
+          chmod +x scripts/download-golden-images.sh
+          ./scripts/download-golden-images.sh
+
+      - name: Get enabled models
+        id: get-models
+        run: |
+          MODELS_INPUT=$(echo "${{ github.event.inputs.models }}" | tr ',' ' ' | xargs)
+
+          if [ -n "$MODELS_INPUT" ]; then
+            MODELS="$MODELS_INPUT"
+          else
+            MODELS=$(python3 -c "
+          import yaml
+          with open('config/models.yaml') as f:
+              config = yaml.safe_load(f)
+          models = [name for name, m in config.get('models', {}).items() if m.get('enabled', False)]
+          print(' '.join(models))
+          ")
+          fi
+
+          echo "models=$MODELS" >> $GITHUB_OUTPUT
+          echo "Testing models: $MODELS"
+
+      - name: Download Axon
+        run: |
+          VERSION="${{ github.event.inputs.axon_version || 'v3.1.9' }}"
+          ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH="amd64"
+
+          mkdir -p ~/.local/bin
+          curl -L -f -o /tmp/axon.tar.gz \
+            "https://github.com/mlOS-foundation/axon/releases/download/${VERSION}/axon_${VERSION#v}_linux_${ARCH}.tar.gz"
+          tar -xzf /tmp/axon.tar.gz -C ~/.local/bin
+          chmod +x ~/.local/bin/axon
+
+      - name: Download Core
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ github.event.inputs.core_version || '5.0.1-alpha' }}"
+          VERSION_NO_V="${VERSION#v}"
+          ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH="amd64"
+
+          mkdir -p ~/mlos-core
+
+          ARTIFACT="mlos-core_${VERSION_NO_V}_linux-${ARCH}.tar.gz"
+          gh release download "v${VERSION_NO_V}" --pattern "$ARTIFACT" --repo mlOS-foundation/core -D /tmp 2>/dev/null || \
+          curl -L -f -o /tmp/$ARTIFACT \
+            "https://github.com/mlOS-foundation/core-releases/releases/download/v${VERSION_NO_V}/${ARTIFACT}"
+
+          tar -xzf /tmp/$ARTIFACT -C ~/mlos-core
+
+          # Download ONNX Runtime
+          ONNX_ARCH="x64"; [ "$(uname -m)" = "aarch64" ] && ONNX_ARCH="aarch64"
+          curl -L -f -o /tmp/onnx.tgz \
+            "https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-linux-${ONNX_ARCH}-1.18.0.tgz"
+          mkdir -p ~/mlos-core/build
+          tar -xzf /tmp/onnx.tgz -C ~/mlos-core/build
+          mv ~/mlos-core/build/onnxruntime-* ~/mlos-core/build/onnxruntime
+
+      - name: Start Core with kernel module
+        id: core-kernel
+        run: |
+          cd ~/mlos-core
+          BINARY=$(find . -name "mlos_core" -type f -executable | head -1)
+          chmod +x "$BINARY"
+
+          BINARY_DIR=$(dirname "$BINARY")
+          LLAMA_LIB=""
+          [ -d "$BINARY_DIR/llama.cpp/lib" ] && LLAMA_LIB="$BINARY_DIR/llama.cpp/lib"
+
+          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
+
+          # Core should auto-detect kernel module via /dev/mlos-ml
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🚀 Starting Core with Kernel Module (${{ github.event.inputs.kernel_mode }} mode)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          nohup $BINARY --http-port 18080 > /tmp/core-kernel.log 2>&1 &
+          echo $! > /tmp/core-kernel.pid
+
+          # Wait for ready
+          for i in {1..30}; do
+            if curl -s http://127.0.0.1:18080/health >/dev/null 2>&1; then
+              echo "✅ Core with kernel module ready"
+              break
+            fi
+            sleep 1
+          done
+
+          # Verify kernel mode in Core response
+          HEALTH=$(curl -s http://127.0.0.1:18080/health 2>/dev/null || echo "{}")
+          echo "Health response: $HEALTH"
+
+          # Check for kernel integration
+          if echo "$HEALTH" | grep -qi "kernel.*true\|mlos-ml"; then
+            echo "✅ Core is using kernel module"
+            echo "kernel_active=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Core may not be using kernel module (check Core version supports it)"
+            echo "kernel_active=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run E2E tests (Kernel Mode)
+        id: test-kernel
+        run: |
+          MODELS="${{ steps.get-models.outputs.models }}"
+
+          mkdir -p model-results-kernel
+          chmod +x scripts/test-single-model.sh
+          export PATH="$HOME/.local/bin:$PATH"
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧪 Running E2E Tests with KERNEL MODULE (${{ github.event.inputs.kernel_mode }})"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          TEST_START=$(date +%s%3N)
+
+          for model in $MODELS; do
+            [ -z "$model" ] && continue
+            echo "🔄 Testing: $model (kernel mode)"
+            ./scripts/test-single-model.sh "$model" \
+              --output-dir model-results-kernel \
+              --core-url http://127.0.0.1:18080 \
+              --golden-images \
+              || echo "⚠️ $model had issues"
+          done
+
+          TEST_END=$(date +%s%3N)
+          TEST_DURATION=$((TEST_END - TEST_START))
+          echo "test_duration_kernel_ms=$TEST_DURATION" >> $GITHUB_OUTPUT
+
+          # Collect kernel module stats
+          if [ -f /sys/module/mlos_ml/parameters/stats ]; then
+            cp /sys/module/mlos_ml/parameters/stats model-results-kernel/kernel-stats.txt
+          fi
+
+          # Capture dmesg for kernel module messages
+          dmesg | grep -i "mlos\|ml_module" > model-results-kernel/kernel-dmesg.log 2>/dev/null || true
+        continue-on-error: true
+
+      - name: Stop Core (Kernel Mode)
+        run: |
+          if [ -f /tmp/core-kernel.pid ]; then
+            kill $(cat /tmp/core-kernel.pid) 2>/dev/null || true
+          fi
+
+          echo "📋 Core (Kernel) logs:"
+          cat /tmp/core-kernel.log 2>/dev/null | tail -100 || true
+
+      # =======================================================================
+      # OPTIONAL: Userspace Baseline Comparison
+      # =======================================================================
+      - name: Unload kernel module for userspace baseline
+        if: ${{ github.event.inputs.compare_userspace == 'true' }}
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔄 Unloading kernel module for userspace baseline test"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
+          sleep 2
+
+          if lsmod | grep -q "mlos"; then
+            echo "⚠️ Module still loaded"
+          else
+            echo "✅ Kernel module unloaded"
+          fi
+
+      - name: Start Core (Userspace Baseline)
+        if: ${{ github.event.inputs.compare_userspace == 'true' }}
+        run: |
+          cd ~/mlos-core
+          BINARY=$(find . -name "mlos_core" -type f -executable | head -1)
+
+          BINARY_DIR=$(dirname "$BINARY")
+          LLAMA_LIB=""
+          [ -d "$BINARY_DIR/llama.cpp/lib" ] && LLAMA_LIB="$BINARY_DIR/llama.cpp/lib"
+
+          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🚀 Starting Core in USERSPACE mode (baseline)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          nohup $BINARY --http-port 18080 > /tmp/core-userspace.log 2>&1 &
+          echo $! > /tmp/core-userspace.pid
+
+          for i in {1..30}; do
+            if curl -s http://127.0.0.1:18080/health >/dev/null 2>&1; then
+              echo "✅ Core (userspace) ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run E2E tests (Userspace Baseline)
+        id: test-userspace
+        if: ${{ github.event.inputs.compare_userspace == 'true' }}
+        run: |
+          MODELS="${{ steps.get-models.outputs.models }}"
+
+          mkdir -p model-results-userspace
+          export PATH="$HOME/.local/bin:$PATH"
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧪 Running E2E Tests in USERSPACE mode (baseline)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          TEST_START=$(date +%s%3N)
+
+          for model in $MODELS; do
+            [ -z "$model" ] && continue
+            echo "🔄 Testing: $model (userspace)"
+            ./scripts/test-single-model.sh "$model" \
+              --output-dir model-results-userspace \
+              --core-url http://127.0.0.1:18080 \
+              --golden-images \
+              || echo "⚠️ $model had issues"
+          done
+
+          TEST_END=$(date +%s%3N)
+          TEST_DURATION=$((TEST_END - TEST_START))
+          echo "test_duration_userspace_ms=$TEST_DURATION" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Stop Core (Userspace)
+        if: ${{ github.event.inputs.compare_userspace == 'true' }}
+        run: |
+          if [ -f /tmp/core-userspace.pid ]; then
+            kill $(cat /tmp/core-userspace.pid) 2>/dev/null || true
+          fi
+
+      # =======================================================================
+      # Generate Comparison Report
+      # =======================================================================
+      - name: Generate comparison report
+        if: always()
+        env:
+          KERNEL_MODE: ${{ github.event.inputs.kernel_mode }}
+          COMPARE_USERSPACE: ${{ github.event.inputs.compare_userspace }}
+        run: |
+          mkdir -p output metrics
+
+          python3 << 'PYTHON_SCRIPT'
+          import json
+          import os
+          from pathlib import Path
+          from datetime import datetime
+
+          kernel_mode = os.environ.get('KERNEL_MODE', 'scheduler')
+          compare_userspace = os.environ.get('COMPARE_USERSPACE', 'false') == 'true'
+
+          # Collect kernel mode results
+          kernel_results = {}
+          kernel_dir = Path('model-results-kernel')
+          if kernel_dir.exists():
+              for f in kernel_dir.glob('*-result.json'):
+                  try:
+                      with open(f) as fp:
+                          data = json.load(fp)
+                          model = f.stem.replace('-result', '')
+                          kernel_results[model] = data
+                  except:
+                      pass
+
+          # Collect userspace results (if comparison enabled)
+          userspace_results = {}
+          if compare_userspace:
+              user_dir = Path('model-results-userspace')
+              if user_dir.exists():
+                  for f in user_dir.glob('*-result.json'):
+                      try:
+                          with open(f) as fp:
+                              data = json.load(fp)
+                              model = f.stem.replace('-result', '')
+                              userspace_results[model] = data
+                      except:
+                          pass
+
+          # Build comparison metrics
+          comparison = {
+              "timestamp": datetime.utcnow().isoformat() + "Z",
+              "kernel_mode": kernel_mode,
+              "kernel_module_version": "1.0.0",  # TODO: get from module
+              "models_tested": len(kernel_results),
+              "comparison_enabled": compare_userspace,
+              "kernel_results": {},
+              "userspace_results": {},
+              "speedup": {}
+          }
+
+          for model, data in kernel_results.items():
+              comparison["kernel_results"][model] = {
+                  "status": data.get("status", "unknown"),
+                  "inference_ms": data.get("inference_time_ms", 0),
+                  "install_ms": data.get("install_time_ms", 0)
+              }
+
+              if model in userspace_results:
+                  user_data = userspace_results[model]
+                  comparison["userspace_results"][model] = {
+                      "status": user_data.get("status", "unknown"),
+                      "inference_ms": user_data.get("inference_time_ms", 0)
+                  }
+
+                  # Calculate speedup
+                  kernel_inf = data.get("inference_time_ms", 0)
+                  user_inf = user_data.get("inference_time_ms", 0)
+                  if kernel_inf > 0 and user_inf > 0:
+                      speedup = user_inf / kernel_inf
+                      comparison["speedup"][model] = round(speedup, 2)
+
+          # Calculate averages
+          if comparison["speedup"]:
+              avg_speedup = sum(comparison["speedup"].values()) / len(comparison["speedup"])
+              comparison["average_speedup"] = round(avg_speedup, 2)
+
+          # Write metrics
+          with open('metrics/kernel-comparison.json', 'w') as f:
+              json.dump(comparison, f, indent=2)
+
+          print(json.dumps(comparison, indent=2))
+          PYTHON_SCRIPT
+
+          echo ""
+          echo "📊 Kernel vs Userspace Comparison:"
+          cat metrics/kernel-comparison.json
+
+      - name: Generate HTML report
+        if: always()
+        run: |
+          # Generate a simple HTML report
+          cat > output/index.html << 'HTML'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>MLOS E2E Test Report - Kernel Mode</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
+              h1 { color: #00d4ff; border-bottom: 2px solid #00d4ff; padding-bottom: 10px; }
+              h2 { color: #ff6b6b; }
+              .card { background: #16213e; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+              .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+              .badge-kernel { background: #00d4ff; color: #1a1a2e; }
+              .badge-userspace { background: #ff6b6b; color: #1a1a2e; }
+              .speedup { color: #4ade80; font-weight: bold; }
+              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+              th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+              th { background: #0f3460; color: #00d4ff; }
+              tr:hover { background: #1f4068; }
+              .success { color: #4ade80; }
+              .failure { color: #f87171; }
+            </style>
+          </head>
+          <body>
+            <h1>🐧 MLOS E2E Test Report - Kernel Mode</h1>
+            <div class="card">
+              <h2>Runtime Configuration</h2>
+              <p><span class="badge badge-kernel">Kernel Mode: KERNEL_MODE_PLACEHOLDER</span></p>
+              <p>Tested with MLOS kernel module (mlos-ml.ko) loaded for optimized inference.</p>
+            </div>
+            <div class="card">
+              <h2>Performance Comparison</h2>
+              <p>See <code>metrics/kernel-comparison.json</code> for detailed results.</p>
+            </div>
+            <p style="color: #888; font-size: 12px;">Generated: TIMESTAMP_PLACEHOLDER</p>
+          </body>
+          </html>
+          HTML
+
+          # Replace placeholders
+          sed -i "s/KERNEL_MODE_PLACEHOLDER/${{ github.event.inputs.kernel_mode }}/g" output/index.html
+          sed -i "s/TIMESTAMP_PLACEHOLDER/$(date -u +"%Y-%m-%d %H:%M:%S UTC")/g" output/index.html
+
+      - name: Reload kernel module (cleanup)
+        if: always()
+        run: |
+          # Ensure kernel module is unloaded for clean state
+          sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
+
+      - name: Upload kernel test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kernel-e2e-results-${{ github.run_number }}
+          path: |
+            model-results-kernel/
+            model-results-userspace/
+            metrics/
+            output/
+          retention-days: 90
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🐧 Kernel-Enabled E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Kernel Mode:** ${{ github.event.inputs.kernel_mode }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f metrics/kernel-comparison.json ]; then
+            echo "### Performance Summary" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat metrics/kernel-comparison.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Kernel Module Benefits" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ Zero-copy tensor transfers" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧠 ML-aware scheduling" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 Kernel-level memory management" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔒 Secure inference isolation" >> $GITHUB_STEP_SUMMARY
+
+
+  # ==========================================================================
+  # INSTRUCTIONS FOR SELF-HOSTED RUNNER SETUP
+  # ==========================================================================
+  # To use this workflow, set up a self-hosted runner:
+  #
+  # 1. Create a Linux VM (Ubuntu 22.04+ recommended)
+  #
+  # 2. Install kernel module build dependencies:
+  #    sudo apt-get install build-essential linux-headers-$(uname -r)
+  #
+  # 3. Build the MLOS kernel module:
+  #    cd core/kernel
+  #    make all
+  #    sudo make install
+  #
+  # 4. Set up GitHub Actions runner:
+  #    - Go to: Settings > Actions > Runners > New self-hosted runner
+  #    - Follow instructions to install runner
+  #    - Add labels: self-hosted, linux, kernel-capable
+  #
+  # 5. (Optional) Configure runner as service:
+  #    sudo ./svc.sh install
+  #    sudo ./svc.sh start
+  #
+  # 6. Trigger this workflow via workflow_dispatch
+  # ==========================================================================
