@@ -553,6 +553,226 @@ class ReportRenderer:
         }
         return mode_display.get(kernel_mode, f'Unknown ({kernel_mode})')
 
+    def generate_kernel_section_html(self) -> str:
+        """Generate HTML for kernel module performance comparison section.
+
+        This section shows:
+        - Hardware specs of the kernel test environment
+        - Kernel vs userspace performance comparison
+        - Per-model speedup metrics
+        - Kernel module configuration details
+        """
+        kernel_data = self.metrics.get('kernel_comparison', {})
+
+        # If no kernel comparison data, return empty (section hidden)
+        if not kernel_data:
+            return ''
+
+        # Extract kernel comparison metrics
+        kernel_mode = kernel_data.get('kernel_mode', 'scheduler')
+        kernel_version = kernel_data.get('kernel_module_version', 'N/A')
+        comparison_enabled = kernel_data.get('comparison_enabled', False)
+        kernel_results = kernel_data.get('kernel_results', {})
+        userspace_results = kernel_data.get('userspace_results', {})
+        speedup_data = kernel_data.get('speedup', {})
+        average_speedup = kernel_data.get('average_speedup', 0)
+        test_timestamp = kernel_data.get('timestamp', '')
+
+        # Hardware info from kernel test
+        kernel_hardware = kernel_data.get('hardware', {})
+        kernel_os = kernel_hardware.get('os', 'Linux')
+        kernel_version_str = kernel_hardware.get('kernel_version', 'N/A')
+        cpu_model = kernel_hardware.get('cpu_model', 'N/A')
+        cpu_cores = kernel_hardware.get('cpu_cores', 0)
+        memory_gb = kernel_hardware.get('memory_gb', 0)
+        gpu_name = kernel_hardware.get('gpu_name', 'None')
+
+        # Mode display
+        mode_display = {
+            'basic': 'Memory Manager Only',
+            'scheduler': 'Memory + ML Scheduler',
+            'full': 'Full (Memory, Scheduler, GPU)'
+        }.get(kernel_mode, kernel_mode)
+
+        # Build hardware info card
+        hardware_html = f'''
+        <div class="metrics-grid" style="margin-bottom: 1.5rem;">
+            <div class="metric-card" style="border-left-color: #00d4ff;">
+                <h4>Kernel Module</h4>
+                <div class="metric-value">v{kernel_version}</div>
+                <div class="metric-detail">Mode: {mode_display}</div>
+            </div>
+            <div class="metric-card" style="border-left-color: #00d4ff;">
+                <h4>Test Environment</h4>
+                <div class="metric-value">{kernel_os}</div>
+                <div class="metric-detail">Kernel: {kernel_version_str}</div>
+            </div>
+            <div class="metric-card" style="border-left-color: #00d4ff;">
+                <h4>CPU</h4>
+                <div class="metric-value">{cpu_model[:30]}...</div>
+                <div class="metric-detail">Cores: {cpu_cores}</div>
+            </div>
+            <div class="metric-card" style="border-left-color: #00d4ff;">
+                <h4>Memory</h4>
+                <div class="metric-value">{memory_gb} GB</div>
+            </div>
+        </div>
+        '''
+
+        # Build comparison table if enabled
+        comparison_html = ''
+        if comparison_enabled and userspace_results:
+            # Build rows for each model
+            rows_html = []
+            for model_name in sorted(kernel_results.keys()):
+                kernel_model = kernel_results.get(model_name, {})
+                userspace_model = userspace_results.get(model_name, {})
+                model_speedup = speedup_data.get(model_name, 0)
+
+                kernel_inf_ms = kernel_model.get('inference_ms', 0)
+                userspace_inf_ms = userspace_model.get('inference_ms', 0)
+                kernel_status = kernel_model.get('status', 'unknown')
+                userspace_status = userspace_model.get('status', 'unknown')
+
+                # Status badges
+                kernel_badge = '✅' if kernel_status == 'success' else '❌'
+                userspace_badge = '✅' if userspace_status == 'success' else '❌'
+
+                # Speedup display with color coding
+                if model_speedup > 1.0:
+                    speedup_class = 'speedup-positive'
+                    speedup_str = f'+{((model_speedup - 1) * 100):.1f}%'
+                elif model_speedup < 1.0 and model_speedup > 0:
+                    speedup_class = 'speedup-negative'
+                    speedup_str = f'{((model_speedup - 1) * 100):.1f}%'
+                else:
+                    speedup_class = 'speedup-neutral'
+                    speedup_str = 'N/A'
+
+                # Delta calculation
+                if kernel_inf_ms > 0 and userspace_inf_ms > 0:
+                    delta_ms = userspace_inf_ms - kernel_inf_ms
+                    delta_str = f'{delta_ms:+.1f} ms'
+                else:
+                    delta_str = 'N/A'
+
+                rows_html.append(f'''
+                <tr>
+                    <td style="font-weight: 600;">{model_name.upper()}</td>
+                    <td>{kernel_badge} {kernel_inf_ms:.1f} ms</td>
+                    <td>{userspace_badge} {userspace_inf_ms:.1f} ms</td>
+                    <td style="font-weight: 600;">{delta_str}</td>
+                    <td class="{speedup_class}" style="font-weight: 700;">{speedup_str}</td>
+                </tr>
+                ''')
+
+            comparison_html = f'''
+            <div class="comparison-table-wrapper" style="margin-top: 1.5rem;">
+                <h4 style="margin-bottom: 1rem;">📊 Performance Comparison: Kernel vs Userspace</h4>
+                <table class="comparison-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>🐧 Kernel Mode</th>
+                            <th>💻 Userspace</th>
+                            <th>Δ Delta</th>
+                            <th>Speedup</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {''.join(rows_html)}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background: var(--accent-gradient); color: white;">
+                            <td colspan="4" style="text-align: right; font-weight: 600;">Average Speedup:</td>
+                            <td style="font-weight: 700; font-size: 1.1rem;">{average_speedup:.2f}x</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            '''
+        elif kernel_results:
+            # Just show kernel-only results
+            rows_html = []
+            for model_name, model_data in sorted(kernel_results.items()):
+                inf_ms = model_data.get('inference_ms', 0)
+                install_ms = model_data.get('install_ms', 0)
+                status = model_data.get('status', 'unknown')
+                status_badge = '✅' if status == 'success' else '❌'
+
+                rows_html.append(f'''
+                <tr>
+                    <td style="font-weight: 600;">{model_name.upper()}</td>
+                    <td>{status_badge}</td>
+                    <td>{inf_ms:.1f} ms</td>
+                    <td>{format_time(install_ms)}</td>
+                </tr>
+                ''')
+
+            comparison_html = f'''
+            <div class="comparison-table-wrapper" style="margin-top: 1.5rem;">
+                <h4 style="margin-bottom: 1rem;">🐧 Kernel Mode Performance</h4>
+                <table class="comparison-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Status</th>
+                            <th>Inference Time</th>
+                            <th>Install Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {''.join(rows_html)}
+                    </tbody>
+                </table>
+            </div>
+            '''
+
+        # Kernel benefits callout
+        benefits_html = '''
+        <div class="info-box" style="margin-top: 1.5rem; background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(0,100,150,0.1)); border-left: 4px solid #00d4ff;">
+            <h4 style="color: #00d4ff;">🐧 Kernel Module Benefits</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                <div>
+                    <strong>⚡ Zero-Copy Tensors</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Direct GPU memory access without CPU copies</p>
+                </div>
+                <div>
+                    <strong>🧠 ML-Aware Scheduling</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Priority-based inference queue management</p>
+                </div>
+                <div>
+                    <strong>📊 Memory Management</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">LRU eviction and memory pool optimization</p>
+                </div>
+                <div>
+                    <strong>🔒 Secure Isolation</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Kernel-level inference isolation</p>
+                </div>
+            </div>
+        </div>
+        '''
+
+        # Full section HTML
+        return f'''
+        <div class="section" style="border: 2px solid #00d4ff; border-radius: 12px; background: linear-gradient(180deg, rgba(0,212,255,0.05) 0%, transparent 100%);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin: 0;">🐧 Kernel Module Performance</h2>
+                <span style="background: #00d4ff; color: #1a1a2e; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">KERNEL ENABLED</span>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+                Performance metrics from E2E tests run with the MLOS kernel module (mlos-ml.ko) loaded.
+                The kernel module provides zero-copy tensor operations, ML-aware scheduling, and optimized memory management.
+            </p>
+            {hardware_html}
+            {comparison_html}
+            {benefits_html}
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem;">
+                Kernel test timestamp: {test_timestamp}
+            </p>
+        </div>
+        '''
+
     def build_replacements(self) -> Dict[str, str]:
         """Build all template replacements."""
         overall = self.calculate_overall_status()
@@ -641,6 +861,7 @@ class ReportRenderer:
             # Dynamic HTML sections
             '{{INFERENCE_METRICS_HTML}}': self.generate_inference_metrics_html(),
             '{{MODEL_DETAILS_HTML}}': self.generate_model_details_html(),
+            '{{KERNEL_SECTION_HTML}}': self.generate_kernel_section_html(),
             
             # Model-specific status (for Model Support section)
             # NLP Models

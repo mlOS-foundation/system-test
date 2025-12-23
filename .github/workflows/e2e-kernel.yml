@@ -425,22 +425,60 @@ jobs:
       # =======================================================================
       # Generate Comparison Report
       # =======================================================================
+      - name: Collect hardware info
+        id: hardware
+        run: |
+          # Collect hardware information for the report
+          echo "kernel_version=$(uname -r)" >> $GITHUB_OUTPUT
+          echo "os_name=$(lsb_release -ds 2>/dev/null || cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+          echo "cpu_model=$(lscpu | grep 'Model name' | cut -d':' -f2 | xargs)" >> $GITHUB_OUTPUT
+          echo "cpu_cores=$(nproc)" >> $GITHUB_OUTPUT
+          echo "memory_gb=$(free -g | awk '/^Mem:/{print $2}')" >> $GITHUB_OUTPUT
+
+          # GPU detection
+          if command -v nvidia-smi &> /dev/null; then
+            echo "gpu_name=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)" >> $GITHUB_OUTPUT
+            echo "gpu_count=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)" >> $GITHUB_OUTPUT
+          else
+            echo "gpu_name=None (CPU only)" >> $GITHUB_OUTPUT
+            echo "gpu_count=0" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate comparison report
         if: always()
         env:
           KERNEL_MODE: ${{ github.event.inputs.kernel_mode }}
           COMPARE_USERSPACE: ${{ github.event.inputs.compare_userspace }}
+          KERNEL_VERSION: ${{ steps.hardware.outputs.kernel_version }}
+          OS_NAME: ${{ steps.hardware.outputs.os_name }}
+          CPU_MODEL: ${{ steps.hardware.outputs.cpu_model }}
+          CPU_CORES: ${{ steps.hardware.outputs.cpu_cores }}
+          MEMORY_GB: ${{ steps.hardware.outputs.memory_gb }}
+          GPU_NAME: ${{ steps.hardware.outputs.gpu_name }}
+          GPU_COUNT: ${{ steps.hardware.outputs.gpu_count }}
         run: |
-          mkdir -p output metrics
+          mkdir -p output metrics scripts/metrics
 
           python3 << 'PYTHON_SCRIPT'
           import json
           import os
+          import subprocess
           from pathlib import Path
           from datetime import datetime
 
           kernel_mode = os.environ.get('KERNEL_MODE', 'scheduler')
           compare_userspace = os.environ.get('COMPARE_USERSPACE', 'false') == 'true'
+
+          # Hardware info from environment
+          hardware = {
+              "os": os.environ.get('OS_NAME', 'Linux'),
+              "kernel_version": os.environ.get('KERNEL_VERSION', 'unknown'),
+              "cpu_model": os.environ.get('CPU_MODEL', 'unknown'),
+              "cpu_cores": int(os.environ.get('CPU_CORES', 0)),
+              "memory_gb": int(os.environ.get('MEMORY_GB', 0)),
+              "gpu_name": os.environ.get('GPU_NAME', 'None'),
+              "gpu_count": int(os.environ.get('GPU_COUNT', 0))
+          }
 
           # Collect kernel mode results
           kernel_results = {}
@@ -469,20 +507,21 @@ jobs:
                       except:
                           pass
 
-          # Build comparison metrics
-          comparison = {
+          # Build kernel comparison section for main metrics
+          kernel_comparison = {
               "timestamp": datetime.utcnow().isoformat() + "Z",
               "kernel_mode": kernel_mode,
-              "kernel_module_version": "1.0.0",  # TODO: get from module
+              "kernel_module_version": "1.0.0",
               "models_tested": len(kernel_results),
               "comparison_enabled": compare_userspace,
+              "hardware": hardware,
               "kernel_results": {},
               "userspace_results": {},
               "speedup": {}
           }
 
           for model, data in kernel_results.items():
-              comparison["kernel_results"][model] = {
+              kernel_comparison["kernel_results"][model] = {
                   "status": data.get("status", "unknown"),
                   "inference_ms": data.get("inference_time_ms", 0),
                   "install_ms": data.get("install_time_ms", 0)
@@ -490,7 +529,7 @@ jobs:
 
               if model in userspace_results:
                   user_data = userspace_results[model]
-                  comparison["userspace_results"][model] = {
+                  kernel_comparison["userspace_results"][model] = {
                       "status": user_data.get("status", "unknown"),
                       "inference_ms": user_data.get("inference_time_ms", 0)
                   }
@@ -500,29 +539,72 @@ jobs:
                   user_inf = user_data.get("inference_time_ms", 0)
                   if kernel_inf > 0 and user_inf > 0:
                       speedup = user_inf / kernel_inf
-                      comparison["speedup"][model] = round(speedup, 2)
+                      kernel_comparison["speedup"][model] = round(speedup, 2)
 
           # Calculate averages
-          if comparison["speedup"]:
-              avg_speedup = sum(comparison["speedup"].values()) / len(comparison["speedup"])
-              comparison["average_speedup"] = round(avg_speedup, 2)
+          if kernel_comparison["speedup"]:
+              avg_speedup = sum(kernel_comparison["speedup"].values()) / len(kernel_comparison["speedup"])
+              kernel_comparison["average_speedup"] = round(avg_speedup, 2)
 
-          # Write metrics
+          # Write kernel comparison as standalone file
           with open('metrics/kernel-comparison.json', 'w') as f:
-              json.dump(comparison, f, indent=2)
+              json.dump(kernel_comparison, f, indent=2)
 
-          print(json.dumps(comparison, indent=2))
+          # Also update/create the main metrics file with kernel_comparison section
+          # This allows the main report to include the kernel section
+          metrics_file = Path('scripts/metrics/latest.json')
+          if metrics_file.exists():
+              with open(metrics_file) as f:
+                  metrics = json.load(f)
+          else:
+              # Create minimal metrics structure
+              metrics = {
+                  "timestamp": datetime.utcnow().isoformat() + "Z",
+                  "versions": {"axon": "${{ github.event.inputs.axon_version }}", "core": "${{ github.event.inputs.core_version }}"},
+                  "hardware": hardware,
+                  "models": {},
+                  "timings": {},
+                  "resources": {"kernel_mode": f"kernel_{kernel_mode}", "kernel_module_loaded": True}
+              }
+
+          # Add kernel comparison section
+          metrics["kernel_comparison"] = kernel_comparison
+          metrics["resources"] = metrics.get("resources", {})
+          metrics["resources"]["kernel_mode"] = f"kernel_{kernel_mode}"
+          metrics["resources"]["kernel_module_loaded"] = True
+
+          with open('scripts/metrics/latest.json', 'w') as f:
+              json.dump(metrics, f, indent=2)
+
+          print("=" * 60)
+          print("📊 Kernel vs Userspace Comparison:")
+          print("=" * 60)
+          print(json.dumps(kernel_comparison, indent=2))
+          print("\n✅ Updated scripts/metrics/latest.json with kernel_comparison section")
           PYTHON_SCRIPT
 
           echo ""
           echo "📊 Kernel vs Userspace Comparison:"
           cat metrics/kernel-comparison.json
 
-      - name: Generate HTML report
+      - name: Render full HTML report with kernel section
         if: always()
         run: |
-          # Generate a simple HTML report
-          cat > output/index.html << 'HTML'
+          # Use the main report renderer which now supports kernel comparison section
+          echo "🔧 Rendering full E2E report with kernel comparison..."
+
+          # Copy report assets
+          mkdir -p output
+          cp report/styles.css output/ 2>/dev/null || true
+
+          # Render the main report (includes kernel section if kernel_comparison in metrics)
+          python3 report/render.py \
+            --metrics scripts/metrics/latest.json \
+            --template report/template.html \
+            --output output/index.html || {
+            echo "⚠️ Main render failed, generating fallback report"
+            # Fallback: generate simple HTML report
+            cat > output/index.html << 'HTML'
           <!DOCTYPE html>
           <html>
           <head>
@@ -534,35 +616,37 @@ jobs:
               .card { background: #16213e; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
               .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
               .badge-kernel { background: #00d4ff; color: #1a1a2e; }
-              .badge-userspace { background: #ff6b6b; color: #1a1a2e; }
-              .speedup { color: #4ade80; font-weight: bold; }
-              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-              th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
-              th { background: #0f3460; color: #00d4ff; }
-              tr:hover { background: #1f4068; }
-              .success { color: #4ade80; }
-              .failure { color: #f87171; }
+              pre { background: #0f3460; padding: 1rem; border-radius: 8px; overflow-x: auto; }
             </style>
           </head>
           <body>
             <h1>🐧 MLOS E2E Test Report - Kernel Mode</h1>
             <div class="card">
               <h2>Runtime Configuration</h2>
-              <p><span class="badge badge-kernel">Kernel Mode: KERNEL_MODE_PLACEHOLDER</span></p>
+              <p><span class="badge badge-kernel">Kernel Mode: ${{ github.event.inputs.kernel_mode }}</span></p>
               <p>Tested with MLOS kernel module (mlos-ml.ko) loaded for optimized inference.</p>
             </div>
             <div class="card">
-              <h2>Performance Comparison</h2>
-              <p>See <code>metrics/kernel-comparison.json</code> for detailed results.</p>
+              <h2>📊 Performance Comparison</h2>
+              <pre id="metrics">Loading metrics...</pre>
             </div>
-            <p style="color: #888; font-size: 12px;">Generated: TIMESTAMP_PLACEHOLDER</p>
+            <script>
+              fetch('kernel-comparison.json')
+                .then(r => r.json())
+                .then(d => document.getElementById('metrics').textContent = JSON.stringify(d, null, 2))
+                .catch(e => console.error('Failed to load metrics:', e));
+            </script>
+            <p style="color: #888; font-size: 12px;">Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")</p>
           </body>
           </html>
           HTML
+          }
 
-          # Replace placeholders
-          sed -i "s/KERNEL_MODE_PLACEHOLDER/${{ github.event.inputs.kernel_mode }}/g" output/index.html
-          sed -i "s/TIMESTAMP_PLACEHOLDER/$(date -u +"%Y-%m-%d %H:%M:%S UTC")/g" output/index.html
+          # Copy kernel comparison JSON to output for the fallback
+          cp metrics/kernel-comparison.json output/ 2>/dev/null || true
+
+          echo "✅ Report generated at output/index.html"
+          ls -la output/
 
       - name: Reload kernel module (cleanup)
         if: always()
