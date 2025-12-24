@@ -714,7 +714,63 @@ jobs:
 
           echo "📊 Metrics:"
           cat metrics/latest.json 2>/dev/null || echo "{}"
-      
+
+      - name: Fetch kernel comparison data
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔍 Looking for latest kernel E2E results..."
+
+          # Find the most recent successful kernel workflow run
+          KERNEL_RUN=$(gh run list --workflow=e2e-kernel.yml --status=success --limit=1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+
+          if [ -n "$KERNEL_RUN" ] && [ "$KERNEL_RUN" != "null" ]; then
+            echo "📦 Found kernel run: $KERNEL_RUN"
+
+            # Download the kernel results artifact
+            mkdir -p /tmp/kernel-data
+            gh run download "$KERNEL_RUN" -n "kernel-e2e-results-*" -D /tmp/kernel-data 2>/dev/null || true
+
+            # Look for kernel-comparison.json
+            KERNEL_JSON=$(find /tmp/kernel-data -name "kernel-comparison.json" -type f | head -1)
+
+            if [ -n "$KERNEL_JSON" ] && [ -f "$KERNEL_JSON" ]; then
+              echo "✅ Found kernel comparison data: $KERNEL_JSON"
+
+              # Merge kernel_comparison into metrics/latest.json
+              python3 << MERGE_SCRIPT
+          import json
+          from pathlib import Path
+
+          metrics_file = Path('metrics/latest.json')
+          kernel_file = Path('$KERNEL_JSON')
+
+          if metrics_file.exists() and kernel_file.exists():
+              with open(metrics_file) as f:
+                  metrics = json.load(f)
+              with open(kernel_file) as f:
+                  kernel_data = json.load(f)
+
+              # Add kernel comparison section
+              metrics['kernel_comparison'] = kernel_data
+              metrics['resources'] = metrics.get('resources', {})
+              metrics['resources']['kernel_data_available'] = True
+
+              with open(metrics_file, 'w') as f:
+                  json.dump(metrics, f, indent=2)
+
+              print("✅ Merged kernel comparison into metrics")
+          else:
+              print("⚠️ Could not merge - missing files")
+          MERGE_SCRIPT
+            else
+              echo "⚠️ No kernel-comparison.json found in artifacts"
+            fi
+          else
+            echo "ℹ️ No successful kernel workflow runs found"
+          fi
+
       - name: Generate HTML report
         if: always()
         run: |
