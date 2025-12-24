@@ -691,29 +691,9 @@ jobs:
           echo "- 📊 Kernel-level memory management" >> $GITHUB_STEP_SUMMARY
           echo "- 🔒 Secure inference isolation" >> $GITHUB_STEP_SUMMARY
 
-      - name: Upload Pages artifact
-        if: always()
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: output
-
-  # ==========================================================================
-  # DEPLOY TO GITHUB PAGES
-  # ==========================================================================
-  deploy-pages:
-    name: Deploy Kernel Report to GitHub Pages
-    needs: kernel-e2e-test
-    runs-on: ubuntu-latest
-    if: always() && needs.kernel-e2e-test.result != 'cancelled'
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      # Note: Kernel reports are uploaded as artifacts only.
+      # The main e2e-parallel workflow handles GitHub Pages deployment.
+      # Kernel comparison data can be integrated into the main report.
 
   # ==========================================================================
   # INSTRUCTIONS FOR SELF-HOSTED RUNNER SETUP
