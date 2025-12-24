@@ -245,6 +245,9 @@ jobs:
           ONNX_ARCH="x64"; [ "$(uname -m)" = "aarch64" ] && ONNX_ARCH="aarch64"
           curl -L -f -o /tmp/onnx.tgz \
             "https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-linux-${ONNX_ARCH}-1.18.0.tgz"
+
+          # Clean up any existing ONNX runtime directory
+          rm -rf ~/mlos-core/build/onnxruntime 2>/dev/null || true
           mkdir -p ~/mlos-core/build
           tar -xzf /tmp/onnx.tgz -C ~/mlos-core/build
           mv ~/mlos-core/build/onnxruntime-* ~/mlos-core/build/onnxruntime
@@ -689,6 +692,7 @@ jobs:
           echo "- 🔒 Secure inference isolation" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Pages artifact
+        if: always()
         uses: actions/upload-pages-artifact@v3
         with:
           path: output
