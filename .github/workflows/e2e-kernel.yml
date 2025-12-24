@@ -688,6 +688,28 @@ jobs:
           echo "- 📊 Kernel-level memory management" >> $GITHUB_STEP_SUMMARY
           echo "- 🔒 Secure inference isolation" >> $GITHUB_STEP_SUMMARY
 
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: output
+
+  # ==========================================================================
+  # DEPLOY TO GITHUB PAGES
+  # ==========================================================================
+  deploy-pages:
+    name: Deploy Kernel Report to GitHub Pages
+    needs: kernel-e2e-test
+    runs-on: ubuntu-latest
+    if: always() && needs.kernel-e2e-test.result != 'cancelled'
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   # ==========================================================================
   # INSTRUCTIONS FOR SELF-HOSTED RUNNER SETUP
