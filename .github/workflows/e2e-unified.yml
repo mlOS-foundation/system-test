@@ -174,8 +174,6 @@ jobs:
           fi
 
       - name: Download Core
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ github.event.inputs.core_version || '5.0.1-alpha' }}"
           VERSION_NO_V="${VERSION#v}"
@@ -183,11 +181,12 @@ jobs:
 
           mkdir -p ~/mlos-core
 
+          # Use public core-releases repo (core is private)
           ARTIFACT="mlos-core_${VERSION_NO_V}_linux-${ARCH}.tar.gz"
-          gh release download "v${VERSION_NO_V}" --pattern "$ARTIFACT" --repo mlOS-foundation/core -D /tmp 2>/dev/null || \
-          curl -L -f -o /tmp/$ARTIFACT \
-            "https://github.com/mlOS-foundation/core/releases/download/v${VERSION_NO_V}/${ARTIFACT}"
+          URL="https://github.com/mlOS-foundation/core-releases/releases/download/v${VERSION_NO_V}/${ARTIFACT}"
 
+          echo "Downloading Core from: $URL"
+          curl -L -f -o /tmp/$ARTIFACT "$URL"
           tar -xzf /tmp/$ARTIFACT -C ~/mlos-core
 
           # Download ONNX Runtime
