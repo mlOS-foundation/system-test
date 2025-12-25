@@ -272,6 +272,44 @@ jobs:
           tar -xzf /tmp/axon.tar.gz -C ~/.local/bin
           chmod +x ~/.local/bin/axon
 
+      - name: Download converter image
+        run: |
+          VERSION="${{ github.event.inputs.axon_version || 'v3.1.9' }}"
+          VERSION_NO_V=${VERSION#v}
+          OS="linux"
+          ARCH=$(uname -m)
+          case $ARCH in
+            x86_64) ARCH="amd64" ;;
+            aarch64) ARCH="arm64" ;;
+          esac
+
+          CONVERTER="axon-converter-${VERSION_NO_V}-${OS}-${ARCH}.tar.gz"
+          URL="https://github.com/mlOS-foundation/axon/releases/download/${VERSION}/${CONVERTER}"
+          IMAGE_TAG="ghcr.io/mlos-foundation/axon-converter:${VERSION_NO_V}"
+
+          echo "Downloading converter image for ONNX conversion..."
+          echo "   URL: ${URL}"
+
+          # Try downloading from release first
+          if curl -L -f -o "/tmp/${CONVERTER}" "$URL" 2>/dev/null; then
+            docker load -i "/tmp/${CONVERTER}"
+            docker tag "$IMAGE_TAG" "ghcr.io/mlos-foundation/axon-converter:latest" || true
+            echo "Converter image loaded from release artifact"
+          else
+            echo "Release artifact not found, trying registry..."
+            # Fallback: pull directly from registry
+            if docker pull "$IMAGE_TAG" 2>/dev/null; then
+              docker tag "$IMAGE_TAG" "ghcr.io/mlos-foundation/axon-converter:latest" || true
+              echo "Converter image pulled from registry"
+            else
+              echo "WARNING: Converter image not available - vision model conversion may fail"
+            fi
+          fi
+
+          # Verify Docker is available
+          docker --version || echo "WARNING: Docker not available"
+          docker images | grep -E "axon-converter|mlos" || echo "No converter images found"
+
       - name: Download Core
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
