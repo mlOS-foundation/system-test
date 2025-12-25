@@ -642,6 +642,9 @@ class ReportRenderer:
                 if model_speedup > 1.0:
                     speedup_class = 'speedup-positive'
                     speedup_str = f'+{((model_speedup - 1) * 100):.1f}%'
+                elif model_speedup == 1.0:
+                    speedup_class = 'speedup-neutral'
+                    speedup_str = '0.0%'
                 elif model_speedup < 1.0 and model_speedup > 0:
                     speedup_class = 'speedup-negative'
                     speedup_str = f'{((model_speedup - 1) * 100):.1f}%'
