@@ -60,14 +60,15 @@ jobs:
           # Unload kernel module if loaded
           sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
 
-          # Clean up caches
-          rm -rf ~/.cache/huggingface/hub 2>/dev/null || true
-          rm -rf ~/.axon/cache/models 2>/dev/null || true
-          rm -rf ~/.axon/cache 2>/dev/null || true
+          # AGGRESSIVE cache cleanup - remove ALL axon and huggingface caches
+          echo "Removing model caches..."
+          rm -rf ~/.axon 2>/dev/null || true
+          rm -rf ~/.cache/huggingface 2>/dev/null || true
           rm -rf ~/mlos-core/models 2>/dev/null || true
+          rm -rf /tmp/axon* /tmp/model* /tmp/onnx* 2>/dev/null || true
 
           # Clean up test directories
-          rm -rf model-results-userspace model-results-kernel metrics output 2>/dev/null || true
+          rm -rf model-results-userspace model-results-kernel model-results metrics output 2>/dev/null || true
 
           echo "Disk space available:"
           df -h /
@@ -275,8 +276,18 @@ jobs:
             kill $(cat /tmp/core-userspace.pid) 2>/dev/null || true
             rm /tmp/core-userspace.pid
           fi
+          pkill -f mlos_core 2>/dev/null || true
           sleep 2
           echo "Core (userspace) stopped"
+
+      - name: "Phase 1->2: Clean model cache for fresh kernel tests"
+        run: |
+          echo "Cleaning model cache between phases..."
+          rm -rf ~/.axon/cache/models 2>/dev/null || true
+          rm -rf ~/.axon/cache 2>/dev/null || true
+          rm -rf ~/mlos-core/models 2>/dev/null || true
+          rm -rf ~/.cache/huggingface/hub 2>/dev/null || true
+          echo "Model cache cleaned"
 
       # ========================================================================
       # PHASE 2: KERNEL TESTS (With kernel module)
