@@ -107,7 +107,9 @@ jobs:
           import yaml
           with open('config/models.yaml') as f:
               config = yaml.safe_load(f)
-          models = [m['name'] for m in config.get('models', []) if m.get('enabled', True)]
+          # models.yaml uses dict structure: models: {model_name: {enabled: true, ...}}
+          models_dict = config.get('models', {})
+          models = [name for name, cfg in models_dict.items() if isinstance(cfg, dict) and cfg.get('enabled', False)]
           print(','.join(models))
           ")
           fi
