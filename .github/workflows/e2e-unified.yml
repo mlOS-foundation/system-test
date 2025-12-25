@@ -153,11 +153,12 @@ jobs:
           OS="linux"
           ARCH="amd64"
 
-          TARBALL="axon-${VERSION_NO_V}-${OS}-${ARCH}.tar.gz"
+          # Axon uses underscore naming: axon_3.1.9_linux_amd64.tar.gz
+          TARBALL="axon_${VERSION_NO_V}_${OS}_${ARCH}.tar.gz"
           URL="https://github.com/mlOS-foundation/axon/releases/download/${VERSION}/${TARBALL}"
 
           echo "Downloading Axon from: $URL"
-          curl -L -o "/tmp/${TARBALL}" "$URL"
+          curl -L -f -o "/tmp/${TARBALL}" "$URL"
 
           mkdir -p ~/.local/bin
           tar -xzf "/tmp/${TARBALL}" -C ~/.local/bin
