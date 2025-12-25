@@ -668,13 +668,13 @@ class ReportRenderer:
 
             comparison_html = f'''
             <div class="comparison-table-wrapper" style="margin-top: 1.5rem;">
-                <h4 style="margin-bottom: 1rem;">📊 Performance Comparison: Kernel vs Userspace</h4>
+                <h4 style="margin-bottom: 1rem;">Performance Comparison: Kernel vs Userspace</h4>
                 <table class="comparison-table" style="width: 100%;">
                     <thead>
                         <tr>
                             <th>Model</th>
-                            <th>🐧 Kernel Mode</th>
-                            <th>💻 Userspace</th>
+                            <th>Kernel Mode</th>
+                            <th>Userspace</th>
                             <th>Δ Delta</th>
                             <th>Speedup</th>
                         </tr>
@@ -711,7 +711,7 @@ class ReportRenderer:
 
             comparison_html = f'''
             <div class="comparison-table-wrapper" style="margin-top: 1.5rem;">
-                <h4 style="margin-bottom: 1rem;">🐧 Kernel Mode Performance</h4>
+                <h4 style="margin-bottom: 1rem;">Kernel Mode Performance</h4>
                 <table class="comparison-table" style="width: 100%;">
                     <thead>
                         <tr>
@@ -731,22 +731,22 @@ class ReportRenderer:
         # Kernel benefits callout
         benefits_html = '''
         <div class="info-box" style="margin-top: 1.5rem; background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(0,100,150,0.1)); border-left: 4px solid #00d4ff;">
-            <h4 style="color: #00d4ff;">🐧 Kernel Module Benefits</h4>
+            <h4 style="color: #00d4ff;">Kernel Module Benefits</h4>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
                 <div>
-                    <strong>⚡ Zero-Copy Tensors</strong>
+                    <strong>Zero-Copy Tensors</strong>
                     <p style="font-size: 0.85rem; color: var(--text-muted);">Direct GPU memory access without CPU copies</p>
                 </div>
                 <div>
-                    <strong>🧠 ML-Aware Scheduling</strong>
+                    <strong>ML-Aware Scheduling</strong>
                     <p style="font-size: 0.85rem; color: var(--text-muted);">Priority-based inference queue management</p>
                 </div>
                 <div>
-                    <strong>📊 Memory Management</strong>
+                    <strong>Memory Management</strong>
                     <p style="font-size: 0.85rem; color: var(--text-muted);">LRU eviction and memory pool optimization</p>
                 </div>
                 <div>
-                    <strong>🔒 Secure Isolation</strong>
+                    <strong>Secure Isolation</strong>
                     <p style="font-size: 0.85rem; color: var(--text-muted);">Kernel-level inference isolation</p>
                 </div>
             </div>
@@ -757,7 +757,7 @@ class ReportRenderer:
         return f'''
         <div class="section" style="border: 2px solid #00d4ff; border-radius: 12px; background: linear-gradient(180deg, rgba(0,212,255,0.05) 0%, transparent 100%);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h2 style="margin: 0;">🐧 Kernel Module Performance</h2>
+                <h2 style="margin: 0;">Kernel Module Performance</h2>
                 <span style="background: #00d4ff; color: #1a1a2e; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">KERNEL ENABLED</span>
             </div>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem;">

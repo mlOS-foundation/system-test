@@ -11,7 +11,7 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <h1>🚀 MLOS Release E2E Validation</h1>
+            <h1>MLOS Release E2E Validation Report</h1>
             <p>Comprehensive testing of Axon and MLOS Core releases</p>
         </header>
 
@@ -39,7 +39,7 @@
         <div class="content-grid">
             <!-- Release Versions -->
             <div class="section">
-                <h2>📦 Release Versions</h2>
+                <h2>Release Versions</h2>
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <h4>Axon Version</h4>
@@ -59,7 +59,7 @@
 
             <!-- Hardware Specifications -->
             <div class="section">
-                <h2>💻 Hardware Specifications</h2>
+                <h2>Hardware Specifications</h2>
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <h4>Operating System</h4>
@@ -90,7 +90,7 @@
 
             <!-- Resource Usage -->
             <div class="section">
-                <h2>📊 Resource Usage</h2>
+                <h2>Resource Usage</h2>
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <h4>MLOS Core (Idle)</h4>
@@ -116,7 +116,7 @@
 
             <!-- Installation & Setup Times -->
             <div class="section">
-                <h2>⏱️ Installation & Setup Times</h2>
+                <h2>Installation &amp; Setup Times</h2>
                 <div class="chart-container">
                     <canvas id="installationChart"></canvas>
                 </div>
@@ -142,7 +142,7 @@
 
             <!-- Inference Performance -->
             <div class="section">
-                <h2>🚀 Inference Performance</h2>
+                <h2>Inference Performance</h2>
                 <div class="chart-container">
                     <canvas id="inferenceChart"></canvas>
                 </div>
@@ -154,16 +154,16 @@
             <!-- Model Support by Category -->
             <div class="section">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h2 style="margin: 0;">🤖 Model Support by Category</h2>
+                    <h2 style="margin: 0;">Model Support by Category</h2>
                     <div style="display: flex; gap: 1rem;">
-                        <a href="test-details.html" class="config-link">🧪 Test Details →</a>
-                        <a href="models.html" class="config-link">📦 View Full Config →</a>
+                        <a href="test-details.html" class="config-link">Test Details →</a>
+                        <a href="models.html" class="config-link">View Full Config →</a>
                     </div>
                 </div>
                 <div class="category-grid">
                     <!-- NLP Models Card -->
                     <div class="category-card nlp">
-                        <h3>😊 NLP Models</h3>
+                        <h3>NLP Models</h3>
                         <ul>
                             <li><span class="status-badge {{GPT2_STATUS_CLASS}}">{{GPT2_STATUS}}</span> GPT-2</li>
                             <li><span class="status-badge {{BERT_STATUS_CLASS}}">{{BERT_STATUS}}</span> BERT</li>
@@ -177,7 +177,7 @@
                     
                     <!-- Vision Models Card -->
                     <div class="category-card vision">
-                        <h3>🔥 Vision Models</h3>
+                        <h3>Vision Models</h3>
                         <ul>
                             <li><span class="status-badge {{RESNET_STATUS_CLASS}}">{{RESNET_STATUS}}</span> ResNet-50</li>
                             <li><span class="status-badge {{VIT_STATUS_CLASS}}">{{VIT_STATUS}}</span> ViT</li>
@@ -193,7 +193,7 @@
                     
                     <!-- Multi-Modal Card -->
                     <div class="category-card multimodal">
-                        <h3>🎨 Multi-Modal</h3>
+                        <h3>Multi-Modal</h3>
                         <ul>
                             <li><span class="status-badge {{CLIP_STATUS_CLASS}}">{{CLIP_STATUS}}</span> CLIP</li>
                             <li><span class="status-badge {{WAV2VEC2_STATUS_CLASS}}">{{WAV2VEC2_STATUS}}</span> Wav2Vec2 <small>(audio)</small></li>
@@ -207,7 +207,7 @@
 
             <!-- Model Details -->
             <div class="section">
-                <h2>📊 Model Details</h2>
+                <h2>Model Details</h2>
                 {{MODEL_DETAILS_HTML}}
             </div>
 
@@ -216,12 +216,12 @@
 
             <!-- Performance Breakdown -->
             <div class="section">
-                <h2>📈 Performance Breakdown</h2>
+                <h2>Performance Breakdown</h2>
                 <div class="chart-container">
                     <canvas id="breakdownChart"></canvas>
                 </div>
                 <div class="callout-box">
-                    <h4>📦 Model Installation (not shown in chart)</h4>
+                    <h4>Model Installation (not shown in chart)</h4>
                     <div class="big-number">{{MODEL_INSTALL_TIME_CALLOUT}}</div>
                     <p>Model installation includes downloading from HuggingFace and ONNX conversion via Docker. This dominates the total time (~99%) so it's shown separately.</p>
                 </div>
@@ -230,7 +230,7 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <p><strong>MLOS Foundation</strong> - Signal. Propagate. Myelinate. 🧠</p>
+            <p><strong>MLOS Foundation</strong> - Signal. Propagate. Myelinate.</p>
             <p>Generated: {{TIMESTAMP}}</p>
             <p>Test Directory: {{TEST_DIR}}</p>
         </footer>
