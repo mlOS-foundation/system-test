@@ -638,6 +638,23 @@ class ReportRenderer:
                 kernel_badge = '✅' if kernel_status == 'success' else '❌'
                 userspace_badge = '✅' if userspace_status == 'success' else '❌'
 
+                # Winner arrows: green down = faster (lower is better), red up = slower
+                if kernel_inf_ms > 0 and userspace_inf_ms > 0:
+                    if kernel_inf_ms < userspace_inf_ms:
+                        # Kernel is faster
+                        kernel_arrow = '<span style="color: #22c55e; font-weight: bold;">&#9660;</span>'
+                        userspace_arrow = '<span style="color: #ef4444; font-weight: bold;">&#9650;</span>'
+                    elif userspace_inf_ms < kernel_inf_ms:
+                        # Userspace is faster
+                        kernel_arrow = '<span style="color: #ef4444; font-weight: bold;">&#9650;</span>'
+                        userspace_arrow = '<span style="color: #22c55e; font-weight: bold;">&#9660;</span>'
+                    else:
+                        kernel_arrow = ''
+                        userspace_arrow = ''
+                else:
+                    kernel_arrow = ''
+                    userspace_arrow = ''
+
                 # Speedup display with color coding
                 if model_speedup > 1.0:
                     speedup_class = 'speedup-positive'
@@ -662,8 +679,8 @@ class ReportRenderer:
                 rows_html.append(f'''
                 <tr>
                     <td style="font-weight: 600;">{model_name.upper()}</td>
-                    <td>{kernel_badge} {kernel_inf_ms:.1f} ms</td>
-                    <td>{userspace_badge} {userspace_inf_ms:.1f} ms</td>
+                    <td>{kernel_badge} {kernel_inf_ms:.1f} ms {kernel_arrow}</td>
+                    <td>{userspace_badge} {userspace_inf_ms:.1f} ms {userspace_arrow}</td>
                     <td style="font-weight: 600;">{delta_str}</td>
                     <td class="{speedup_class}" style="font-weight: 700;">{speedup_str}</td>
                 </tr>

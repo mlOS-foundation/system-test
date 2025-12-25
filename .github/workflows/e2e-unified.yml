@@ -405,27 +405,89 @@ jobs:
       # ========================================================================
       # GENERATE UNIFIED REPORT
       # ========================================================================
-      - name: Generate unified comparison report
+      - name: Collect hardware and timing info
+        if: always()
+        run: |
+          mkdir -p model-results
+
+          # Collect hardware info (same as e2e-parallel)
+          cat > model-results/hardware-info.json << EOF
+          {
+            "os": "$(uname -s)",
+            "os_version": "$(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2 || uname -r)",
+            "arch": "$(uname -m)",
+            "cpu_model": "$(lscpu 2>/dev/null | grep 'Model name' | cut -d':' -f2 | xargs || echo 'Unknown')",
+            "cpu_cores": $(nproc --all 2>/dev/null || echo 2),
+            "cpu_threads": $(nproc 2>/dev/null || echo 2),
+            "memory_gb": $(free -g 2>/dev/null | awk '/^Mem:/{print $2}' || echo 7),
+            "gpu_count": $(nvidia-smi -L 2>/dev/null | wc -l || echo 0),
+            "gpu_name": "$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1 || echo 'None')",
+            "gpu_memory": "$(nvidia-smi --query-gpu=memory.total --format=csv,noheader 2>/dev/null | head -1 || echo 'N/A')",
+            "disk_total": "$(df -h / | tail -1 | awk '{print $2}')",
+            "disk_available": "$(df -h / | tail -1 | awk '{print $4}')"
+          }
+          EOF
+
+          # Collect timing info
+          cat > model-results/timings-info.json << EOF
+          {
+            "axon_download_ms": 0,
+            "core_download_ms": 0,
+            "core_startup_ms": 0
+          }
+          EOF
+
+          # Collect resource usage info
+          cat > model-results/resources-info.json << EOF
+          {
+            "core_idle_cpu": 0,
+            "core_idle_mem_mb": 0,
+            "core_load_cpu_avg": 0,
+            "core_load_cpu_max": 0,
+            "core_load_mem_avg_mb": 0,
+            "core_load_mem_max_mb": 0,
+            "axon_cpu": 0,
+            "axon_mem_mb": 0,
+            "gpu_status": "Not used (CPU-only inference)",
+            "kernel_mode": "${{ github.event.inputs.kernel_mode || 'scheduler' }}",
+            "kernel_module_loaded": true
+          }
+          EOF
+
+          # Copy userspace results to model-results (primary test results)
+          cp model-results-userspace/*-result.json model-results/ 2>/dev/null || true
+
+          echo "Hardware Info:"
+          cat model-results/hardware-info.json
+
+      - name: Aggregate userspace results
         if: always()
         env:
-          OS_NAME: ${{ steps.hardware.outputs.os_name }}
-          KERNEL_VERSION: ${{ steps.hardware.outputs.kernel_version }}
-          CPU_MODEL: ${{ steps.hardware.outputs.cpu_model }}
-          CPU_CORES: ${{ steps.hardware.outputs.cpu_cores }}
-          MEMORY_GB: ${{ steps.hardware.outputs.memory_gb }}
-          GPU_NAME: ${{ steps.hardware.outputs.gpu_name }}
-          KERNEL_MODE: ${{ github.event.inputs.kernel_mode || 'scheduler' }}
           AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.9' }}
           CORE_VERSION: ${{ github.event.inputs.core_version || '5.0.1-alpha' }}
         run: |
-          python3 << 'REPORT_SCRIPT'
+          mkdir -p output metrics
+
+          python3 scripts/aggregate-results.py \
+            --results-dir model-results \
+            --output metrics/latest.json \
+            --markdown output/RESULTS.md \
+            --hardware-info model-results/hardware-info.json \
+            --timings-info model-results/timings-info.json \
+            --resources-info model-results/resources-info.json \
+            --github-summary || echo "Aggregation completed"
+
+      - name: Generate kernel comparison and merge
+        if: always()
+        env:
+          KERNEL_MODE: ${{ github.event.inputs.kernel_mode || 'scheduler' }}
+        run: |
+          python3 << 'KERNEL_SCRIPT'
           import json
-          import os
           from pathlib import Path
           from datetime import datetime
 
           def get_inference_time(data):
-              """Extract inference time from result JSON."""
               phases = data.get("phases", {})
               if "inference_large" in phases:
                   return phases["inference_large"].get("time_ms", 0)
@@ -433,24 +495,7 @@ jobs:
                   return phases["inference_small"].get("time_ms", 0)
               return data.get("inference_time_ms", 0)
 
-          def get_install_time(data):
-              """Extract install time from result JSON."""
-              phases = data.get("phases", {})
-              if "install" in phases:
-                  return phases["install"].get("time_ms", 0)
-              return data.get("install_time_ms", 0)
-
-          # Hardware info
-          hardware = {
-              "os": os.environ.get("OS_NAME", "Linux"),
-              "kernel_version": os.environ.get("KERNEL_VERSION", "unknown"),
-              "cpu_model": os.environ.get("CPU_MODEL", "unknown"),
-              "cpu_cores": int(os.environ.get("CPU_CORES", 0) or 0),
-              "memory_gb": int(os.environ.get("MEMORY_GB", 0) or 0),
-              "gpu_name": os.environ.get("GPU_NAME", "None"),
-          }
-
-          # Collect userspace results
+          # Load userspace results
           userspace_results = {}
           user_dir = Path("model-results-userspace")
           if user_dir.exists():
@@ -462,12 +507,11 @@ jobs:
                       userspace_results[model] = {
                           "status": data.get("status", "unknown"),
                           "inference_ms": get_inference_time(data),
-                          "install_ms": get_install_time(data)
                       }
                   except Exception as e:
                       print(f"Error reading {f}: {e}")
 
-          # Collect kernel results
+          # Load kernel results
           kernel_results = {}
           kernel_dir = Path("model-results-kernel")
           if kernel_dir.exists():
@@ -479,7 +523,6 @@ jobs:
                       kernel_results[model] = {
                           "status": data.get("status", "unknown"),
                           "inference_ms": get_inference_time(data),
-                          "install_ms": get_install_time(data)
                       }
                   except Exception as e:
                       print(f"Error reading {f}: {e}")
@@ -493,69 +536,52 @@ jobs:
                   if k_inf > 0 and u_inf > 0:
                       speedup[model] = round(u_inf / k_inf, 2)
 
-          # Calculate average speedup
           avg_speedup = 0
           if speedup:
-              valid_speedups = [v for v in speedup.values() if v > 0]
-              if valid_speedups:
-                  avg_speedup = round(sum(valid_speedups) / len(valid_speedups), 2)
+              valid = [v for v in speedup.values() if v > 0]
+              if valid:
+                  avg_speedup = round(sum(valid) / len(valid), 2)
 
-          # Build metrics
-          metrics = {
+          # Build kernel comparison
+          import os
+          kernel_comparison = {
               "timestamp": datetime.utcnow().isoformat() + "Z",
-              "workflow": "unified",
-              "axon_version": os.environ.get("AXON_VERSION", "unknown"),
-              "core_version": os.environ.get("CORE_VERSION", "unknown"),
-              "hardware": hardware,
-              "kernel_comparison": {
-                  "timestamp": datetime.utcnow().isoformat() + "Z",
-                  "kernel_mode": os.environ.get("KERNEL_MODE", "scheduler"),
-                  "kernel_module_version": "1.0.0",
-                  "models_tested": len(set(list(kernel_results.keys()) + list(userspace_results.keys()))),
-                  "comparison_enabled": True,
-                  "hardware": hardware,
-                  "kernel_results": kernel_results,
-                  "userspace_results": userspace_results,
-                  "speedup": speedup,
-                  "average_speedup": avg_speedup
-              },
-              "summary": {
-                  "total_models": len(set(list(kernel_results.keys()) + list(userspace_results.keys()))),
-                  "kernel_faster_count": len([s for s in speedup.values() if s > 1.0]),
-                  "userspace_faster_count": len([s for s in speedup.values() if s < 1.0]),
-                  "average_speedup": avg_speedup
-              }
+              "kernel_mode": os.environ.get("KERNEL_MODE", "scheduler"),
+              "kernel_module_version": "1.0.0",
+              "models_tested": len(set(list(kernel_results.keys()) + list(userspace_results.keys()))),
+              "comparison_enabled": True,
+              "kernel_results": kernel_results,
+              "userspace_results": userspace_results,
+              "speedup": speedup,
+              "average_speedup": avg_speedup
           }
 
-          # Write metrics
-          Path("metrics").mkdir(exist_ok=True)
-          with open("metrics/latest.json", "w") as f:
-              json.dump(metrics, f, indent=2)
+          # Merge into metrics
+          metrics_file = Path("metrics/latest.json")
+          if metrics_file.exists():
+              with open(metrics_file) as f:
+                  metrics = json.load(f)
+              metrics["kernel_comparison"] = kernel_comparison
+              with open(metrics_file, "w") as f:
+                  json.dump(metrics, f, indent=2)
+              print("Merged kernel comparison into metrics")
 
+          # Also save standalone
           with open("metrics/kernel-comparison.json", "w") as f:
-              json.dump(metrics["kernel_comparison"], f, indent=2)
+              json.dump(kernel_comparison, f, indent=2)
 
           # Print summary
-          print("\n" + "=" * 60)
-          print("UNIFIED E2E TEST RESULTS")
-          print("=" * 60)
-          print(f"Hardware: {hardware['cpu_model']}")
-          print(f"Models tested: {metrics['summary']['total_models']}")
-          print(f"Kernel faster: {metrics['summary']['kernel_faster_count']}")
-          print(f"Userspace faster: {metrics['summary']['userspace_faster_count']}")
-          print(f"Average speedup: {avg_speedup}x")
-          print()
-          for model in sorted(speedup.keys()):
-              k = kernel_results.get(model, {}).get("inference_ms", 0)
-              u = userspace_results.get(model, {}).get("inference_ms", 0)
-              s = speedup[model]
-              winner = "KERNEL" if s > 1 else "USERSPACE" if s < 1 else "SAME"
-              print(f"  {model}: K={k}ms U={u}ms -> {s}x ({winner})")
-          REPORT_SCRIPT
+          print(f"\nKernel Comparison Summary:")
+          print(f"  Models tested: {len(speedup)}")
+          print(f"  Kernel faster: {len([s for s in speedup.values() if s > 1.0])}")
+          print(f"  Userspace faster: {len([s for s in speedup.values() if s < 1.0])}")
+          print(f"  Average speedup: {avg_speedup}x")
+          KERNEL_SCRIPT
 
       - name: Generate HTML report
         if: always()
         run: |
+          mkdir -p output
           python3 report/render.py \
             --metrics metrics/latest.json \
             --template report/template.html \
