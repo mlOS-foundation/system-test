@@ -2,12 +2,6 @@ name: E2E Unified Pipeline (Kernel + Userspace)
 
 # Single workflow that runs BOTH userspace and kernel tests on the SAME machine
 # for accurate, consistent performance comparison.
-#
-# Benefits:
-# - Same hardware for both tests = fair comparison
-# - Same system state = reduced variability
-# - Single workflow = simpler, no data merging needed
-# - Direct comparison in one report
 
 on:
   schedule:
@@ -27,12 +21,12 @@ on:
         required: true
         type: choice
         options:
-          - basic       # Memory manager only
-          - scheduler   # Memory + ML scheduler
-          - full        # Memory + scheduler + GPU manager
+          - basic
+          - scheduler
+          - full
         default: 'scheduler'
       models:
-        description: 'Models to test (comma-separated, empty = all enabled)'
+        description: 'Models to test (space-separated, empty = all enabled)'
         required: false
         default: ''
 
@@ -41,11 +35,6 @@ permissions:
   pages: write
   id-token: write
   packages: read
-
-env:
-  AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.9' }}
-  CORE_VERSION: ${{ github.event.inputs.core_version || '5.0.1-alpha' }}
-  KERNEL_MODE: ${{ github.event.inputs.kernel_mode || 'scheduler' }}
 
 jobs:
   unified-e2e-test:
@@ -56,11 +45,8 @@ jobs:
 
     steps:
       # ========================================================================
-      # SETUP
+      # SETUP & CLEANUP
       # ========================================================================
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Clean up from previous runs
         run: |
           echo "========================================"
@@ -69,7 +55,6 @@ jobs:
 
           # Stop any running Core processes
           pkill -f mlos_core 2>/dev/null || true
-          pkill -f "mlos-core" 2>/dev/null || true
           sleep 2
 
           # Unload kernel module if loaded
@@ -87,6 +72,8 @@ jobs:
           echo "Disk space available:"
           df -h /
 
+      - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -94,27 +81,33 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install pyyaml jinja2 requests
+          pip install pyyaml pillow numpy transformers torch torchvision jinja2 requests
+          sudo apt-get update && sudo apt-get install -y curl tar jq
 
-      - name: Get enabled models from config
+      - name: Download golden images
+        run: |
+          chmod +x scripts/download-golden-images.sh
+          ./scripts/download-golden-images.sh
+
+      - name: Get enabled models
         id: get-models
         run: |
-          if [ -n "${{ github.event.inputs.models }}" ]; then
-            MODELS="${{ github.event.inputs.models }}"
+          MODELS_INPUT=$(echo "${{ github.event.inputs.models }}" | tr ',' ' ' | xargs)
+
+          if [ -n "$MODELS_INPUT" ]; then
+            MODELS="$MODELS_INPUT"
           else
             MODELS=$(python3 -c "
           import yaml
           with open('config/models.yaml') as f:
               config = yaml.safe_load(f)
-          # models.yaml uses dict structure: models: {model_name: {enabled: true, ...}}
-          models_dict = config.get('models', {})
-          models = [name for name, cfg in models_dict.items() if isinstance(cfg, dict) and cfg.get('enabled', False)]
-          print(','.join(models))
+          models = [name for name, m in config.get('models', {}).items() if m.get('enabled', False)]
+          print(' '.join(models))
           ")
           fi
+
           echo "models=$MODELS" >> $GITHUB_OUTPUT
-          echo "Models to test: $MODELS"
+          echo "Testing models: $MODELS"
 
       - name: Collect hardware info
         id: hardware
@@ -125,16 +118,12 @@ jobs:
           echo "cpu_cores=$(nproc)" >> $GITHUB_OUTPUT
           echo "memory_gb=$(free -g | awk '/^Mem:/{print $2}')" >> $GITHUB_OUTPUT
 
-          # GPU detection
           if command -v nvidia-smi &> /dev/null; then
             GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)
-            GPU_COUNT=$(nvidia-smi --query-gpu=count --format=csv,noheader | head -1)
           else
             GPU_NAME="None (CPU only)"
-            GPU_COUNT="0"
           fi
           echo "gpu_name=$GPU_NAME" >> $GITHUB_OUTPUT
-          echo "gpu_count=$GPU_COUNT" >> $GITHUB_OUTPUT
 
           echo "Hardware Info:"
           echo "  OS: $(lsb_release -ds 2>/dev/null || echo 'Linux')"
@@ -144,24 +133,17 @@ jobs:
           echo "  GPU: $GPU_NAME"
 
       # ========================================================================
-      # DOWNLOAD RELEASES
+      # DOWNLOAD RELEASES (using proven patterns from e2e-kernel.yml)
       # ========================================================================
-      - name: Download Axon release
+      - name: Download Axon
         run: |
-          VERSION="${AXON_VERSION}"
-          VERSION_NO_V=${VERSION#v}
-          OS="linux"
-          ARCH="amd64"
-
-          # Axon uses underscore naming: axon_3.1.9_linux_amd64.tar.gz
-          TARBALL="axon_${VERSION_NO_V}_${OS}_${ARCH}.tar.gz"
-          URL="https://github.com/mlOS-foundation/axon/releases/download/${VERSION}/${TARBALL}"
-
-          echo "Downloading Axon from: $URL"
-          curl -L -f -o "/tmp/${TARBALL}" "$URL"
+          VERSION="${{ github.event.inputs.axon_version || 'v3.1.9' }}"
+          ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH="amd64"
 
           mkdir -p ~/.local/bin
-          tar -xzf "/tmp/${TARBALL}" -C ~/.local/bin
+          curl -L -f -o /tmp/axon.tar.gz \
+            "https://github.com/mlOS-foundation/axon/releases/download/${VERSION}/axon_${VERSION#v}_linux_${ARCH}.tar.gz"
+          tar -xzf /tmp/axon.tar.gz -C ~/.local/bin
           chmod +x ~/.local/bin/axon
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
@@ -169,88 +151,93 @@ jobs:
 
       - name: Download converter image
         run: |
-          VERSION="${AXON_VERSION}"
+          VERSION="${{ github.event.inputs.axon_version || 'v3.1.9' }}"
           VERSION_NO_V=${VERSION#v}
           OS="linux"
-          ARCH="amd64"
+          ARCH=$(uname -m)
+          case $ARCH in
+            x86_64) ARCH="amd64" ;;
+            aarch64) ARCH="arm64" ;;
+          esac
 
           CONVERTER="axon-converter-${VERSION_NO_V}-${OS}-${ARCH}.tar.gz"
           URL="https://github.com/mlOS-foundation/axon/releases/download/${VERSION}/${CONVERTER}"
+          IMAGE_TAG="ghcr.io/mlos-foundation/axon-converter:${VERSION_NO_V}"
 
-          echo "Downloading converter image from: $URL"
+          echo "Downloading converter image..."
           if curl -L -f -o "/tmp/${CONVERTER}" "$URL" 2>/dev/null; then
-            echo "Loading Docker image..."
             docker load -i "/tmp/${CONVERTER}"
-
-            # Tag for local use
-            IMAGE_TAG="ghcr.io/mlos-foundation/axon-converter:${VERSION_NO_V}"
-            docker tag "$IMAGE_TAG" "ghcr.io/mlos-foundation/axon-converter:latest" 2>/dev/null || true
-
+            docker tag "$IMAGE_TAG" "ghcr.io/mlos-foundation/axon-converter:latest" || true
             echo "Converter image loaded"
-            docker images | grep converter || true
           else
-            echo "Warning: Converter image not available for this version"
+            echo "WARNING: Converter image not available"
           fi
 
-      - name: Download Core release
+      - name: Download Core
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${CORE_VERSION}"
-          OS="linux"
-          ARCH="amd64"
+          VERSION="${{ github.event.inputs.core_version || '5.0.1-alpha' }}"
+          VERSION_NO_V="${VERSION#v}"
+          ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH="amd64"
 
-          # Core uses underscore naming: mlos-core_5.0.1-alpha_linux-amd64.tar.gz
-          TARBALL="mlos-core_${VERSION}_${OS}-${ARCH}.tar.gz"
-          URL="https://github.com/mlOS-foundation/core/releases/download/v${VERSION}/${TARBALL}"
-
-          echo "Downloading Core from: $URL"
           mkdir -p ~/mlos-core
-          curl -L -f -o "/tmp/${TARBALL}" "$URL"
-          tar -xzf "/tmp/${TARBALL}" -C ~/mlos-core
 
-          # Set up ONNX runtime
-          ONNX_DIR=$(find ~/mlos-core -type d -name "onnxruntime" | head -1)
-          if [ -n "$ONNX_DIR" ]; then
-            rm -rf ~/mlos-core/build/onnxruntime 2>/dev/null || true
-            mkdir -p ~/mlos-core/build
-            mv "$ONNX_DIR" ~/mlos-core/build/
-            export LD_LIBRARY_PATH="$HOME/mlos-core/build/onnxruntime/lib:$LD_LIBRARY_PATH"
-            echo "LD_LIBRARY_PATH=$HOME/mlos-core/build/onnxruntime/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-          fi
+          ARTIFACT="mlos-core_${VERSION_NO_V}_linux-${ARCH}.tar.gz"
+          gh release download "v${VERSION_NO_V}" --pattern "$ARTIFACT" --repo mlOS-foundation/core -D /tmp 2>/dev/null || \
+          curl -L -f -o /tmp/$ARTIFACT \
+            "https://github.com/mlOS-foundation/core/releases/download/v${VERSION_NO_V}/${ARTIFACT}"
 
-          # Set up llama.cpp
-          LLAMA_DIR=$(find ~/mlos-core -type d -name "llama.cpp" | head -1)
-          if [ -n "$LLAMA_DIR" ]; then
-            export LD_LIBRARY_PATH="$LLAMA_DIR/lib:$LD_LIBRARY_PATH"
-            echo "LD_LIBRARY_PATH=$LLAMA_DIR/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-          fi
+          tar -xzf /tmp/$ARTIFACT -C ~/mlos-core
+
+          # Download ONNX Runtime
+          ONNX_ARCH="x64"; [ "$(uname -m)" = "aarch64" ] && ONNX_ARCH="aarch64"
+          curl -L -f -o /tmp/onnx.tgz \
+            "https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-linux-${ONNX_ARCH}-1.18.0.tgz"
+
+          rm -rf ~/mlos-core/build/onnxruntime 2>/dev/null || true
+          mkdir -p ~/mlos-core/build
+          tar -xzf /tmp/onnx.tgz -C ~/mlos-core/build
+          mv ~/mlos-core/build/onnxruntime-* ~/mlos-core/build/onnxruntime
+
+          echo "Core downloaded and extracted"
+          ls -la ~/mlos-core/
 
       # ========================================================================
       # PHASE 1: USERSPACE TESTS (No kernel module)
       # ========================================================================
-      - name: "Phase 1: Start Core (Userspace Mode)"
+      - name: "Phase 1: Ensure kernel module is NOT loaded"
         run: |
           echo "========================================"
           echo "PHASE 1: USERSPACE TESTS"
           echo "========================================"
-          echo "Running without kernel module for baseline comparison"
+          sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
 
-          # Ensure kernel module is NOT loaded
-          if lsmod | grep -q "mlos_ml\|mlos-ml"; then
-            echo "Unloading kernel module for userspace baseline..."
-            sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
+          if lsmod | grep -q "mlos"; then
+            echo "ERROR: Kernel module still loaded!"
+            exit 1
           fi
+          echo "Kernel module confirmed NOT loaded"
 
+      - name: "Phase 1: Start Core (Userspace Mode)"
+        run: |
           cd ~/mlos-core
           BINARY=$(find . -name "mlos_core" -type f -executable | head -1)
+          chmod +x "$BINARY"
 
-          echo "Starting Core in userspace mode..."
-          nohup "$BINARY" > /tmp/core-userspace.log 2>&1 &
+          BINARY_DIR=$(dirname "$BINARY")
+          LLAMA_LIB=""
+          [ -d "$BINARY_DIR/llama.cpp/lib" ] && LLAMA_LIB="$BINARY_DIR/llama.cpp/lib"
+
+          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
+
+          echo "Starting Core in USERSPACE mode..."
+          nohup $BINARY --http-port 8080 > /tmp/core-userspace.log 2>&1 &
           echo $! > /tmp/core-userspace.pid
 
-          # Wait for startup
           for i in {1..30}; do
-            if curl -s http://localhost:8080/health > /dev/null 2>&1; then
-              echo "Core started successfully (userspace mode)"
+            if curl -s http://127.0.0.1:8080/health >/dev/null 2>&1; then
+              echo "Core started (userspace mode)"
               break
             fi
             sleep 1
@@ -261,24 +248,26 @@ jobs:
         run: |
           MODELS="${{ steps.get-models.outputs.models }}"
           mkdir -p model-results-userspace
+          chmod +x scripts/test-single-model.sh
           export PATH="$HOME/.local/bin:$PATH"
 
-          echo "Testing models (userspace): $MODELS"
+          echo "Testing models (USERSPACE): $MODELS"
           TEST_START=$(date +%s%3N)
 
-          IFS=',' read -ra MODEL_ARRAY <<< "$MODELS"
-          for model in "${MODEL_ARRAY[@]}"; do
+          for model in $MODELS; do
+            [ -z "$model" ] && continue
             echo "----------------------------------------"
             echo "Testing: $model (userspace)"
             echo "----------------------------------------"
-            python3 scripts/test-model.py "$model" \
+            ./scripts/test-single-model.sh "$model" \
               --output-dir model-results-userspace \
-              --timeout 600 || echo "Warning: $model test had issues"
+              --core-url http://127.0.0.1:8080 \
+              --golden-images \
+              || echo "Warning: $model had issues"
           done
 
           TEST_END=$(date +%s%3N)
-          TEST_DURATION=$((TEST_END - TEST_START))
-          echo "userspace_duration_ms=$TEST_DURATION" >> $GITHUB_OUTPUT
+          echo "userspace_duration_ms=$((TEST_END - TEST_START))" >> $GITHUB_OUTPUT
         continue-on-error: true
 
       - name: "Phase 1: Stop Core (Userspace)"
@@ -288,17 +277,18 @@ jobs:
             rm /tmp/core-userspace.pid
           fi
           sleep 2
+          echo "Core (userspace) stopped"
 
       # ========================================================================
       # PHASE 2: KERNEL TESTS (With kernel module)
       # ========================================================================
-      - name: "Phase 2: Load kernel module"
+      - name: "Phase 2: Verify kernel module capability"
+        id: kernel-check
         run: |
           echo "========================================"
           echo "PHASE 2: KERNEL TESTS"
           echo "========================================"
 
-          # Find kernel module
           MODULE_PATH=""
           for path in "/lib/modules/$(uname -r)/extra/mlos-ml.ko" \
                       "/opt/mlos/kernel/mlos-ml.ko" \
@@ -314,29 +304,39 @@ jobs:
             exit 1
           fi
 
+          echo "module_path=$MODULE_PATH" >> $GITHUB_OUTPUT
           echo "Found kernel module: $MODULE_PATH"
+          modinfo "$MODULE_PATH" 2>/dev/null || true
+
+      - name: "Phase 2: Load kernel module"
+        run: |
+          MODULE_PATH="${{ steps.kernel-check.outputs.module_path }}"
+          KERNEL_MODE="${{ github.event.inputs.kernel_mode || 'scheduler' }}"
 
           # Set parameters based on mode
-          case "${KERNEL_MODE}" in
+          PARAMS="debug_level=2"
+          case "$KERNEL_MODE" in
             basic)
-              PARAMS="tmm_enabled=1 scheduler_enabled=0 gpu_enabled=0"
+              PARAMS="$PARAMS enable_tmm=1 enable_scheduler=0 enable_gpu_manager=0"
               ;;
             scheduler)
-              PARAMS="tmm_enabled=1 scheduler_enabled=1 gpu_enabled=0"
+              PARAMS="$PARAMS enable_tmm=1 enable_scheduler=1 enable_gpu_manager=0"
               ;;
             full)
-              PARAMS="tmm_enabled=1 scheduler_enabled=1 gpu_enabled=1"
+              PARAMS="$PARAMS enable_tmm=1 enable_scheduler=1 enable_gpu_manager=1"
               ;;
           esac
 
           echo "Loading module with params: $PARAMS"
           sudo insmod "$MODULE_PATH" $PARAMS
 
+          sleep 2
           if lsmod | grep -q "mlos_ml\|mlos-ml"; then
             echo "Kernel module loaded successfully"
             lsmod | grep mlos
           else
             echo "ERROR: Failed to load kernel module"
+            dmesg | tail -30
             exit 1
           fi
 
@@ -345,14 +345,19 @@ jobs:
           cd ~/mlos-core
           BINARY=$(find . -name "mlos_core" -type f -executable | head -1)
 
-          echo "Starting Core with kernel module..."
-          nohup "$BINARY" > /tmp/core-kernel.log 2>&1 &
+          BINARY_DIR=$(dirname "$BINARY")
+          LLAMA_LIB=""
+          [ -d "$BINARY_DIR/llama.cpp/lib" ] && LLAMA_LIB="$BINARY_DIR/llama.cpp/lib"
+
+          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
+
+          echo "Starting Core with KERNEL MODULE..."
+          nohup $BINARY --http-port 8080 > /tmp/core-kernel.log 2>&1 &
           echo $! > /tmp/core-kernel.pid
 
-          # Wait for startup
           for i in {1..30}; do
-            if curl -s http://localhost:8080/health > /dev/null 2>&1; then
-              echo "Core started successfully (kernel mode)"
+            if curl -s http://127.0.0.1:8080/health >/dev/null 2>&1; then
+              echo "Core started (kernel mode)"
               break
             fi
             sleep 1
@@ -363,24 +368,26 @@ jobs:
         run: |
           MODELS="${{ steps.get-models.outputs.models }}"
           mkdir -p model-results-kernel
+          chmod +x scripts/test-single-model.sh
           export PATH="$HOME/.local/bin:$PATH"
 
-          echo "Testing models (kernel): $MODELS"
+          echo "Testing models (KERNEL): $MODELS"
           TEST_START=$(date +%s%3N)
 
-          IFS=',' read -ra MODEL_ARRAY <<< "$MODELS"
-          for model in "${MODEL_ARRAY[@]}"; do
+          for model in $MODELS; do
+            [ -z "$model" ] && continue
             echo "----------------------------------------"
             echo "Testing: $model (kernel mode)"
             echo "----------------------------------------"
-            python3 scripts/test-model.py "$model" \
+            ./scripts/test-single-model.sh "$model" \
               --output-dir model-results-kernel \
-              --timeout 600 || echo "Warning: $model test had issues"
+              --core-url http://127.0.0.1:8080 \
+              --golden-images \
+              || echo "Warning: $model had issues"
           done
 
           TEST_END=$(date +%s%3N)
-          TEST_DURATION=$((TEST_END - TEST_START))
-          echo "kernel_duration_ms=$TEST_DURATION" >> $GITHUB_OUTPUT
+          echo "kernel_duration_ms=$((TEST_END - TEST_START))" >> $GITHUB_OUTPUT
         continue-on-error: true
 
       - name: "Phase 2: Stop Core (Kernel)"
@@ -408,7 +415,9 @@ jobs:
           CPU_CORES: ${{ steps.hardware.outputs.cpu_cores }}
           MEMORY_GB: ${{ steps.hardware.outputs.memory_gb }}
           GPU_NAME: ${{ steps.hardware.outputs.gpu_name }}
-          GPU_COUNT: ${{ steps.hardware.outputs.gpu_count }}
+          KERNEL_MODE: ${{ github.event.inputs.kernel_mode || 'scheduler' }}
+          AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.9' }}
+          CORE_VERSION: ${{ github.event.inputs.core_version || '5.0.1-alpha' }}
         run: |
           python3 << 'REPORT_SCRIPT'
           import json
@@ -437,10 +446,9 @@ jobs:
               "os": os.environ.get("OS_NAME", "Linux"),
               "kernel_version": os.environ.get("KERNEL_VERSION", "unknown"),
               "cpu_model": os.environ.get("CPU_MODEL", "unknown"),
-              "cpu_cores": int(os.environ.get("CPU_CORES", 0)),
-              "memory_gb": int(os.environ.get("MEMORY_GB", 0)),
+              "cpu_cores": int(os.environ.get("CPU_CORES", 0) or 0),
+              "memory_gb": int(os.environ.get("MEMORY_GB", 0) or 0),
               "gpu_name": os.environ.get("GPU_NAME", "None"),
-              "gpu_count": int(os.environ.get("GPU_COUNT", 0))
           }
 
           # Collect userspace results
@@ -484,7 +492,6 @@ jobs:
                   k_inf = kernel_results[model]["inference_ms"]
                   u_inf = userspace_results[model]["inference_ms"]
                   if k_inf > 0 and u_inf > 0:
-                      # speedup = userspace / kernel (>1 means kernel faster)
                       speedup[model] = round(u_inf / k_inf, 2)
 
           # Calculate average speedup
@@ -505,7 +512,7 @@ jobs:
                   "timestamp": datetime.utcnow().isoformat() + "Z",
                   "kernel_mode": os.environ.get("KERNEL_MODE", "scheduler"),
                   "kernel_module_version": "1.0.0",
-                  "models_tested": len(kernel_results),
+                  "models_tested": len(set(list(kernel_results.keys()) + list(userspace_results.keys()))),
                   "comparison_enabled": True,
                   "hardware": hardware,
                   "kernel_results": kernel_results,
@@ -513,28 +520,12 @@ jobs:
                   "speedup": speedup,
                   "average_speedup": avg_speedup
               },
-              "resources": {
-                  "kernel_data_available": True
+              "summary": {
+                  "total_models": len(set(list(kernel_results.keys()) + list(userspace_results.keys()))),
+                  "kernel_faster_count": len([s for s in speedup.values() if s > 1.0]),
+                  "userspace_faster_count": len([s for s in speedup.values() if s < 1.0]),
+                  "average_speedup": avg_speedup
               }
-          }
-
-          # Add model results for main report section
-          all_models = set(list(kernel_results.keys()) + list(userspace_results.keys()))
-          models_section = {}
-          for model in all_models:
-              # Use kernel results as primary (since this is kernel-focused workflow)
-              if model in kernel_results:
-                  models_section[model] = kernel_results[model]
-              elif model in userspace_results:
-                  models_section[model] = userspace_results[model]
-
-          metrics["models"] = models_section
-          metrics["summary"] = {
-              "total_models": len(all_models),
-              "kernel_faster_count": len([s for s in speedup.values() if s > 1.0]),
-              "userspace_faster_count": len([s for s in speedup.values() if s < 1.0]),
-              "same_count": len([s for s in speedup.values() if s == 1.0]),
-              "average_speedup": avg_speedup
           }
 
           # Write metrics
@@ -549,21 +540,18 @@ jobs:
           print("\n" + "=" * 60)
           print("UNIFIED E2E TEST RESULTS")
           print("=" * 60)
-          print(f"Hardware: {hardware['cpu_model']} ({hardware['cpu_cores']} cores, {hardware['memory_gb']}GB)")
-          print(f"Models tested: {len(all_models)}")
+          print(f"Hardware: {hardware['cpu_model']}")
+          print(f"Models tested: {metrics['summary']['total_models']}")
           print(f"Kernel faster: {metrics['summary']['kernel_faster_count']}")
           print(f"Userspace faster: {metrics['summary']['userspace_faster_count']}")
           print(f"Average speedup: {avg_speedup}x")
           print()
-          print("Per-model comparison:")
-          print("-" * 60)
           for model in sorted(speedup.keys()):
               k = kernel_results.get(model, {}).get("inference_ms", 0)
               u = userspace_results.get(model, {}).get("inference_ms", 0)
               s = speedup[model]
               winner = "KERNEL" if s > 1 else "USERSPACE" if s < 1 else "SAME"
               print(f"  {model}: K={k}ms U={u}ms -> {s}x ({winner})")
-
           REPORT_SCRIPT
 
       - name: Generate HTML report
@@ -575,7 +563,7 @@ jobs:
             --output output/index.html
 
       # ========================================================================
-      # UPLOAD ARTIFACTS & DEPLOY
+      # UPLOAD & DEPLOY
       # ========================================================================
       - name: Upload metrics
         if: always()
@@ -603,13 +591,8 @@ jobs:
         if: always()
         run: |
           mkdir -p _site
-          cp output/index.html _site/
-          cp -r metrics _site/
-
-          # Copy model results for drill-down
-          mkdir -p _site/results
-          cp -r model-results-userspace _site/results/ 2>/dev/null || true
-          cp -r model-results-kernel _site/results/ 2>/dev/null || true
+          cp output/index.html _site/ 2>/dev/null || echo "No HTML report"
+          cp -r metrics _site/ 2>/dev/null || true
 
       - name: Upload Pages artifact
         if: always()
@@ -621,67 +604,13 @@ jobs:
         if: always()
         uses: actions/deploy-pages@v4
 
-      - name: Summary
-        if: always()
-        run: |
-          echo "## Unified E2E Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ -f metrics/latest.json ]; then
-            python3 << 'EOF' >> $GITHUB_STEP_SUMMARY
-          import json
-          with open("metrics/latest.json") as f:
-              data = json.load(f)
-
-          kc = data.get("kernel_comparison", {})
-          hw = data.get("hardware", {})
-          summary = data.get("summary", {})
-
-          print(f"**Hardware:** {hw.get('cpu_model', 'N/A')} ({hw.get('cpu_cores', 0)} cores)")
-          print(f"**Memory:** {hw.get('memory_gb', 0)} GB")
-          print()
-          print(f"| Metric | Value |")
-          print(f"|--------|-------|")
-          print(f"| Models Tested | {summary.get('total_models', 0)} |")
-          print(f"| Kernel Faster | {summary.get('kernel_faster_count', 0)} |")
-          print(f"| Userspace Faster | {summary.get('userspace_faster_count', 0)} |")
-          print(f"| Average Speedup | {summary.get('average_speedup', 0)}x |")
-          print()
-          print("### Per-Model Results")
-          print()
-          print("| Model | Kernel (ms) | Userspace (ms) | Speedup |")
-          print("|-------|-------------|----------------|---------|")
-
-          speedup = kc.get("speedup", {})
-          kernel_results = kc.get("kernel_results", {})
-          userspace_results = kc.get("userspace_results", {})
-
-          for model in sorted(speedup.keys()):
-              k = kernel_results.get(model, {}).get("inference_ms", 0)
-              u = userspace_results.get(model, {}).get("inference_ms", 0)
-              s = speedup[model]
-              emoji = "+" if s > 1 else "-" if s < 1 else ""
-              print(f"| {model} | {k:.0f} | {u:.0f} | {emoji}{((s-1)*100):.1f}% |")
-          EOF
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Report:** https://mlos-foundation.github.io/system-test/" >> $GITHUB_STEP_SUMMARY
-
       # ========================================================================
       # CLEANUP
       # ========================================================================
       - name: Post-run cleanup
         if: always()
         run: |
-          # Ensure kernel module is unloaded
           sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
-
-          # Stop any Core processes
           pkill -f mlos_core 2>/dev/null || true
-
-          # Clean up large files
           rm -rf ~/.cache/huggingface/hub 2>/dev/null || true
-          rm -rf ~/mlos-core/models 2>/dev/null || true
-
           echo "Cleanup complete"
