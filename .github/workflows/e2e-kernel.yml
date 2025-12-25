@@ -55,6 +55,49 @@ jobs:
     runs-on: [self-hosted, linux, kernel-capable]
 
     steps:
+      - name: Clean up from previous runs
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Cleaning up stale state from previous runs"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # Stop any running Core processes
+          pkill -f mlos_core 2>/dev/null || true
+          pkill -f "mlos-core" 2>/dev/null || true
+          sleep 2
+
+          # Clean up model cache and installed models
+          echo "Cleaning model cache..."
+          rm -rf ~/.cache/huggingface/hub 2>/dev/null || true
+          rm -rf ~/.cache/axon 2>/dev/null || true
+          rm -rf /tmp/hf-* 2>/dev/null || true
+          rm -rf /tmp/*.axon 2>/dev/null || true
+
+          # Clean up MLOS Core directories
+          echo "Cleaning MLOS Core directories..."
+          rm -rf ~/mlos-core/models 2>/dev/null || true
+          rm -rf ~/mlos-core/build/models 2>/dev/null || true
+          rm -rf ~/mlos-core/cache 2>/dev/null || true
+
+          # Clean up test result directories
+          echo "Cleaning test result directories..."
+          rm -rf model-results-kernel 2>/dev/null || true
+          rm -rf model-results-userspace 2>/dev/null || true
+          rm -rf metrics 2>/dev/null || true
+          rm -rf output 2>/dev/null || true
+
+          # Clean up tmp files
+          echo "Cleaning tmp files..."
+          rm -rf /tmp/core.pid /tmp/core.log 2>/dev/null || true
+          rm -rf /tmp/kernel-data 2>/dev/null || true
+
+          # Report disk space
+          echo ""
+          echo "Disk space after cleanup:"
+          df -h / | tail -1
+          echo ""
+          echo "Cleanup complete"
+
       - uses: actions/checkout@v4
 
       - name: Verify kernel module capability
@@ -707,10 +750,35 @@ jobs:
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Kernel Module Benefits" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚡ Zero-copy tensor transfers" >> $GITHUB_STEP_SUMMARY
-          echo "- 🧠 ML-aware scheduling" >> $GITHUB_STEP_SUMMARY
-          echo "- 📊 Kernel-level memory management" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔒 Secure inference isolation" >> $GITHUB_STEP_SUMMARY
+          echo "- Zero-copy tensor transfers" >> $GITHUB_STEP_SUMMARY
+          echo "- ML-aware scheduling" >> $GITHUB_STEP_SUMMARY
+          echo "- Kernel-level memory management" >> $GITHUB_STEP_SUMMARY
+          echo "- Secure inference isolation" >> $GITHUB_STEP_SUMMARY
+
+      - name: Post-run cleanup
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Post-run cleanup for faster subsequent runs"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # Stop Core processes
+          pkill -f mlos_core 2>/dev/null || true
+          pkill -f "mlos-core" 2>/dev/null || true
+
+          # Clean up installed models (they need fresh install each run)
+          rm -rf ~/mlos-core/models 2>/dev/null || true
+          rm -rf ~/mlos-core/build/models 2>/dev/null || true
+          rm -rf ~/mlos-core/cache 2>/dev/null || true
+
+          # Clean up temp files
+          rm -rf /tmp/hf-* 2>/dev/null || true
+          rm -rf /tmp/*.axon 2>/dev/null || true
+          rm -rf /tmp/core.pid /tmp/core.log 2>/dev/null || true
+
+          # Report disk space
+          echo "Disk space after cleanup:"
+          df -h / | tail -1
 
       # Note: Kernel reports are uploaded as artifacts only.
       # The main e2e-parallel workflow handles GitHub Pages deployment.
