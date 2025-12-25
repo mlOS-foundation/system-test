@@ -73,6 +73,11 @@ jobs:
           rm -rf /tmp/hf-* 2>/dev/null || true
           rm -rf /tmp/*.axon 2>/dev/null || true
 
+          # Clean up Axon cache (this is where partially installed models live)
+          echo "Cleaning Axon cache..."
+          rm -rf ~/.axon/cache/models 2>/dev/null || true
+          rm -rf ~/.axon/cache 2>/dev/null || true
+
           # Clean up MLOS Core directories
           echo "Cleaning MLOS Core directories..."
           rm -rf ~/mlos-core/models 2>/dev/null || true
@@ -770,6 +775,9 @@ jobs:
           rm -rf ~/mlos-core/models 2>/dev/null || true
           rm -rf ~/mlos-core/build/models 2>/dev/null || true
           rm -rf ~/mlos-core/cache 2>/dev/null || true
+
+          # Clean up Axon cache to ensure fresh model installs
+          rm -rf ~/.axon/cache/models 2>/dev/null || true
 
           # Clean up temp files
           rm -rf /tmp/hf-* 2>/dev/null || true
