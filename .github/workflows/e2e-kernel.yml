@@ -523,23 +523,44 @@ jobs:
               "speedup": {}
           }
 
+          def get_inference_time(data):
+              """Extract inference time from result data - check phases structure first"""
+              phases = data.get("phases", {})
+              # Use inference_large if available, otherwise inference_small
+              if "inference_large" in phases:
+                  return phases["inference_large"].get("time_ms", 0)
+              elif "inference_small" in phases:
+                  return phases["inference_small"].get("time_ms", 0)
+              # Fallback to old format
+              return data.get("inference_time_ms", 0)
+
+          def get_install_time(data):
+              """Extract install time from result data"""
+              phases = data.get("phases", {})
+              if "install" in phases:
+                  return phases["install"].get("time_ms", 0)
+              return data.get("install_time_ms", 0)
+
           for model, data in kernel_results.items():
+              kernel_inf = get_inference_time(data)
+              kernel_install = get_install_time(data)
+
               kernel_comparison["kernel_results"][model] = {
                   "status": data.get("status", "unknown"),
-                  "inference_ms": data.get("inference_time_ms", 0),
-                  "install_ms": data.get("install_time_ms", 0)
+                  "inference_ms": kernel_inf,
+                  "install_ms": kernel_install
               }
 
               if model in userspace_results:
                   user_data = userspace_results[model]
+                  user_inf = get_inference_time(user_data)
+
                   kernel_comparison["userspace_results"][model] = {
                       "status": user_data.get("status", "unknown"),
-                      "inference_ms": user_data.get("inference_time_ms", 0)
+                      "inference_ms": user_inf
                   }
 
-                  # Calculate speedup
-                  kernel_inf = data.get("inference_time_ms", 0)
-                  user_inf = user_data.get("inference_time_ms", 0)
+                  # Calculate speedup (userspace / kernel - higher means kernel is faster)
                   if kernel_inf > 0 and user_inf > 0:
                       speedup = user_inf / kernel_inf
                       kernel_comparison["speedup"][model] = round(speedup, 2)
