@@ -198,12 +198,13 @@ jobs:
           OS="linux"
           ARCH="amd64"
 
-          TARBALL="mlos-core-${VERSION}-${OS}-${ARCH}.tar.gz"
+          # Core uses underscore naming: mlos-core_5.0.1-alpha_linux-amd64.tar.gz
+          TARBALL="mlos-core_${VERSION}_${OS}-${ARCH}.tar.gz"
           URL="https://github.com/mlOS-foundation/core/releases/download/v${VERSION}/${TARBALL}"
 
           echo "Downloading Core from: $URL"
           mkdir -p ~/mlos-core
-          curl -L -o "/tmp/${TARBALL}" "$URL"
+          curl -L -f -o "/tmp/${TARBALL}" "$URL"
           tar -xzf "/tmp/${TARBALL}" -C ~/mlos-core
 
           # Set up ONNX runtime
