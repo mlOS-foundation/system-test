@@ -728,18 +728,29 @@ jobs:
           if [ -n "$KERNEL_RUN" ] && [ "$KERNEL_RUN" != "null" ]; then
             echo "📦 Found kernel run: $KERNEL_RUN"
 
-            # Download the kernel results artifact
-            mkdir -p /tmp/kernel-data
-            gh run download "$KERNEL_RUN" -n "kernel-e2e-results-*" -D /tmp/kernel-data 2>/dev/null || true
+            # Get the actual artifact name using API (artifact names have run numbers)
+            ARTIFACT_NAME=$(gh api "repos/${{ github.repository }}/actions/runs/${KERNEL_RUN}/artifacts" --jq '.artifacts[] | select(.name | startswith("kernel-e2e-results")) | .name' | head -1)
 
-            # Look for kernel-comparison.json
-            KERNEL_JSON=$(find /tmp/kernel-data -name "kernel-comparison.json" -type f | head -1)
+            if [ -n "$ARTIFACT_NAME" ]; then
+              echo "📦 Found artifact: $ARTIFACT_NAME"
 
-            if [ -n "$KERNEL_JSON" ] && [ -f "$KERNEL_JSON" ]; then
-              echo "✅ Found kernel comparison data: $KERNEL_JSON"
+              # Download the kernel results artifact
+              mkdir -p /tmp/kernel-data
+              gh run download "$KERNEL_RUN" -n "$ARTIFACT_NAME" -D /tmp/kernel-data || true
 
-              # Merge kernel_comparison into metrics/latest.json
-              python3 << MERGE_SCRIPT
+              # List what we got
+              echo "📂 Downloaded files:"
+              find /tmp/kernel-data -type f | head -20
+
+              # Look for kernel-comparison.json
+              KERNEL_JSON=$(find /tmp/kernel-data -name "kernel-comparison.json" -type f | head -1)
+
+              if [ -n "$KERNEL_JSON" ] && [ -f "$KERNEL_JSON" ]; then
+                echo "✅ Found kernel comparison data: $KERNEL_JSON"
+                cat "$KERNEL_JSON" | head -30
+
+                # Merge kernel_comparison into metrics/latest.json
+                python3 << MERGE_SCRIPT
           import json
           from pathlib import Path
 
@@ -764,8 +775,11 @@ jobs:
           else:
               print("⚠️ Could not merge - missing files")
           MERGE_SCRIPT
+              else
+                echo "⚠️ No kernel-comparison.json found in downloaded artifacts"
+              fi
             else
-              echo "⚠️ No kernel-comparison.json found in artifacts"
+              echo "⚠️ No kernel artifact found in run $KERNEL_RUN"
             fi
           else
             echo "ℹ️ No successful kernel workflow runs found"
