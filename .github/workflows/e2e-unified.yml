@@ -217,6 +217,7 @@ jobs:
           echo "Kernel module confirmed NOT loaded"
 
       - name: "Phase 1: Start Core (Userspace Mode)"
+        id: core-userspace-start
         run: |
           cd ~/mlos-core
           BINARY=$(find . -name "mlos_core" -type f -executable | head -1)
@@ -229,16 +230,30 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
 
           echo "Starting Core in USERSPACE mode..."
+          STARTUP_START=$(date +%s%3N)
           nohup $BINARY --http-port 8080 > /tmp/core-userspace.log 2>&1 &
           echo $! > /tmp/core-userspace.pid
 
           for i in {1..30}; do
             if curl -s http://127.0.0.1:8080/health >/dev/null 2>&1; then
+              STARTUP_END=$(date +%s%3N)
               echo "Core started (userspace mode)"
+              echo "core_startup_ms=$((STARTUP_END - STARTUP_START))" >> $GITHUB_OUTPUT
               break
             fi
             sleep 1
           done
+
+          # Capture idle resource usage
+          sleep 2
+          CORE_PID=$(cat /tmp/core-userspace.pid)
+          if [ -n "$CORE_PID" ] && ps -p "$CORE_PID" > /dev/null 2>&1; then
+            CORE_IDLE_CPU=$(ps -p "$CORE_PID" -o %cpu= 2>/dev/null | xargs || echo "0")
+            CORE_IDLE_MEM_MB=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | awk '{printf "%.0f", $1/1024}' || echo "0")
+            echo "core_idle_cpu=$CORE_IDLE_CPU" >> $GITHUB_OUTPUT
+            echo "core_idle_mem_mb=$CORE_IDLE_MEM_MB" >> $GITHUB_OUTPUT
+            echo "Core idle: CPU=${CORE_IDLE_CPU}%, Memory=${CORE_IDLE_MEM_MB}MB"
+          fi
 
       - name: "Phase 1: Run E2E tests (Userspace)"
         id: test-userspace
@@ -251,6 +266,11 @@ jobs:
           echo "Testing models (USERSPACE): $MODELS"
           TEST_START=$(date +%s%3N)
 
+          # Track max resource usage during tests
+          MAX_CPU=0
+          MAX_MEM=0
+          CORE_PID=$(cat /tmp/core-userspace.pid 2>/dev/null)
+
           for model in $MODELS; do
             [ -z "$model" ] && continue
             echo "----------------------------------------"
@@ -261,10 +281,23 @@ jobs:
               --core-url http://127.0.0.1:8080 \
               --golden-images \
               || echo "Warning: $model had issues"
+
+            # Sample resource usage after each model
+            if [ -n "$CORE_PID" ] && ps -p "$CORE_PID" > /dev/null 2>&1; then
+              CPU=$(ps -p "$CORE_PID" -o %cpu= 2>/dev/null | xargs || echo "0")
+              MEM=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | awk '{printf "%.0f", $1/1024}' || echo "0")
+              CPU_INT=${CPU%.*}
+              MEM_INT=${MEM%.*}
+              [ "${CPU_INT:-0}" -gt "${MAX_CPU:-0}" ] && MAX_CPU=$CPU_INT
+              [ "${MEM_INT:-0}" -gt "${MAX_MEM:-0}" ] && MAX_MEM=$MEM_INT
+            fi
           done
 
           TEST_END=$(date +%s%3N)
           echo "userspace_duration_ms=$((TEST_END - TEST_START))" >> $GITHUB_OUTPUT
+          echo "core_load_cpu_max=$MAX_CPU" >> $GITHUB_OUTPUT
+          echo "core_load_mem_max_mb=$MAX_MEM" >> $GITHUB_OUTPUT
+          echo "Core load max: CPU=${MAX_CPU}%, Memory=${MAX_MEM}MB"
         continue-on-error: true
 
       - name: "Phase 1: Stop Core (Userspace)"
@@ -441,19 +474,19 @@ jobs:
           {
             "axon_download_ms": 0,
             "core_download_ms": 0,
-            "core_startup_ms": 0
+            "core_startup_ms": ${{ steps.core-userspace-start.outputs.core_startup_ms || 0 }}
           }
           EOF
 
-          # Collect resource usage info
+          # Collect resource usage info from test steps
           cat > model-results/resources-info.json << EOF
           {
-            "core_idle_cpu": 0,
-            "core_idle_mem_mb": 0,
-            "core_load_cpu_avg": 0,
-            "core_load_cpu_max": 0,
-            "core_load_mem_avg_mb": 0,
-            "core_load_mem_max_mb": 0,
+            "core_idle_cpu": ${{ steps.core-userspace-start.outputs.core_idle_cpu || 0 }},
+            "core_idle_mem_mb": ${{ steps.core-userspace-start.outputs.core_idle_mem_mb || 0 }},
+            "core_load_cpu_avg": ${{ steps.test-userspace.outputs.core_load_cpu_max || 0 }},
+            "core_load_cpu_max": ${{ steps.test-userspace.outputs.core_load_cpu_max || 0 }},
+            "core_load_mem_avg_mb": ${{ steps.test-userspace.outputs.core_load_mem_max_mb || 0 }},
+            "core_load_mem_max_mb": ${{ steps.test-userspace.outputs.core_load_mem_max_mb || 0 }},
             "axon_cpu": 0,
             "axon_mem_mb": 0,
             "gpu_status": "Not used (CPU-only inference)",
