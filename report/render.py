@@ -578,14 +578,17 @@ class ReportRenderer:
         average_speedup = kernel_data.get('average_speedup', 0)
         test_timestamp = kernel_data.get('timestamp', '')
 
-        # Hardware info from kernel test
+        # Hardware info - try kernel_comparison.hardware first, fallback to top-level hardware
         kernel_hardware = kernel_data.get('hardware', {})
+        if not kernel_hardware:
+            # Fallback to top-level hardware from metrics
+            kernel_hardware = self.metrics.get('hardware', {})
         kernel_os = kernel_hardware.get('os', 'Linux')
         kernel_os_version = kernel_hardware.get('os_version', 'N/A')
         cpu_model = kernel_hardware.get('cpu_model', 'N/A')
         cpu_cores = kernel_hardware.get('cpu_cores', 0)
         memory_gb = kernel_hardware.get('memory_gb', 0)
-        gpu_name = kernel_hardware.get('gpu_name', 'None')
+        gpu_name = kernel_hardware.get('gpu_name', 'None') or 'None'
         arch = kernel_hardware.get('arch', 'x86_64')
 
         # Mode display
