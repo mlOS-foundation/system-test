@@ -322,25 +322,62 @@ jobs:
       # ========================================================================
       # PHASE 2: KERNEL TESTS (With kernel module)
       # ========================================================================
-      - name: "Phase 2: Verify kernel module capability"
+      - name: "Phase 2: Download kernel module"
         id: kernel-check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "========================================"
           echo "PHASE 2: KERNEL TESTS"
           echo "========================================"
 
-          MODULE_PATH=""
-          for path in "/lib/modules/$(uname -r)/extra/mlos-ml.ko" \
-                      "/opt/mlos/kernel/mlos-ml.ko" \
-                      "$HOME/mlos-ml.ko"; do
-            if [ -f "$path" ]; then
-              MODULE_PATH="$path"
-              break
-            fi
-          done
+          # Kernel module version should match Core version
+          KERNEL_MODULE_VERSION="${{ github.event.inputs.core_version || '5.0.1-alpha' }}"
+          echo "kernel_module_version=$KERNEL_MODULE_VERSION" >> $GITHUB_OUTPUT
 
-          if [ -z "$MODULE_PATH" ]; then
-            echo "ERROR: mlos-ml.ko not found"
+          # Detect Linux kernel version
+          LINUX_KERNEL=$(uname -r | cut -d. -f1,2)
+          echo "Linux kernel: $LINUX_KERNEL"
+
+          # Map to supported kernel versions
+          case "$LINUX_KERNEL" in
+            5.15*) KERNEL_SUFFIX="5.15" ;;
+            6.1*)  KERNEL_SUFFIX="6.1" ;;
+            6.5*)  KERNEL_SUFFIX="6.5" ;;
+            6.8*)  KERNEL_SUFFIX="6.8" ;;
+            *)
+              echo "Unsupported kernel version: $LINUX_KERNEL"
+              echo "Trying 6.8 as fallback..."
+              KERNEL_SUFFIX="6.8"
+              ;;
+          esac
+
+          MODULE_FILE="mlos-ml-v${KERNEL_MODULE_VERSION}-linux-${KERNEL_SUFFIX}.ko"
+          MODULE_PATH="$HOME/${MODULE_FILE}"
+
+          echo "Downloading kernel module: $MODULE_FILE"
+
+          # Download from mlos-linux-kernel releases
+          gh release download "v${KERNEL_MODULE_VERSION}" \
+            --repo mlOS-foundation/mlos-linux-kernel \
+            --pattern "$MODULE_FILE" \
+            --dir "$HOME" \
+            || {
+              echo "Failed to download $MODULE_FILE, checking existing modules..."
+              # Fallback to pre-installed module
+              for path in "/lib/modules/$(uname -r)/extra/mlos-ml.ko" \
+                          "/opt/mlos/kernel/mlos-ml.ko" \
+                          "$HOME/mlos-ml.ko"; do
+                if [ -f "$path" ]; then
+                  MODULE_PATH="$path"
+                  echo "Using existing module: $MODULE_PATH"
+                  break
+                fi
+              done
+            }
+
+          if [ ! -f "$MODULE_PATH" ]; then
+            echo "ERROR: Kernel module not found"
             exit 1
           fi
 
@@ -522,6 +559,7 @@ jobs:
         if: always()
         env:
           KERNEL_MODE: ${{ github.event.inputs.kernel_mode || 'scheduler' }}
+          KERNEL_MODULE_VERSION: ${{ steps.kernel-check.outputs.kernel_module_version || '5.0.1-alpha' }}
         run: |
           python3 << 'KERNEL_SCRIPT'
           import json
@@ -598,7 +636,7 @@ jobs:
           kernel_comparison = {
               "timestamp": datetime.utcnow().isoformat() + "Z",
               "kernel_mode": os.environ.get("KERNEL_MODE", "scheduler"),
-              "kernel_module_version": "1.0.0",
+              "kernel_module_version": os.environ.get("KERNEL_MODULE_VERSION", "5.0.1-alpha"),
               "models_tested": len(set(list(kernel_results.keys()) + list(userspace_results.keys()))),
               "comparison_enabled": True,
               "hardware": hardware,
