@@ -581,11 +581,12 @@ class ReportRenderer:
         # Hardware info from kernel test
         kernel_hardware = kernel_data.get('hardware', {})
         kernel_os = kernel_hardware.get('os', 'Linux')
-        kernel_version_str = kernel_hardware.get('kernel_version', 'N/A')
+        kernel_os_version = kernel_hardware.get('os_version', 'N/A')
         cpu_model = kernel_hardware.get('cpu_model', 'N/A')
         cpu_cores = kernel_hardware.get('cpu_cores', 0)
         memory_gb = kernel_hardware.get('memory_gb', 0)
         gpu_name = kernel_hardware.get('gpu_name', 'None')
+        arch = kernel_hardware.get('arch', 'x86_64')
 
         # Mode display
         mode_display = {
@@ -595,6 +596,7 @@ class ReportRenderer:
         }.get(kernel_mode, kernel_mode)
 
         # Build hardware info card
+        cpu_display = cpu_model[:35] + '...' if len(cpu_model) > 35 else cpu_model
         hardware_html = f'''
         <div class="metrics-grid" style="margin-bottom: 1.5rem;">
             <div class="metric-card" style="border-left-color: #00d4ff;">
@@ -604,17 +606,18 @@ class ReportRenderer:
             </div>
             <div class="metric-card" style="border-left-color: #00d4ff;">
                 <h4>Test Environment</h4>
-                <div class="metric-value">{kernel_os}</div>
-                <div class="metric-detail">Kernel: {kernel_version_str}</div>
+                <div class="metric-value">{kernel_os} ({arch})</div>
+                <div class="metric-detail">{kernel_os_version}</div>
             </div>
             <div class="metric-card" style="border-left-color: #00d4ff;">
                 <h4>CPU</h4>
-                <div class="metric-value">{cpu_model[:30]}...</div>
-                <div class="metric-detail">Cores: {cpu_cores}</div>
+                <div class="metric-value">{cpu_display}</div>
+                <div class="metric-detail">{cpu_cores} Cores</div>
             </div>
             <div class="metric-card" style="border-left-color: #00d4ff;">
                 <h4>Memory</h4>
                 <div class="metric-value">{memory_gb} GB</div>
+                <div class="metric-detail">GPU: {gpu_name}</div>
             </div>
         </div>
         '''

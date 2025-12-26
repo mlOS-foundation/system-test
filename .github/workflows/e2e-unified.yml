@@ -550,14 +550,25 @@ jobs:
               if valid:
                   avg_speedup = round(sum(valid) / len(valid), 2)
 
-          # Build kernel comparison
+          # Load hardware info
           import os
+          hardware = {}
+          hw_file = Path("model-results/hardware-info.json")
+          if hw_file.exists():
+              try:
+                  with open(hw_file) as f:
+                      hardware = json.load(f)
+              except Exception as e:
+                  print(f"Warning: Could not load hardware info: {e}")
+
+          # Build kernel comparison
           kernel_comparison = {
               "timestamp": datetime.utcnow().isoformat() + "Z",
               "kernel_mode": os.environ.get("KERNEL_MODE", "scheduler"),
               "kernel_module_version": "1.0.0",
               "models_tested": len(set(list(kernel_results.keys()) + list(userspace_results.keys()))),
               "comparison_enabled": True,
+              "hardware": hardware,
               "kernel_results": kernel_results,
               "userspace_results": userspace_results,
               "speedup": speedup,
