@@ -47,28 +47,45 @@ jobs:
       - name: Clean up from previous runs
         run: |
           echo "========================================"
-          echo "Cleaning up stale state from previous runs"
+          echo "PURGING ALL STATE FROM PREVIOUS RUNS"
           echo "========================================"
 
           # Stop any running Core processes
+          echo "Stopping any running Core processes..."
           pkill -f mlos_core 2>/dev/null || true
           sleep 2
 
           # Unload kernel module if loaded
+          echo "Unloading kernel module..."
           sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
 
           # AGGRESSIVE cache cleanup - remove ALL axon and huggingface caches
-          echo "Removing model caches..."
+          echo "Purging ALL caches..."
           rm -rf ~/.axon 2>/dev/null || true
           rm -rf ~/.cache/huggingface 2>/dev/null || true
-          rm -rf ~/mlos-core/models 2>/dev/null || true
-          rm -rf /tmp/axon* /tmp/model* /tmp/onnx* 2>/dev/null || true
+          rm -rf ~/.cache/torch 2>/dev/null || true
+          rm -rf ~/mlos-core 2>/dev/null || true
+          rm -rf /tmp/axon* /tmp/model* /tmp/onnx* /tmp/hf* /tmp/torch* 2>/dev/null || true
 
           # Clean up test directories
+          echo "Cleaning test directories..."
           rm -rf model-results-userspace model-results-kernel model-results metrics output 2>/dev/null || true
 
-          echo "Disk space available:"
+          # Clean up downloaded kernel modules from previous runs
+          echo "Cleaning downloaded modules..."
+          rm -rf ~/mlos-ml-*.ko 2>/dev/null || true
+
+          # Clear pip cache
+          pip cache purge 2>/dev/null || true
+
+          # Sync filesystem
+          sync
+
+          echo "Disk space before run:"
           df -h /
+          echo ""
+          echo "Memory available:"
+          free -h
 
       - uses: actions/checkout@v4
 
@@ -722,7 +739,33 @@ jobs:
       - name: Post-run cleanup
         if: always()
         run: |
+          echo "========================================"
+          echo "POST-RUN CLEANUP"
+          echo "========================================"
+
+          # Unload kernel module
+          echo "Unloading kernel module..."
           sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
+
+          # Stop Core processes
+          echo "Stopping Core processes..."
           pkill -f mlos_core 2>/dev/null || true
-          rm -rf ~/.cache/huggingface/hub 2>/dev/null || true
+
+          # Clean up caches to free disk space
+          echo "Purging caches..."
+          rm -rf ~/.cache/huggingface 2>/dev/null || true
+          rm -rf ~/.cache/torch 2>/dev/null || true
+          rm -rf ~/.axon/cache 2>/dev/null || true
+          rm -rf ~/mlos-core 2>/dev/null || true
+          rm -rf /tmp/axon* /tmp/model* /tmp/onnx* /tmp/hf* /tmp/torch* 2>/dev/null || true
+
+          # Clean up downloaded kernel modules
+          rm -rf ~/mlos-ml-*.ko 2>/dev/null || true
+
+          # Sync filesystem
+          sync
+
+          echo "Disk space after cleanup:"
+          df -h /
+          echo ""
           echo "Cleanup complete"
