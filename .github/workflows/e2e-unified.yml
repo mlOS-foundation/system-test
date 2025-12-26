@@ -339,7 +339,7 @@ jobs:
       # ========================================================================
       # PHASE 2: KERNEL TESTS (With kernel module)
       # ========================================================================
-      - name: "Phase 2: Download kernel module"
+      - name: "Phase 2: Find kernel module"
         id: kernel-check
         env:
           GH_TOKEN: ${{ github.token }}
@@ -352,54 +352,67 @@ jobs:
           KERNEL_MODULE_VERSION="${{ github.event.inputs.core_version || '5.0.1-alpha' }}"
           echo "kernel_module_version=$KERNEL_MODULE_VERSION" >> $GITHUB_OUTPUT
 
-          # Detect Linux kernel version
-          LINUX_KERNEL=$(uname -r | cut -d. -f1,2)
-          echo "Linux kernel: $LINUX_KERNEL"
+          # Show exact kernel version
+          echo "Runner kernel: $(uname -r)"
+          LINUX_KERNEL=$(uname -r)
 
-          # Map to supported kernel versions
-          case "$LINUX_KERNEL" in
-            5.15*) KERNEL_SUFFIX="5.15" ;;
-            6.1*)  KERNEL_SUFFIX="6.1" ;;
-            6.5*)  KERNEL_SUFFIX="6.5" ;;
-            6.8*)  KERNEL_SUFFIX="6.8" ;;
-            *)
-              echo "Unsupported kernel version: $LINUX_KERNEL"
-              echo "Trying 6.8 as fallback..."
-              KERNEL_SUFFIX="6.8"
-              ;;
-          esac
+          # FIRST: Try pre-installed module (built for exact kernel version)
+          MODULE_PATH=""
+          echo "Looking for pre-installed kernel module..."
+          for path in "/lib/modules/${LINUX_KERNEL}/extra/mlos-ml.ko" \
+                      "/lib/modules/${LINUX_KERNEL}/extra/mlos_ml.ko" \
+                      "/opt/mlos/kernel/mlos-ml.ko" \
+                      "/opt/mlos/kernel/mlos_ml.ko"; do
+            if [ -f "$path" ]; then
+              MODULE_PATH="$path"
+              echo "Found pre-installed module: $MODULE_PATH"
+              break
+            fi
+          done
 
-          MODULE_FILE="mlos-ml-v${KERNEL_MODULE_VERSION}-linux-${KERNEL_SUFFIX}.ko"
-          MODULE_PATH="$HOME/${MODULE_FILE}"
+          # SECOND: If no pre-installed, try downloading from releases
+          if [ -z "$MODULE_PATH" ] || [ ! -f "$MODULE_PATH" ]; then
+            echo "No pre-installed module found, trying release download..."
 
-          echo "Downloading kernel module: $MODULE_FILE"
+            # Map to supported kernel versions
+            KERNEL_MAJOR=$(echo "$LINUX_KERNEL" | cut -d. -f1,2)
+            case "$KERNEL_MAJOR" in
+              5.15*) KERNEL_SUFFIX="5.15" ;;
+              6.1*)  KERNEL_SUFFIX="6.1" ;;
+              6.5*)  KERNEL_SUFFIX="6.5" ;;
+              6.8*)  KERNEL_SUFFIX="6.8" ;;
+              *)
+                echo "Unsupported kernel version: $KERNEL_MAJOR"
+                KERNEL_SUFFIX="6.8"
+                ;;
+            esac
 
-          # Download from mlos-linux-kernel releases
-          gh release download "v${KERNEL_MODULE_VERSION}" \
-            --repo mlOS-foundation/mlos-linux-kernel \
-            --pattern "$MODULE_FILE" \
-            --dir "$HOME" \
-            || {
-              echo "Failed to download $MODULE_FILE, checking existing modules..."
-              # Fallback to pre-installed module
-              for path in "/lib/modules/$(uname -r)/extra/mlos-ml.ko" \
-                          "/opt/mlos/kernel/mlos-ml.ko" \
-                          "$HOME/mlos-ml.ko"; do
-                if [ -f "$path" ]; then
-                  MODULE_PATH="$path"
-                  echo "Using existing module: $MODULE_PATH"
-                  break
-                fi
-              done
-            }
+            MODULE_FILE="mlos-ml-v${KERNEL_MODULE_VERSION}-linux-${KERNEL_SUFFIX}.ko"
+            DOWNLOAD_PATH="$HOME/${MODULE_FILE}"
 
-          if [ ! -f "$MODULE_PATH" ]; then
-            echo "ERROR: Kernel module not found"
+            echo "Downloading kernel module: $MODULE_FILE"
+            if gh release download "v${KERNEL_MODULE_VERSION}" \
+                --repo mlOS-foundation/mlos-linux-kernel \
+                --pattern "$MODULE_FILE" \
+                --dir "$HOME" 2>/dev/null; then
+              MODULE_PATH="$DOWNLOAD_PATH"
+              echo "Downloaded module: $MODULE_PATH"
+            else
+              echo "WARNING: Could not download module from releases"
+            fi
+          fi
+
+          if [ -z "$MODULE_PATH" ] || [ ! -f "$MODULE_PATH" ]; then
+            echo "ERROR: No kernel module found!"
+            echo "Please install the kernel module on the runner:"
+            echo "  sudo cp mlos-ml.ko /lib/modules/$(uname -r)/extra/"
+            echo "  sudo depmod -a"
             exit 1
           fi
 
           echo "module_path=$MODULE_PATH" >> $GITHUB_OUTPUT
-          echo "Found kernel module: $MODULE_PATH"
+          echo ""
+          echo "Module info:"
           modinfo "$MODULE_PATH" 2>/dev/null || true
 
       - name: "Phase 2: Load kernel module"
@@ -421,15 +434,35 @@ jobs:
               ;;
           esac
 
+          # Check module vermagic vs running kernel
+          echo "Runner kernel: $(uname -r)"
+          echo "Module vermagic: $(modinfo -F vermagic "$MODULE_PATH" 2>/dev/null || echo 'unknown')"
+
           echo "Loading module with params: $PARAMS"
-          sudo insmod "$MODULE_PATH" $PARAMS
+          if ! sudo insmod "$MODULE_PATH" $PARAMS 2>&1; then
+            echo ""
+            echo "ERROR: Failed to load kernel module!"
+            echo ""
+            echo "This usually means the module was built for a different kernel version."
+            echo "Module vermagic must match: $(uname -r)"
+            echo ""
+            echo "To fix: Build and install the module for kernel $(uname -r)"
+            echo "  1. On a machine with matching kernel headers:"
+            echo "     make -C /lib/modules/\$(uname -r)/build M=\$PWD modules"
+            echo "  2. Copy to runner:"
+            echo "     sudo cp mlos-ml.ko /lib/modules/$(uname -r)/extra/"
+            echo "     sudo depmod -a"
+            echo ""
+            dmesg | tail -10
+            exit 1
+          fi
 
           sleep 2
           if lsmod | grep -q "mlos_ml\|mlos-ml"; then
             echo "Kernel module loaded successfully"
             lsmod | grep mlos
           else
-            echo "ERROR: Failed to load kernel module"
+            echo "ERROR: Module load command succeeded but module not in lsmod"
             dmesg | tail -30
             exit 1
           fi
