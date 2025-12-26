@@ -587,6 +587,7 @@ class ReportRenderer:
         kernel_os_version = kernel_hardware.get('os_version', 'N/A')
         cpu_model = kernel_hardware.get('cpu_model', 'N/A')
         cpu_cores = kernel_hardware.get('cpu_cores', 0)
+        cpu_threads = kernel_hardware.get('cpu_threads', cpu_cores)
         memory_gb = kernel_hardware.get('memory_gb', 0)
         gpu_name = kernel_hardware.get('gpu_name', 'None') or 'None'
         arch = kernel_hardware.get('arch', 'x86_64')
@@ -615,7 +616,7 @@ class ReportRenderer:
             <div class="metric-card" style="border-left-color: #00d4ff;">
                 <h4>CPU</h4>
                 <div class="metric-value">{cpu_display}</div>
-                <div class="metric-detail">{cpu_cores} Cores</div>
+                <div class="metric-detail">Cores: {cpu_cores} | Threads: {cpu_threads}</div>
             </div>
             <div class="metric-card" style="border-left-color: #00d4ff;">
                 <h4>Memory</h4>
