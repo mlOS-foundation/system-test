@@ -730,9 +730,38 @@ jobs:
 
       - name: Track historical metrics
         if: always() && github.event.inputs.track_history != 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Reset history if requested
-          if [ "${{ github.event.inputs.reset_history }}" = "true" ]; then
+          # Download previous history from latest successful run (unless resetting)
+          if [ "${{ github.event.inputs.reset_history }}" != "true" ]; then
+            echo "Looking for previous historical data..."
+
+            # Find latest successful run with metrics artifact
+            PREV_RUN=$(gh run list --workflow="e2e-unified.yml" --status=success --limit=10 --json databaseId,conclusion \
+              --jq '[.[] | select(.conclusion=="success")] | .[0].databaseId // empty')
+
+            if [ -n "$PREV_RUN" ] && [ "$PREV_RUN" != "${{ github.run_id }}" ]; then
+              echo "Downloading history from run $PREV_RUN..."
+
+              # Get artifact name pattern
+              ARTIFACT_NAME=$(gh api "repos/${{ github.repository }}/actions/runs/${PREV_RUN}/artifacts" \
+                --jq '.artifacts[] | select(.name | startswith("unified-e2e-metrics")) | .name' | head -1)
+
+              if [ -n "$ARTIFACT_NAME" ]; then
+                mkdir -p prev_metrics
+                gh run download "$PREV_RUN" -n "$ARTIFACT_NAME" -D prev_metrics/ 2>/dev/null || true
+
+                if [ -f prev_metrics/history.json ]; then
+                  echo "Found previous history with $(cat prev_metrics/history.json | python3 -c 'import sys,json; print(len(json.load(sys.stdin).get("runs",[])))') runs"
+                  cp prev_metrics/history.json metrics/history.json
+                fi
+                rm -rf prev_metrics
+              fi
+            else
+              echo "No previous run found or this is the first run"
+            fi
+          else
             echo "Resetting historical metrics..."
             python3 scripts/historical-metrics.py reset --history metrics/history.json
           fi
