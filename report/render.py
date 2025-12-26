@@ -53,12 +53,17 @@ def format_time(ms: int) -> str:
 
 class ReportRenderer:
     """Renders E2E test report from metrics JSON."""
-    
-    def __init__(self, metrics_path: str, template_path: str, output_path: str):
+
+    def __init__(self, metrics_path: str, template_path: str, output_path: str,
+                 statistics_path: str = None, history_path: str = None):
         self.metrics_path = Path(metrics_path)
         self.template_path = Path(template_path)
         self.output_path = Path(output_path)
+        self.statistics_path = Path(statistics_path) if statistics_path else None
+        self.history_path = Path(history_path) if history_path else None
         self.metrics: Dict[str, Any] = {}
+        self.statistics: Dict[str, Any] = {}
+        self.history: Dict[str, Any] = {}
         
     def load_metrics(self) -> bool:
         """Load metrics from JSON file."""
@@ -74,7 +79,36 @@ class ReportRenderer:
         except json.JSONDecodeError as e:
             print(f"❌ Invalid JSON in metrics file: {e}")
             return False
-    
+
+    def load_statistics(self) -> bool:
+        """Load statistics from JSON file (optional)."""
+        if not self.statistics_path or not self.statistics_path.exists():
+            print(f"ℹ️  No statistics file (historical data not available)")
+            return False
+
+        try:
+            with open(self.statistics_path, 'r', encoding='utf-8') as f:
+                self.statistics = json.load(f)
+            print(f"✅ Loaded statistics from {self.statistics_path}")
+            return True
+        except json.JSONDecodeError as e:
+            print(f"⚠️  Invalid JSON in statistics file: {e}")
+            return False
+
+    def load_history(self) -> bool:
+        """Load history from JSON file (optional)."""
+        if not self.history_path or not self.history_path.exists():
+            return False
+
+        try:
+            with open(self.history_path, 'r', encoding='utf-8') as f:
+                self.history = json.load(f)
+            print(f"✅ Loaded history from {self.history_path}")
+            return True
+        except json.JSONDecodeError as e:
+            print(f"⚠️  Invalid JSON in history file: {e}")
+            return False
+
     def load_template(self) -> Optional[str]:
         """Load HTML template."""
         if not self.template_path.exists():
@@ -923,22 +957,148 @@ class ReportRenderer:
             '{{TIMESTAMP}}': self.metrics.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
             '{{TEST_DIR}}': self.metrics.get('test_dir', 'N/A'),
         }
-        
+
         return replacements
-    
+
+    def render_statistics_section(self) -> str:
+        """Render the historical statistics section."""
+        if not self.statistics:
+            return ''  # No statistics available
+
+        total_runs = self.statistics.get('total_runs', 0)
+        if total_runs < 2:
+            return ''  # Need at least 2 runs for meaningful statistics
+
+        first_run = self.statistics.get('first_run', 'N/A')
+        last_run = self.statistics.get('last_run', 'N/A')
+
+        # Format dates
+        try:
+            first_dt = datetime.fromisoformat(first_run.replace('Z', '+00:00'))
+            first_run_fmt = first_dt.strftime('%Y-%m-%d %H:%M')
+        except:
+            first_run_fmt = first_run
+
+        try:
+            last_dt = datetime.fromisoformat(last_run.replace('Z', '+00:00'))
+            last_run_fmt = last_dt.strftime('%Y-%m-%d %H:%M')
+        except:
+            last_run_fmt = last_run
+
+        # Build model stats rows
+        model_stats_rows = []
+        models_stats = self.statistics.get('models', {})
+
+        for model_name in sorted(models_stats.keys()):
+            model_data = models_stats[model_name]
+            inf_stats = model_data.get('inference_time_ms', {})
+
+            if inf_stats.get('count', 0) > 0:
+                mean = inf_stats.get('mean', 0)
+                median = inf_stats.get('median', 0)
+                stddev = inf_stats.get('stddev', 0)
+                min_val = inf_stats.get('min', 0)
+                max_val = inf_stats.get('max', 0)
+                count = inf_stats.get('count', 0)
+
+                # Calculate coefficient of variation (CV) for consistency indicator
+                cv = (stddev / mean * 100) if mean > 0 else 0
+                if cv < 10:
+                    consistency = '<span style="color: #10b981;">Stable</span>'
+                elif cv < 25:
+                    consistency = '<span style="color: #f59e0b;">Moderate</span>'
+                else:
+                    consistency = '<span style="color: #ef4444;">Variable</span>'
+
+                model_stats_rows.append(f'''
+                <tr>
+                    <td>{model_name}</td>
+                    <td>{mean:.1f} ms</td>
+                    <td>{median:.1f} ms</td>
+                    <td>{stddev:.1f} ms</td>
+                    <td>{min_val:.1f} - {max_val:.1f} ms</td>
+                    <td>{count}</td>
+                    <td>{consistency}</td>
+                </tr>
+                ''')
+
+        # Kernel comparison stats
+        kc_stats = self.statistics.get('kernel_comparison', {})
+        avg_speedup_stats = kc_stats.get('average_speedup', {})
+
+        speedup_html = ''
+        if avg_speedup_stats.get('count', 0) > 0:
+            speedup_html = f'''
+            <div class="metric-card" style="border-left-color: #8b5cf6;">
+                <h4>Kernel Speedup (Historical)</h4>
+                <div class="metric-value">{avg_speedup_stats.get('mean', 0):.2f}x</div>
+                <div class="metric-detail">
+                    Median: {avg_speedup_stats.get('median', 0):.2f}x |
+                    StdDev: {avg_speedup_stats.get('stddev', 0):.2f}
+                </div>
+            </div>
+            '''
+
+        return f'''
+        <section class="section">
+            <h2>Historical Statistics</h2>
+            <p style="color: #9ca3af; margin-bottom: 1rem;">
+                Performance data aggregated across {total_runs} test runs
+                (from {first_run_fmt} to {last_run_fmt})
+            </p>
+
+            <div class="metrics-grid" style="margin-bottom: 1.5rem;">
+                <div class="metric-card" style="border-left-color: #8b5cf6;">
+                    <h4>Total Runs</h4>
+                    <div class="metric-value">{total_runs}</div>
+                    <div class="metric-detail">Historical data points</div>
+                </div>
+                {speedup_html}
+            </div>
+
+            <h3>Inference Time Statistics (Mean/Median/StdDev)</h3>
+            <div class="table-container">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Mean</th>
+                            <th>Median</th>
+                            <th>StdDev</th>
+                            <th>Range</th>
+                            <th>Runs</th>
+                            <th>Consistency</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {''.join(model_stats_rows)}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        '''
+
     def render(self) -> bool:
         """Render the report."""
         # Load metrics
         if not self.load_metrics():
             return False
-        
+
+        # Load statistics and history (optional)
+        self.load_statistics()
+        self.load_history()
+
         # Load template
         template = self.load_template()
         if template is None:
             return False
-        
+
         # Build replacements
         replacements = self.build_replacements()
+
+        # Add statistics section if available
+        statistics_html = self.render_statistics_section()
+        replacements['{{STATISTICS_SECTION}}'] = statistics_html
         
         # Apply replacements
         content = template
@@ -1842,9 +2002,13 @@ def main():
                         help='Path to HTML template')
     parser.add_argument('--output', default='output/index.html',
                         help='Path to output HTML file')
+    parser.add_argument('--statistics', default=None,
+                        help='Path to statistics JSON file (historical data)')
+    parser.add_argument('--history', default=None,
+                        help='Path to history JSON file')
     parser.add_argument('--models-only', action='store_true',
                         help='Only render the models page')
-    
+
     args = parser.parse_args()
     
     # Resolve paths relative to script location
@@ -1857,8 +2021,16 @@ def main():
         metrics_path = script_dir / args.metrics
         template_path = script_dir / args.template
         output_path = script_dir / args.output
-        
-        renderer = ReportRenderer(str(metrics_path), str(template_path), str(output_path))
+        statistics_path = script_dir / args.statistics if args.statistics else None
+        history_path = script_dir / args.history if args.history else None
+
+        renderer = ReportRenderer(
+            str(metrics_path),
+            str(template_path),
+            str(output_path),
+            str(statistics_path) if statistics_path else None,
+            str(history_path) if history_path else None
+        )
         success = renderer.render()
     
     # Also render models page

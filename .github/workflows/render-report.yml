@@ -132,10 +132,22 @@ jobs:
 
           echo "Using metrics file: $METRICS_FILE"
 
-          python3 report/render.py \
-            --metrics "$METRICS_FILE" \
-            --template report/template.html \
-            --output output/index.html
+          # Build render command with optional statistics/history files
+          RENDER_CMD="python3 report/render.py --metrics \"$METRICS_FILE\" --template report/template.html --output output/index.html"
+
+          # Add statistics file if available
+          if [ -f "metrics/statistics.json" ]; then
+            echo "Found statistics file for historical data"
+            RENDER_CMD="$RENDER_CMD --statistics metrics/statistics.json"
+          fi
+
+          # Add history file if available
+          if [ -f "metrics/history.json" ]; then
+            echo "Found history file"
+            RENDER_CMD="$RENDER_CMD --history metrics/history.json"
+          fi
+
+          eval $RENDER_CMD
 
           echo "Report generated successfully"
 

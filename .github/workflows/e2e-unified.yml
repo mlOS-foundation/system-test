@@ -29,6 +29,16 @@ on:
         description: 'Models to test (space-separated, empty = all enabled)'
         required: false
         default: ''
+      reset_history:
+        description: 'Reset historical metrics (start fresh statistics)'
+        required: false
+        type: boolean
+        default: false
+      track_history:
+        description: 'Add this run to historical metrics'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -717,6 +727,32 @@ jobs:
           print(f"  Userspace faster: {len([s for s in speedup.values() if s < 1.0])}")
           print(f"  Average speedup: {avg_speedup}x")
           KERNEL_SCRIPT
+
+      - name: Track historical metrics
+        if: always() && github.event.inputs.track_history != 'false'
+        run: |
+          # Reset history if requested
+          if [ "${{ github.event.inputs.reset_history }}" = "true" ]; then
+            echo "Resetting historical metrics..."
+            python3 scripts/historical-metrics.py reset --history metrics/history.json
+          fi
+
+          # Add this run to history
+          if [ -f metrics/latest.json ]; then
+            echo "Adding run to historical metrics..."
+            python3 scripts/historical-metrics.py add \
+              --metrics metrics/latest.json \
+              --history metrics/history.json
+
+            # Calculate statistics
+            echo "Calculating statistics..."
+            python3 scripts/historical-metrics.py stats \
+              --history metrics/history.json \
+              --output metrics/statistics.json
+
+            # Show summary
+            python3 scripts/historical-metrics.py summary --history metrics/history.json
+          fi
 
       # ========================================================================
       # UPLOAD ARTIFACTS (Report rendering is done by render-report.yml)
