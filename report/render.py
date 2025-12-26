@@ -282,7 +282,7 @@ class ReportRenderer:
         
         # NLP Models
         if categories['nlp']:
-            html_parts.append('<div class="category-section"><h4 style="color: #667eea; margin-bottom: 8px; margin-top: 0;">🔤 NLP Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #667eea; margin-bottom: 8px; margin-top: 0;">NLP Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['nlp']:
                 display_name = model_name.upper()
@@ -312,7 +312,7 @@ class ReportRenderer:
             html_parts.append('</div>')
         # Vision Models
         if categories['vision']:
-            html_parts.append('<div class="category-section"><h4 style="color: #17998e; margin-bottom: 8px; margin-top: 20px;">👁️ Vision Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #17998e; margin-bottom: 8px; margin-top: 20px;">Vision Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['vision']:
                 display_name = model_name.upper()
@@ -343,7 +343,7 @@ class ReportRenderer:
         
         # Multimodal Models
         if categories['multimodal']:
-            html_parts.append('<div class="category-section"><h4 style="color: #764ba2; margin-bottom: 8px; margin-top: 20px;">🎨 Multimodal Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #764ba2; margin-bottom: 8px; margin-top: 20px;">Multimodal Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['multimodal']:
                 display_name = model_name.upper()
@@ -374,7 +374,7 @@ class ReportRenderer:
 
         # LLM Models (GGUF)
         if categories['llm']:
-            html_parts.append('<div class="category-section"><h4 style="color: #f59e0b; margin-bottom: 8px; margin-top: 20px;">🤖 LLM Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #f59e0b; margin-bottom: 8px; margin-top: 20px;">LLM Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['llm']:
                 display_name = model_name.upper()
@@ -419,7 +419,7 @@ class ReportRenderer:
         
         # NLP Models
         if categories['nlp']:
-            html_parts.append('<div class="category-section"><h4 style="color: #667eea; margin-bottom: 8px; margin-top: 0;">🔤 NLP Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #667eea; margin-bottom: 8px; margin-top: 0;">NLP Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['nlp']:
                 display_name = model_name.upper()
@@ -449,7 +449,7 @@ class ReportRenderer:
             html_parts.append('</div>')
         # Vision Models
         if categories['vision']:
-            html_parts.append('<div class="category-section"><h4 style="color: #17998e; margin-bottom: 8px; margin-top: 20px;">👁️ Vision Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #17998e; margin-bottom: 8px; margin-top: 20px;">Vision Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['vision']:
                 display_name = model_name.upper()
@@ -480,7 +480,7 @@ class ReportRenderer:
         
         # Multimodal Models
         if categories['multimodal']:
-            html_parts.append('<div class="category-section"><h4 style="color: #764ba2; margin-bottom: 8px; margin-top: 20px;">🎨 Multimodal Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #764ba2; margin-bottom: 8px; margin-top: 20px;">Multimodal Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['multimodal']:
                 display_name = model_name.upper()
@@ -511,7 +511,7 @@ class ReportRenderer:
 
         # LLM Models
         if categories['llm']:
-            html_parts.append('<div class="category-section"><h4 style="color: #f59e0b; margin-bottom: 8px; margin-top: 20px;">🤖 LLM Models</h4>')
+            html_parts.append('<div class="category-section"><h4 style="color: #f59e0b; margin-bottom: 8px; margin-top: 20px;">LLM Models</h4>')
             html_parts.append('<div class="metrics-grid">')
             for model_name, model_data in categories['llm']:
                 display_name = model_name.upper()
@@ -1579,8 +1579,6 @@ class TestDetailsPageRenderer:
         category = self.get_category_for_model(model_name)
 
         category_class = f'category-{category}'
-        category_icons = {'nlp': '🔤', 'vision': '👁️', 'multimodal': '🎨', 'llm': '🤖'}
-        category_icon = category_icons.get(category, '📦')
 
         test_cases_html = '\n'.join(
             self.generate_test_case_html(model_name, tc) for tc in test_cases
@@ -1589,7 +1587,7 @@ class TestDetailsPageRenderer:
         return f'''
         <div class="model-section">
             <div class="model-section-header">
-                <h3>{category_icon} {model_name.upper()}</h3>
+                <h3>{model_name.upper()}</h3>
                 <span class="category-badge {category_class}">{category.upper()}</span>
             </div>
             <p style="color: var(--text-muted); margin-bottom: 1rem;">{description}</p>
@@ -1697,13 +1695,11 @@ class TestDetailsPageRenderer:
 
             # Model section with horizontal layout for tests
             category = self.get_category_for_model(model_name)
-            category_icons = {'nlp': '🔤', 'vision': '👁️', 'multimodal': '🎨', 'llm': '🤖'}
-            category_icon = category_icons.get(category, '🖼️')
 
             html_parts.append(f'''
             <div class="golden-model-card" style="background: var(--section-bg); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; border-left: 4px solid #17998e;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3 style="margin: 0; font-size: 1.1rem;">{category_icon} {model_name.upper()}</h3>
+                    <h3 style="margin: 0; font-size: 1.1rem;">{model_name.upper()}</h3>
                     <span class="category-badge category-vision" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">VISION</span>
                 </div>
                 <div style="display: flex; flex-wrap: wrap; gap: 1rem;">

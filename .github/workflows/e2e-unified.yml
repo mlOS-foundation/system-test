@@ -628,6 +628,7 @@ jobs:
         run: |
           mkdir -p _site
           cp output/index.html _site/ 2>/dev/null || echo "No HTML report"
+          cp report/styles.css _site/ 2>/dev/null || true
           cp -r metrics _site/ 2>/dev/null || true
 
       - name: Upload Pages artifact
