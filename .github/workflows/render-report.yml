@@ -21,7 +21,7 @@ on:
         default: 'e2e-unified.yml'
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
   actions: read
@@ -144,14 +144,26 @@ jobs:
 
       - name: Prepare Pages artifact
         run: |
+          # Create clean output directory
           mkdir -p _site
+
+          # Copy report files
           cp output/index.html _site/
           cp report/styles.css _site/
+
+          # Copy metrics
           mkdir -p _site/metrics
           cp metrics/*.json _site/metrics/ 2>/dev/null || true
 
+          # Clean any symlinks (shouldn't have any, but just in case)
+          find _site -type l -delete 2>/dev/null || true
+
+          # Remove large files (>10MB)
+          find _site -type f -size +10M -delete 2>/dev/null || true
+
           echo "Pages artifact contents:"
           ls -la _site/
+          ls -la _site/metrics/ 2>/dev/null || true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -159,6 +171,7 @@ jobs:
           path: _site
 
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
 
       - name: Summary
