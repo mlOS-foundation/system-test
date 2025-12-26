@@ -1,0 +1,170 @@
+name: Render E2E Report
+
+# Separate workflow for rendering reports from published metrics
+# This allows quick iteration on report styling without re-running expensive E2E tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      metrics_run_id:
+        description: 'Run ID to fetch metrics from (leave empty for latest)'
+        required: false
+        default: ''
+      metrics_workflow:
+        description: 'Source workflow for metrics'
+        required: true
+        type: choice
+        options:
+          - e2e-unified.yml
+          - e2e-parallel.yml
+          - e2e-kernel.yml
+        default: 'e2e-unified.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: read
+
+jobs:
+  render-report:
+    name: Render Report from Metrics
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml jinja2
+
+      - name: Find latest successful run
+        id: find-run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WORKFLOW="${{ github.event.inputs.metrics_workflow }}"
+          INPUT_RUN_ID="${{ github.event.inputs.metrics_run_id }}"
+
+          if [ -n "$INPUT_RUN_ID" ]; then
+            RUN_ID="$INPUT_RUN_ID"
+            echo "Using provided run ID: $RUN_ID"
+          else
+            echo "Finding latest successful run for $WORKFLOW..."
+            RUN_ID=$(gh run list --workflow="$WORKFLOW" --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
+            echo "Found latest run: $RUN_ID"
+          fi
+
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "ERROR: No successful run found"
+            exit 1
+          fi
+
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+
+          # Get run info
+          gh run view "$RUN_ID" --json createdAt,displayTitle --jq '"Run: \(.displayTitle) at \(.createdAt)"'
+
+      - name: Download metrics artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_ID="${{ steps.find-run.outputs.run_id }}"
+          WORKFLOW="${{ github.event.inputs.metrics_workflow }}"
+
+          echo "Downloading metrics from run $RUN_ID..."
+          mkdir -p metrics
+
+          # Find the metrics artifact name based on workflow
+          case "$WORKFLOW" in
+            e2e-unified.yml)
+              PATTERN="unified-e2e-metrics"
+              ;;
+            e2e-parallel.yml)
+              PATTERN="e2e-metrics"
+              ;;
+            e2e-kernel.yml)
+              PATTERN="kernel-e2e-results"
+              ;;
+          esac
+
+          # Get artifact name
+          ARTIFACT_NAME=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
+            --jq ".artifacts[] | select(.name | startswith(\"$PATTERN\")) | .name" | head -1)
+
+          if [ -z "$ARTIFACT_NAME" ]; then
+            echo "ERROR: No metrics artifact found matching pattern: $PATTERN"
+            gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" --jq '.artifacts[].name'
+            exit 1
+          fi
+
+          echo "Downloading artifact: $ARTIFACT_NAME"
+          gh run download "$RUN_ID" -n "$ARTIFACT_NAME" -D metrics/
+
+          echo "Downloaded metrics:"
+          ls -la metrics/
+          cat metrics/latest.json | head -50 || cat metrics/*.json | head -50
+
+      - name: Generate HTML report
+        run: |
+          mkdir -p output
+
+          # Find the metrics file
+          METRICS_FILE=""
+          if [ -f "metrics/latest.json" ]; then
+            METRICS_FILE="metrics/latest.json"
+          else
+            METRICS_FILE=$(find metrics -name "*.json" -type f | head -1)
+          fi
+
+          if [ -z "$METRICS_FILE" ]; then
+            echo "ERROR: No metrics JSON file found"
+            exit 1
+          fi
+
+          echo "Using metrics file: $METRICS_FILE"
+
+          python3 report/render.py \
+            --metrics "$METRICS_FILE" \
+            --template report/template.html \
+            --output output/index.html
+
+          echo "Report generated successfully"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Prepare Pages artifact
+        run: |
+          mkdir -p _site
+          cp output/index.html _site/
+          cp report/styles.css _site/
+          mkdir -p _site/metrics
+          cp metrics/*.json _site/metrics/ 2>/dev/null || true
+
+          echo "Pages artifact contents:"
+          ls -la _site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+
+      - name: Summary
+        run: |
+          echo "## Report Rendered Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Source Run ID**: ${{ steps.find-run.outputs.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow**: ${{ github.event.inputs.metrics_workflow }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Report URL**: https://mlos-foundation.github.io/system-test/" >> $GITHUB_STEP_SUMMARY

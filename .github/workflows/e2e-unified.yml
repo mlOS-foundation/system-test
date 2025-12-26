@@ -31,17 +31,14 @@ on:
         default: ''
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
+  actions: read
   packages: read
 
 jobs:
   unified-e2e-test:
     name: E2E Test (Unified - Kernel + Userspace)
     runs-on: [self-hosted, linux, kernel-capable]
-    environment:
-      name: github-pages
 
     steps:
       # ========================================================================
@@ -589,17 +586,8 @@ jobs:
           print(f"  Average speedup: {avg_speedup}x")
           KERNEL_SCRIPT
 
-      - name: Generate HTML report
-        if: always()
-        run: |
-          mkdir -p output
-          python3 report/render.py \
-            --metrics metrics/latest.json \
-            --template report/template.html \
-            --output output/index.html
-
       # ========================================================================
-      # UPLOAD & DEPLOY
+      # UPLOAD ARTIFACTS (Report rendering is done by render-report.yml)
       # ========================================================================
       - name: Upload metrics
         if: always()
@@ -619,27 +607,32 @@ jobs:
             model-results-kernel/
           retention-days: 30
 
-      - name: Setup Pages
-        if: always()
-        uses: actions/configure-pages@v4
-
-      - name: Prepare Pages artifact
+      - name: Summary
         if: always()
         run: |
-          mkdir -p _site
-          cp output/index.html _site/ 2>/dev/null || echo "No HTML report"
-          cp report/styles.css _site/ 2>/dev/null || true
-          cp -r metrics _site/ 2>/dev/null || true
-
-      - name: Upload Pages artifact
-        if: always()
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-      - name: Deploy to GitHub Pages
-        if: always()
-        uses: actions/deploy-pages@v4
+          echo "## E2E Unified Test Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Metrics uploaded. To render the report, run the **Render E2E Report** workflow." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Render" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "gh workflow run render-report.yml -f metrics_run_id=${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f metrics/latest.json ]; then
+            echo "### Kernel Comparison Summary" >> $GITHUB_STEP_SUMMARY
+            python3 -c "
+          import json
+          with open('metrics/latest.json') as f:
+              m = json.load(f)
+          kc = m.get('kernel_comparison', {})
+          print(f\"- Models tested: {kc.get('models_tested', 0)}\")
+          print(f\"- Average speedup: {kc.get('average_speedup', 0)}x\")
+          speedup = kc.get('speedup', {})
+          print(f\"- Kernel faster: {len([s for s in speedup.values() if s > 1.0])}\")
+          print(f\"- Userspace faster: {len([s for s in speedup.values() if s < 1.0])}\")
+          " >> $GITHUB_STEP_SUMMARY
+          fi
 
       # ========================================================================
       # CLEANUP
