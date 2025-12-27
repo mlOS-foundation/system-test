@@ -868,6 +868,10 @@ except:
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PHASE 3: Run Inference Tests
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Number of warm-up inferences before the timed run (helps stabilize results)
+WARMUP_INFERENCES="${WARMUP_INFERENCES:-2}"
+
 run_inference() {
     local size="$1"  # small or large
     log "🧪 Phase 3: Running $size inference test..."
@@ -887,8 +891,6 @@ run_inference() {
     local tmp_input="/tmp/inference_${MODEL_NAME}_${size}_$$.json"
     echo "$test_input" > "$tmp_input"
 
-    local start_time=$(get_timestamp_ms)
-
     # Output file for inference response (write directly to avoid bash variable size limits)
     # BERT output can be 5MB+ which exceeds bash's ability to store in variables
     local response_file="$OUTPUT_DIR/${MODEL_NAME}-response-${size}.json"
@@ -903,6 +905,30 @@ run_inference() {
     else
         log "  Metadata-only response (status_success validation)"
     fi
+
+    # =========================================================================
+    # WARM-UP INFERENCES
+    # Run warm-up inferences to stabilize performance (JIT compilation, cache warming)
+    # These are NOT timed and help ensure consistent benchmark results
+    # =========================================================================
+    if [ "$WARMUP_INFERENCES" -gt 0 ]; then
+        log "  Running $WARMUP_INFERENCES warm-up inference(s)..."
+        local warmup_response="/tmp/warmup_${MODEL_NAME}_$$.json"
+        for i in $(seq 1 $WARMUP_INFERENCES); do
+            curl -s --max-time "$INFERENCE_TIMEOUT" \
+                -X POST "$inference_url" \
+                -H "Content-Type: application/json" \
+                -d "@$tmp_input" \
+                -o "$warmup_response" 2>/dev/null || true
+        done
+        rm -f "$warmup_response"
+        log "  Warm-up complete, starting timed inference..."
+    fi
+
+    # =========================================================================
+    # TIMED INFERENCE
+    # =========================================================================
+    local start_time=$(get_timestamp_ms)
 
     # Run inference and write directly to file to avoid bash variable truncation
     local http_code=$(curl -s -w "%{http_code}" --max-time "$INFERENCE_TIMEOUT" \

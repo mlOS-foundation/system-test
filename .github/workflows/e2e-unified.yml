@@ -91,11 +91,15 @@ jobs:
           # Sync filesystem
           sync
 
+          # Drop kernel caches for consistent initial state
+          echo "Dropping kernel caches for consistent benchmark baseline..."
+          echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+
           echo "Disk space before run:"
           df -h /
           echo ""
           echo "Memory available:"
-          free -h
+          free -m
 
       - uses: actions/checkout@v4
 
@@ -339,12 +343,38 @@ jobs:
 
       - name: "Phase 1->2: Clean model cache for fresh kernel tests"
         run: |
-          echo "Cleaning model cache between phases..."
+          echo "========================================"
+          echo "CLEANUP BETWEEN USERSPACE AND KERNEL TESTS"
+          echo "========================================"
+
+          # 1. Clean model caches
+          echo "Cleaning model caches..."
           rm -rf ~/.axon/cache/models 2>/dev/null || true
           rm -rf ~/.axon/cache 2>/dev/null || true
           rm -rf ~/mlos-core/models 2>/dev/null || true
           rm -rf ~/.cache/huggingface/hub 2>/dev/null || true
-          echo "Model cache cleaned"
+
+          # 2. Clean temp files from userspace tests
+          echo "Cleaning temp files..."
+          rm -rf /tmp/inference_* /tmp/warmup_* /tmp/model_* 2>/dev/null || true
+
+          # 3. Sync filesystem to flush any pending writes
+          echo "Syncing filesystem..."
+          sync
+
+          # 4. Drop kernel caches (requires sudo) for consistent memory state
+          # This ensures kernel tests start with similar memory conditions as userspace
+          echo "Dropping kernel caches for consistent benchmark..."
+          echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+
+          # 5. Small delay to let system stabilize
+          sleep 2
+
+          # 6. Show memory state
+          echo "Memory state before kernel tests:"
+          free -m
+
+          echo "Phase cleanup complete"
 
       # ========================================================================
       # PHASE 2: KERNEL TESTS (With kernel module)
