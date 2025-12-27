@@ -230,7 +230,7 @@ make serve
 
 ### Current Tested Versions
 - **Axon**: v3.1.9 (Docker ONNX converter fix + Seq2seq + Multi-encoder + GGUF support)
-- **Core**: v5.0.1-alpha (PyTorch plugin selection fix + Kernel tensor operations)
+- **Core**: v5.2.0-alpha (Complete kernel & Core implementation - all stubs removed)
 
 ### Supported Formats (Core PR #39)
 

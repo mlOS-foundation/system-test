@@ -37,7 +37,7 @@ CONFIG_FILE="$CONFIG_DIR/models.yaml"
 
 # Default configuration
 AXON_VERSION="${AXON_VERSION:-v3.1.9}"
-CORE_VERSION="${CORE_VERSION:-5.0.1-alpha}"
+CORE_VERSION="${CORE_VERSION:-5.2.0-alpha}"
 CORE_URL="${CORE_URL:-http://127.0.0.1:18080}"
 OUTPUT_DIR="${OUTPUT_DIR:-./model-results}"
 INSTALL_TIMEOUT="${INSTALL_TIMEOUT:-900}"  # 15 minutes

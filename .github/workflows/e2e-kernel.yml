@@ -16,7 +16,7 @@ on:
       core_version:
         description: 'Core version to test'
         required: false
-        default: '5.0.1-alpha'
+        default: '5.2.0-alpha'
       kernel_mode:
         description: 'Kernel module mode'
         required: true
@@ -314,7 +314,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ github.event.inputs.core_version || '5.0.1-alpha' }}"
+          VERSION="${{ github.event.inputs.core_version || '5.2.0-alpha' }}"
           VERSION_NO_V="${VERSION#v}"
           ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH="amd64"
 
