@@ -656,15 +656,23 @@ jobs:
           from pathlib import Path
           from datetime import datetime
 
-          def get_inference_time(data):
+          def get_inference_times(data):
+              """Extract both small and large inference times from result data."""
               phases = data.get("phases", {})
-              if "inference_large" in phases:
-                  return phases["inference_large"].get("time_ms", 0)
-              elif "inference_small" in phases:
-                  return phases["inference_small"].get("time_ms", 0)
-              return data.get("inference_time_ms", 0)
+              small_ms = phases.get("inference_small", {}).get("time_ms", 0)
+              large_ms = phases.get("inference_large", {}).get("time_ms", 0)
+              # Fallback to legacy field
+              if small_ms == 0 and large_ms == 0:
+                  legacy = data.get("inference_time_ms", 0)
+                  small_ms = legacy
+              return small_ms, large_ms
 
-          # Load userspace results
+          def get_install_time(data):
+              """Extract install time from result data."""
+              phases = data.get("phases", {})
+              return phases.get("install", {}).get("time_ms", 0)
+
+          # Load userspace results with both inference sizes
           userspace_results = {}
           user_dir = Path("model-results-userspace")
           if user_dir.exists():
@@ -673,14 +681,18 @@ jobs:
                       with open(f) as fp:
                           data = json.load(fp)
                       model = f.stem.replace("-result", "")
+                      small_ms, large_ms = get_inference_times(data)
                       userspace_results[model] = {
                           "status": data.get("status", "unknown"),
-                          "inference_ms": get_inference_time(data),
+                          "inference_small_ms": small_ms,
+                          "inference_large_ms": large_ms,
+                          "inference_ms": large_ms if large_ms > 0 else small_ms,  # backward compat
+                          "install_ms": get_install_time(data),
                       }
                   except Exception as e:
                       print(f"Error reading {f}: {e}")
 
-          # Load kernel results
+          # Load kernel results with both inference sizes
           kernel_results = {}
           kernel_dir = Path("model-results-kernel")
           if kernel_dir.exists():
@@ -689,27 +701,53 @@ jobs:
                       with open(f) as fp:
                           data = json.load(fp)
                       model = f.stem.replace("-result", "")
+                      small_ms, large_ms = get_inference_times(data)
                       kernel_results[model] = {
                           "status": data.get("status", "unknown"),
-                          "inference_ms": get_inference_time(data),
+                          "inference_small_ms": small_ms,
+                          "inference_large_ms": large_ms,
+                          "inference_ms": large_ms if large_ms > 0 else small_ms,  # backward compat
+                          "install_ms": get_install_time(data),
                       }
                   except Exception as e:
                       print(f"Error reading {f}: {e}")
 
-          # Calculate speedups
+          # Calculate speedups for both small and large inference
           speedup = {}
+          speedup_small = {}
+          speedup_large = {}
+
           for model in kernel_results:
               if model in userspace_results:
-                  k_inf = kernel_results[model]["inference_ms"]
-                  u_inf = userspace_results[model]["inference_ms"]
+                  kr = kernel_results[model]
+                  ur = userspace_results[model]
+
+                  # Small inference speedup
+                  k_small = kr.get("inference_small_ms", 0)
+                  u_small = ur.get("inference_small_ms", 0)
+                  if k_small > 0 and u_small > 0:
+                      speedup_small[model] = round(u_small / k_small, 2)
+
+                  # Large inference speedup
+                  k_large = kr.get("inference_large_ms", 0)
+                  u_large = ur.get("inference_large_ms", 0)
+                  if k_large > 0 and u_large > 0:
+                      speedup_large[model] = round(u_large / k_large, 2)
+
+                  # Overall speedup (prefer large, fallback to small)
+                  k_inf = kr.get("inference_ms", 0)
+                  u_inf = ur.get("inference_ms", 0)
                   if k_inf > 0 and u_inf > 0:
                       speedup[model] = round(u_inf / k_inf, 2)
 
-          avg_speedup = 0
-          if speedup:
-              valid = [v for v in speedup.values() if v > 0]
-              if valid:
-                  avg_speedup = round(sum(valid) / len(valid), 2)
+          # Calculate averages
+          def calc_avg(d):
+              valid = [v for v in d.values() if v > 0]
+              return round(sum(valid) / len(valid), 2) if valid else 0
+
+          avg_speedup = calc_avg(speedup)
+          avg_speedup_small = calc_avg(speedup_small)
+          avg_speedup_large = calc_avg(speedup_large)
 
           # Load hardware info
           import os
@@ -722,7 +760,7 @@ jobs:
               except Exception as e:
                   print(f"Warning: Could not load hardware info: {e}")
 
-          # Build kernel comparison
+          # Build kernel comparison with both small and large inference data
           kernel_comparison = {
               "timestamp": datetime.utcnow().isoformat() + "Z",
               "kernel_mode": os.environ.get("KERNEL_MODE", "scheduler"),
@@ -732,8 +770,14 @@ jobs:
               "hardware": hardware,
               "kernel_results": kernel_results,
               "userspace_results": userspace_results,
+              # Overall speedup (backward compatible)
               "speedup": speedup,
-              "average_speedup": avg_speedup
+              "average_speedup": avg_speedup,
+              # NEW: Separate speedups by inference size
+              "speedup_small": speedup_small,
+              "speedup_large": speedup_large,
+              "average_speedup_small": avg_speedup_small,
+              "average_speedup_large": avg_speedup_large,
           }
 
           # Merge into metrics
@@ -750,12 +794,27 @@ jobs:
           with open("metrics/kernel-comparison.json", "w") as f:
               json.dump(kernel_comparison, f, indent=2)
 
-          # Print summary
-          print(f"\nKernel Comparison Summary:")
+          # Print summary with breakdown by inference size
+          print(f"\n{'='*60}")
+          print(f"KERNEL COMPARISON SUMMARY")
+          print(f"{'='*60}")
           print(f"  Models tested: {len(speedup)}")
-          print(f"  Kernel faster: {len([s for s in speedup.values() if s > 1.0])}")
-          print(f"  Userspace faster: {len([s for s in speedup.values() if s < 1.0])}")
-          print(f"  Average speedup: {avg_speedup}x")
+          print(f"")
+          print(f"  SMALL INFERENCE (short inputs):")
+          print(f"    Kernel faster: {len([s for s in speedup_small.values() if s > 1.0])}")
+          print(f"    Userspace faster: {len([s for s in speedup_small.values() if s < 1.0])}")
+          print(f"    Average speedup: {avg_speedup_small}x")
+          print(f"")
+          print(f"  LARGE INFERENCE (long inputs):")
+          print(f"    Kernel faster: {len([s for s in speedup_large.values() if s > 1.0])}")
+          print(f"    Userspace faster: {len([s for s in speedup_large.values() if s < 1.0])}")
+          print(f"    Average speedup: {avg_speedup_large}x")
+          print(f"")
+          print(f"  OVERALL (prefers large):")
+          print(f"    Kernel faster: {len([s for s in speedup.values() if s > 1.0])}")
+          print(f"    Userspace faster: {len([s for s in speedup.values() if s < 1.0])}")
+          print(f"    Average speedup: {avg_speedup}x")
+          print(f"{'='*60}")
           KERNEL_SCRIPT
 
       - name: Track historical metrics

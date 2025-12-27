@@ -612,6 +612,12 @@ class ReportRenderer:
         average_speedup = kernel_data.get('average_speedup', 0)
         test_timestamp = kernel_data.get('timestamp', '')
 
+        # NEW: Extract small/large specific speedups
+        speedup_small = kernel_data.get('speedup_small', {})
+        speedup_large = kernel_data.get('speedup_large', {})
+        avg_speedup_small = kernel_data.get('average_speedup_small', 0)
+        avg_speedup_large = kernel_data.get('average_speedup_large', 0)
+
         # Hardware info - try kernel_comparison.hardware first, fallback to top-level hardware
         kernel_hardware = kernel_data.get('hardware', {})
         if not kernel_hardware:
@@ -663,93 +669,136 @@ class ReportRenderer:
         # Build comparison table if enabled
         comparison_html = ''
         if comparison_enabled and userspace_results:
-            # Build rows for each model
-            rows_html = []
-            for model_name in sorted(kernel_results.keys()):
-                kernel_model = kernel_results.get(model_name, {})
-                userspace_model = userspace_results.get(model_name, {})
-                model_speedup = speedup_data.get(model_name, 0)
+            # Helper function to build comparison table for a specific inference size
+            def build_comparison_table(title: str, size_key: str, speedup_dict: dict, avg_speedup_val: float) -> str:
+                rows = []
+                for model_name in sorted(kernel_results.keys()):
+                    kernel_model = kernel_results.get(model_name, {})
+                    userspace_model = userspace_results.get(model_name, {})
 
-                kernel_inf_ms = kernel_model.get('inference_ms', 0)
-                userspace_inf_ms = userspace_model.get('inference_ms', 0)
-                kernel_status = kernel_model.get('status', 'unknown')
-                userspace_status = userspace_model.get('status', 'unknown')
+                    # Get the specific size inference time
+                    kernel_inf_ms = kernel_model.get(f'inference_{size_key}_ms', 0)
+                    userspace_inf_ms = userspace_model.get(f'inference_{size_key}_ms', 0)
 
-                # Status badges
-                kernel_badge = '✅' if kernel_status == 'success' else '❌'
-                userspace_badge = '✅' if userspace_status == 'success' else '❌'
+                    # Skip if no data for this size
+                    if kernel_inf_ms == 0 and userspace_inf_ms == 0:
+                        continue
 
-                # Winner arrows: green down = faster (lower is better), red up = slower
-                if kernel_inf_ms > 0 and userspace_inf_ms > 0:
-                    if kernel_inf_ms < userspace_inf_ms:
-                        # Kernel is faster
-                        kernel_arrow = '<span style="color: #22c55e; font-weight: bold;">&#9660;</span>'
-                        userspace_arrow = '<span style="color: #ef4444; font-weight: bold;">&#9650;</span>'
-                    elif userspace_inf_ms < kernel_inf_ms:
-                        # Userspace is faster
-                        kernel_arrow = '<span style="color: #ef4444; font-weight: bold;">&#9650;</span>'
-                        userspace_arrow = '<span style="color: #22c55e; font-weight: bold;">&#9660;</span>'
+                    model_speedup = speedup_dict.get(model_name, 0)
+
+                    # Winner arrows
+                    if kernel_inf_ms > 0 and userspace_inf_ms > 0:
+                        if kernel_inf_ms < userspace_inf_ms:
+                            kernel_arrow = '<span style="color: #22c55e; font-weight: bold;">&#9660;</span>'
+                            userspace_arrow = '<span style="color: #ef4444; font-weight: bold;">&#9650;</span>'
+                        elif userspace_inf_ms < kernel_inf_ms:
+                            kernel_arrow = '<span style="color: #ef4444; font-weight: bold;">&#9650;</span>'
+                            userspace_arrow = '<span style="color: #22c55e; font-weight: bold;">&#9660;</span>'
+                        else:
+                            kernel_arrow = userspace_arrow = ''
                     else:
-                        kernel_arrow = ''
-                        userspace_arrow = ''
-                else:
-                    kernel_arrow = ''
-                    userspace_arrow = ''
+                        kernel_arrow = userspace_arrow = ''
 
-                # Speedup display with color coding
-                if model_speedup > 1.0:
-                    speedup_class = 'speedup-positive'
-                    speedup_str = f'+{((model_speedup - 1) * 100):.1f}%'
-                elif model_speedup == 1.0:
-                    speedup_class = 'speedup-neutral'
-                    speedup_str = '0.0%'
-                elif model_speedup < 1.0 and model_speedup > 0:
-                    speedup_class = 'speedup-negative'
-                    speedup_str = f'{((model_speedup - 1) * 100):.1f}%'
-                else:
-                    speedup_class = 'speedup-neutral'
-                    speedup_str = 'N/A'
+                    # Speedup display
+                    if model_speedup > 1.0:
+                        speedup_class = 'speedup-positive'
+                        speedup_str = f'+{((model_speedup - 1) * 100):.1f}%'
+                    elif model_speedup < 1.0 and model_speedup > 0:
+                        speedup_class = 'speedup-negative'
+                        speedup_str = f'{((model_speedup - 1) * 100):.1f}%'
+                    else:
+                        speedup_class = 'speedup-neutral'
+                        speedup_str = '0.0%' if model_speedup == 1.0 else 'N/A'
 
-                # Delta calculation
-                if kernel_inf_ms > 0 and userspace_inf_ms > 0:
-                    delta_ms = userspace_inf_ms - kernel_inf_ms
-                    delta_str = f'{delta_ms:+.1f} ms'
-                else:
-                    delta_str = 'N/A'
+                    rows.append(f'''
+                    <tr>
+                        <td style="font-weight: 600;">{model_name.upper()}</td>
+                        <td>{kernel_inf_ms:.1f} ms {kernel_arrow}</td>
+                        <td>{userspace_inf_ms:.1f} ms {userspace_arrow}</td>
+                        <td class="{speedup_class}" style="font-weight: 700;">{speedup_str}</td>
+                    </tr>
+                    ''')
 
-                rows_html.append(f'''
-                <tr>
-                    <td style="font-weight: 600;">{model_name.upper()}</td>
-                    <td>{kernel_badge} {kernel_inf_ms:.1f} ms {kernel_arrow}</td>
-                    <td>{userspace_badge} {userspace_inf_ms:.1f} ms {userspace_arrow}</td>
-                    <td style="font-weight: 600;">{delta_str}</td>
-                    <td class="{speedup_class}" style="font-weight: 700;">{speedup_str}</td>
-                </tr>
-                ''')
+                if not rows:
+                    return ''
 
+                # Count winners
+                kernel_faster = len([s for s in speedup_dict.values() if s > 1.0])
+                userspace_faster = len([s for s in speedup_dict.values() if s < 1.0 and s > 0])
+
+                return f'''
+                <div class="comparison-table-wrapper" style="margin-top: 1rem;">
+                    <h4 style="margin-bottom: 0.5rem;">{title}</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                        Kernel faster: {kernel_faster} models | Userspace faster: {userspace_faster} models
+                    </p>
+                    <table class="comparison-table" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Model</th>
+                                <th>Kernel</th>
+                                <th>Userspace</th>
+                                <th>Speedup</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {''.join(rows)}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: var(--accent-gradient); color: white;">
+                                <td colspan="3" style="text-align: right; font-weight: 600;">Average:</td>
+                                <td style="font-weight: 700;">{avg_speedup_val:.2f}x</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                '''
+
+            # Build tables for both inference sizes
+            small_table = build_comparison_table(
+                "Small Inference (Short Inputs)",
+                "small",
+                speedup_small,
+                avg_speedup_small
+            )
+
+            large_table = build_comparison_table(
+                "Large Inference (Long Inputs)",
+                "large",
+                speedup_large,
+                avg_speedup_large
+            )
+
+            # Summary cards
+            summary_html = f'''
+            <div class="metrics-grid" style="margin-top: 1.5rem; margin-bottom: 1rem;">
+                <div class="metric-card" style="border-left-color: {'#22c55e' if avg_speedup_small > 1.0 else '#ef4444' if avg_speedup_small < 1.0 else '#6b7280'};">
+                    <h4>Small Inference</h4>
+                    <div class="metric-value">{avg_speedup_small:.2f}x</div>
+                    <div class="metric-detail">{'Kernel faster' if avg_speedup_small > 1.0 else 'Userspace faster' if avg_speedup_small < 1.0 else 'Equal'}</div>
+                </div>
+                <div class="metric-card" style="border-left-color: {'#22c55e' if avg_speedup_large > 1.0 else '#ef4444' if avg_speedup_large < 1.0 else '#6b7280'};">
+                    <h4>Large Inference</h4>
+                    <div class="metric-value">{avg_speedup_large:.2f}x</div>
+                    <div class="metric-detail">{'Kernel faster' if avg_speedup_large > 1.0 else 'Userspace faster' if avg_speedup_large < 1.0 else 'Equal'}</div>
+                </div>
+                <div class="metric-card" style="border-left-color: {'#22c55e' if average_speedup > 1.0 else '#ef4444' if average_speedup < 1.0 else '#6b7280'};">
+                    <h4>Overall</h4>
+                    <div class="metric-value">{average_speedup:.2f}x</div>
+                    <div class="metric-detail">Combined average</div>
+                </div>
+            </div>
+            '''
+
+            # Combine into comparison HTML
             comparison_html = f'''
-            <div class="comparison-table-wrapper" style="margin-top: 1.5rem;">
+            <div style="margin-top: 1.5rem;">
                 <h4 style="margin-bottom: 1rem;">Performance Comparison: Kernel vs Userspace</h4>
-                <table class="comparison-table" style="width: 100%;">
-                    <thead>
-                        <tr>
-                            <th>Model</th>
-                            <th>Kernel Mode</th>
-                            <th>Userspace</th>
-                            <th>Δ Delta</th>
-                            <th>Speedup</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {''.join(rows_html)}
-                    </tbody>
-                    <tfoot>
-                        <tr style="background: var(--accent-gradient); color: white;">
-                            <td colspan="4" style="text-align: right; font-weight: 600;">Average Speedup:</td>
-                            <td style="font-weight: 700; font-size: 1.1rem;">{average_speedup:.2f}x</td>
-                        </tr>
-                    </tfoot>
-                </table>
+                {summary_html}
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem;">
+                    {small_table}
+                    {large_table}
+                </div>
             </div>
             '''
         elif kernel_results:
