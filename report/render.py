@@ -1004,20 +1004,20 @@ class ReportRenderer:
                 # Calculate coefficient of variation (CV) for consistency indicator
                 cv = (stddev / mean * 100) if mean > 0 else 0
                 if cv < 10:
-                    consistency = '<span style="color: #10b981;">Stable</span>'
+                    consistency = '<span style="color: #10b981; font-weight: 600;">Stable</span>'
                 elif cv < 25:
-                    consistency = '<span style="color: #f59e0b;">Moderate</span>'
+                    consistency = '<span style="color: #f59e0b; font-weight: 600;">Moderate</span>'
                 else:
-                    consistency = '<span style="color: #ef4444;">Variable</span>'
+                    consistency = '<span style="color: #ef4444; font-weight: 600;">Variable</span>'
 
                 model_stats_rows.append(f'''
                 <tr>
-                    <td>{model_name}</td>
+                    <td style="font-weight: 600;">{model_name.upper()}</td>
                     <td>{mean:.1f} ms</td>
                     <td>{median:.1f} ms</td>
                     <td>{stddev:.1f} ms</td>
                     <td>{min_val:.1f} - {max_val:.1f} ms</td>
-                    <td>{count}</td>
+                    <td style="text-align: center;">{count}</td>
                     <td>{consistency}</td>
                 </tr>
                 ''')
@@ -1040,9 +1040,12 @@ class ReportRenderer:
             '''
 
         return f'''
-        <section class="section">
-            <h2>Historical Statistics</h2>
-            <p style="color: #9ca3af; margin-bottom: 1rem;">
+        <div class="section" style="border: 2px solid #8b5cf6; border-radius: 12px; background: linear-gradient(180deg, rgba(139,92,246,0.05) 0%, transparent 100%);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin: 0;">Historical Statistics</h2>
+                <span style="background: #8b5cf6; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">{total_runs} RUNS</span>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
                 Performance data aggregated across {total_runs} test runs
                 (from {first_run_fmt} to {last_run_fmt})
             </p>
@@ -1056,9 +1059,9 @@ class ReportRenderer:
                 {speedup_html}
             </div>
 
-            <h3>Inference Time Statistics (Mean/Median/StdDev)</h3>
-            <div class="table-container">
-                <table class="results-table">
+            <div class="comparison-table-wrapper" style="margin-top: 1.5rem;">
+                <h4 style="margin-bottom: 1rem;">Inference Time Statistics: Mean / Median / StdDev</h4>
+                <table class="comparison-table" style="width: 100%;">
                     <thead>
                         <tr>
                             <th>Model</th>
@@ -1073,9 +1076,33 @@ class ReportRenderer:
                     <tbody>
                         {''.join(model_stats_rows)}
                     </tbody>
+                    <tfoot>
+                        <tr style="background: var(--accent-gradient); color: white;">
+                            <td colspan="5" style="text-align: right; font-weight: 600;">Total Models Tracked:</td>
+                            <td colspan="2" style="font-weight: 700; font-size: 1.1rem;">{len(model_stats_rows)}</td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
-        </section>
+
+            <div class="info-box" style="margin-top: 1.5rem; background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(100,50,200,0.1)); border-left: 4px solid #8b5cf6;">
+                <h4 style="color: #8b5cf6;">Understanding Consistency</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                    <div>
+                        <strong style="color: #10b981;">Stable (CV &lt; 10%)</strong>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">Highly consistent performance across runs</p>
+                    </div>
+                    <div>
+                        <strong style="color: #f59e0b;">Moderate (CV 10-25%)</strong>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">Some variance, generally acceptable</p>
+                    </div>
+                    <div>
+                        <strong style="color: #ef4444;">Variable (CV &gt; 25%)</strong>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">High variance, investigate causes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
         '''
 
     def render(self) -> bool:
