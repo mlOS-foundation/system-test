@@ -1,44 +1,60 @@
-name: E2E Kernel-Enabled Pipeline
+name: "[DEPRECATED] E2E Kernel-Enabled Pipeline"
 
+# ============================================================================
+# DEPRECATED: This workflow is no longer used.
+# Use e2e-unified.yml instead, which runs both kernel and userspace tests
+# on the same machine for accurate performance comparison.
+# ============================================================================
+#
 # This workflow runs E2E tests with the MLOS kernel module loaded
 # Requires a self-hosted runner with:
 #   - Linux kernel 5.15+ with module support
 #   - Root access or CAP_SYS_MODULE capability
 #   - Pre-built mlos-ml.ko kernel module installed
 
+# Triggers disabled - this workflow is deprecated
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       axon_version:
+#         description: 'Axon version to test'
+#         required: false
+#         default: 'v3.1.9'
+#       core_version:
+#         description: 'Core version to test'
+#         required: false
+#         default: '5.4.0-alpha'
+#       kernel_mode:
+#         description: 'Kernel module mode'
+#         required: true
+#         type: choice
+#         options:
+#           - basic       # Memory manager only
+#           - scheduler   # Memory + ML scheduler
+#           - full        # Memory + scheduler + GPU manager
+#         default: 'scheduler'
+#       compare_userspace:
+#         description: 'Also run userspace baseline for comparison'
+#         required: false
+#         type: boolean
+#         default: true
+#       models:
+#         description: 'Models to test (comma-separated, empty = all enabled)'
+#         required: false
+#         default: ''
+#       debug_kernel:
+#         description: 'Enable kernel module debug logging (level 0-5)'
+#         required: false
+#         default: '2'
+
+# Placeholder trigger to keep file valid (never runs)
 on:
   workflow_dispatch:
     inputs:
-      axon_version:
-        description: 'Axon version to test'
-        required: false
-        default: 'v3.1.9'
-      core_version:
-        description: 'Core version to test'
-        required: false
-        default: '5.2.0-alpha'
-      kernel_mode:
-        description: 'Kernel module mode'
+      deprecated:
+        description: 'This workflow is deprecated. Use e2e-unified.yml instead.'
         required: true
-        type: choice
-        options:
-          - basic       # Memory manager only
-          - scheduler   # Memory + ML scheduler
-          - full        # Memory + scheduler + GPU manager
-        default: 'scheduler'
-      compare_userspace:
-        description: 'Also run userspace baseline for comparison'
-        required: false
-        type: boolean
-        default: true
-      models:
-        description: 'Models to test (comma-separated, empty = all enabled)'
-        required: false
-        default: ''
-      debug_kernel:
-        description: 'Enable kernel module debug logging (level 0-5)'
-        required: false
-        default: '2'
+        default: 'DO NOT USE'
 
 permissions:
   contents: write
@@ -314,7 +330,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ github.event.inputs.core_version || '5.2.0-alpha' }}"
+          VERSION="${{ github.event.inputs.core_version || '5.4.0-alpha' }}"
           VERSION_NO_V="${VERSION#v}"
           ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH="amd64"
 
@@ -538,6 +554,7 @@ jobs:
         env:
           KERNEL_MODE: ${{ github.event.inputs.kernel_mode }}
           COMPARE_USERSPACE: ${{ github.event.inputs.compare_userspace }}
+          CORE_VERSION: ${{ github.event.inputs.core_version || '5.4.0-alpha' }}
           KERNEL_VERSION: ${{ steps.hardware.outputs.kernel_version }}
           OS_NAME: ${{ steps.hardware.outputs.os_name }}
           CPU_MODEL: ${{ steps.hardware.outputs.cpu_model }}
@@ -600,7 +617,7 @@ jobs:
           kernel_comparison = {
               "timestamp": datetime.utcnow().isoformat() + "Z",
               "kernel_mode": kernel_mode,
-              "kernel_module_version": "1.0.0",
+              "kernel_module_version": os.environ.get('CORE_VERSION', '5.4.0-alpha'),
               "models_tested": len(kernel_results),
               "comparison_enabled": compare_userspace,
               "hardware": hardware,
