@@ -15,7 +15,7 @@ on:
       core_version:
         description: 'Core version to test'
         required: false
-        default: '5.2.0-alpha'
+        default: '5.3.0-alpha'
       kernel_mode:
         description: 'Kernel module mode'
         required: true
