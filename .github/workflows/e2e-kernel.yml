@@ -23,7 +23,7 @@ name: "[DEPRECATED] E2E Kernel-Enabled Pipeline"
 #       core_version:
 #         description: 'Core version to test'
 #         required: false
-#         default: '5.4.0-alpha'
+#         default: '6.0.0-alpha'
 #       kernel_mode:
 #         description: 'Kernel module mode'
 #         required: true
@@ -330,7 +330,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ github.event.inputs.core_version || '5.4.0-alpha' }}"
+          VERSION="${{ github.event.inputs.core_version || '6.0.0-alpha' }}"
           VERSION_NO_V="${VERSION#v}"
           ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH="amd64"
 
@@ -554,7 +554,7 @@ jobs:
         env:
           KERNEL_MODE: ${{ github.event.inputs.kernel_mode }}
           COMPARE_USERSPACE: ${{ github.event.inputs.compare_userspace }}
-          CORE_VERSION: ${{ github.event.inputs.core_version || '5.4.0-alpha' }}
+          CORE_VERSION: ${{ github.event.inputs.core_version || '6.0.0-alpha' }}
           KERNEL_VERSION: ${{ steps.hardware.outputs.kernel_version }}
           OS_NAME: ${{ steps.hardware.outputs.os_name }}
           CPU_MODEL: ${{ steps.hardware.outputs.cpu_model }}
@@ -617,7 +617,7 @@ jobs:
           kernel_comparison = {
               "timestamp": datetime.utcnow().isoformat() + "Z",
               "kernel_mode": kernel_mode,
-              "kernel_module_version": os.environ.get('CORE_VERSION', '5.4.0-alpha'),
+              "kernel_module_version": os.environ.get('CORE_VERSION', '6.0.0-alpha'),
               "models_tested": len(kernel_results),
               "comparison_enabled": compare_userspace,
               "hardware": hardware,
