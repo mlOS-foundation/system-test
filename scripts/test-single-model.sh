@@ -14,8 +14,8 @@
 #                    NOTE: Blocked by Core issue #49 (ONNX external data loading)
 #
 # Environment variables:
-#   AXON_VERSION    - Axon version (default: v3.1.7)
-#   CORE_VERSION    - Core version (default: 3.2.13-alpha)
+#   AXON_VERSION    - Axon version (default: v3.1.9)
+#   CORE_VERSION    - Core version (default: 6.0.0-alpha)
 #   CORE_URL        - URL to MLOS Core server (default: http://127.0.0.1:18080)
 #   GOLDEN_IMAGES   - Use golden images (default: false)
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

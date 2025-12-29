@@ -1,14 +1,14 @@
 # MLOS E2E Test - Model Configuration
 # Add new models here to include them in test runs
 #
-# Updated: 2024-12-11 - Extended LLM support (Core v4.0.0-alpha, Axon v3.1.7)
-# - Seq2seq + Multi-encoder support (Axon v3.1.6+, Core v3.2.9-alpha+)
-# - T5 enabled with encoder-decoder architecture support (fixed in v3.2.14-alpha, v4.0.0-alpha)
-# - CLIP enabled with multi-encoder architecture support
+# Updated: 2024-12-29 - Kernel optimization release (Core v6.0.0-alpha, Axon v3.1.9)
+# - NUMA-aware tensor placement (10-20% throughput improvement)
+# - Predictive tensor prefetching (25-35% latency reduction)
+# - Deadline-miss prediction for ML inference
+# - Seq2seq + Multi-encoder support
 # - LLM/GGUF support with top models: Qwen2, Llama 3.2, DeepSeek, TinyLlama, Phi-2
-# - execution_files: Explicit model paths in manifest (no directory guessing)
 #
-# Format-agnostic runtime plugin system (Core v3.2.13-alpha):
+# Format-agnostic runtime plugin system:
 #   - ONNX (.onnx) - Built-in via ONNX Runtime
 #   - GGUF (.gguf) - llama.cpp LLM plugin (native execution)
 #   - PyTorch (.pt, .pth, .bin, .safetensors) - Auto-converted to ONNX
@@ -16,9 +16,9 @@
 #   - TensorFlow (.pb) - Plugin ready
 #   - CoreML (.mlmodel, .mlpackage) - Plugin ready
 #
-# Release versions:
-#   - Core v4.0.0-alpha: Kernel module + T5 seq2seq + GGUF/LLM runtime
-#   - Axon v3.1.7: execution_files in manifest for explicit model paths
+# Current versions:
+#   - Core v6.0.0-alpha: Kernel optimizations + NUMA + Prefetching + Deadline prediction
+#   - Axon v3.1.9: Latest model packaging
 
 # Test runner settings
 settings:
@@ -32,7 +32,7 @@ settings:
   llm_inference_timeout: 300  # 5 minutes for LLM text generation
   # Run large inference tests (more tokens/larger inputs)
   run_large_tests: true
-  # Enable LLM generation tests (GGUF plugin ready in Core v3.2.10-alpha)
+  # Enable LLM generation tests (GGUF plugin)
   enable_llm_tests: true
 
 # Model definitions
