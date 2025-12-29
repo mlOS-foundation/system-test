@@ -15,7 +15,7 @@ on:
       core_version:
         description: 'Core version to test'
         required: false
-        default: '5.4.0-alpha'
+        default: '6.0.0-alpha'
       kernel_mode:
         description: 'Kernel module mode'
         required: true
@@ -204,7 +204,7 @@ jobs:
 
       - name: Download Core
         run: |
-          VERSION="${{ github.event.inputs.core_version || '5.4.0-alpha' }}"
+          VERSION="${{ github.event.inputs.core_version || '6.0.0-alpha' }}"
           VERSION_NO_V="${VERSION#v}"
           ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH="amd64"
 
@@ -389,7 +389,7 @@ jobs:
           echo "========================================"
 
           # Kernel module version should match Core version
-          KERNEL_MODULE_VERSION="${{ github.event.inputs.core_version || '5.4.0-alpha' }}"
+          KERNEL_MODULE_VERSION="${{ github.event.inputs.core_version || '6.0.0-alpha' }}"
           echo "kernel_module_version=$KERNEL_MODULE_VERSION" >> $GITHUB_OUTPUT
 
           # Show exact kernel version
@@ -632,7 +632,7 @@ jobs:
         if: always()
         env:
           AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.9' }}
-          CORE_VERSION: ${{ github.event.inputs.core_version || '5.4.0-alpha' }}
+          CORE_VERSION: ${{ github.event.inputs.core_version || '6.0.0-alpha' }}
         run: |
           mkdir -p output metrics
 
@@ -649,7 +649,7 @@ jobs:
         if: always()
         env:
           KERNEL_MODE: ${{ github.event.inputs.kernel_mode || 'scheduler' }}
-          KERNEL_MODULE_VERSION: ${{ steps.kernel-check.outputs.kernel_module_version || '5.4.0-alpha' }}
+          KERNEL_MODULE_VERSION: ${{ steps.kernel-check.outputs.kernel_module_version || '6.0.0-alpha' }}
         run: |
           python3 << 'KERNEL_SCRIPT'
           import json
@@ -764,7 +764,7 @@ jobs:
           kernel_comparison = {
               "timestamp": datetime.utcnow().isoformat() + "Z",
               "kernel_mode": os.environ.get("KERNEL_MODE", "scheduler"),
-              "kernel_module_version": os.environ.get("KERNEL_MODULE_VERSION", "5.4.0-alpha"),
+              "kernel_module_version": os.environ.get("KERNEL_MODULE_VERSION", "6.0.0-alpha"),
               "models_tested": len(set(list(kernel_results.keys()) + list(userspace_results.keys()))),
               "comparison_enabled": True,
               "hardware": hardware,
