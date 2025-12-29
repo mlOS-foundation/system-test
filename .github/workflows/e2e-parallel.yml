@@ -19,7 +19,7 @@ name: "[DEPRECATED] E2E Parallel Pipeline"
 #       core_version:
 #         description: 'Core version to test'
 #         required: false
-#         default: '6.0.0-alpha'
+#         default: '6.1.0-alpha'
 #       models:
 #         description: |
 #           Models to test (comma or space separated).
@@ -268,7 +268,7 @@ jobs:
         run: |
           START_TIME=$(date +%s%3N)
 
-          VERSION="${{ github.event.inputs.core_version || '6.0.0-alpha' }}"
+          VERSION="${{ github.event.inputs.core_version || '6.1.0-alpha' }}"
           # Normalize version: strip 'v' prefix for artifact filename (Core always publishes without v prefix)
           VERSION_NO_V="${VERSION#v}"
           # Release tag always has 'v' prefix
@@ -700,7 +700,7 @@ jobs:
         if: always()
         env:
           AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.9' }}
-          CORE_VERSION: ${{ github.event.inputs.core_version || '6.0.0-alpha' }}
+          CORE_VERSION: ${{ github.event.inputs.core_version || '6.1.0-alpha' }}
         run: |
           mkdir -p output metrics
 
