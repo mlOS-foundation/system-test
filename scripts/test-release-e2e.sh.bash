@@ -22,8 +22,8 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-AXON_RELEASE_VERSION="${AXON_VERSION:-v3.1.3}"
-CORE_RELEASE_VERSION="${CORE_VERSION:-3.2.9-alpha}"
+AXON_RELEASE_VERSION="${AXON_VERSION:-v3.1.9}"
+CORE_RELEASE_VERSION="${CORE_VERSION:-6.0.0-alpha}"
 TEST_DIR="$(pwd)/release-test-$(date +%s)"
 REPORT_FILE="$TEST_DIR/release-validation-report.html"
 METRICS_FILE="$TEST_DIR/metrics.json"
