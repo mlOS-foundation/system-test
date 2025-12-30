@@ -893,14 +893,47 @@ jobs:
             model-results-kernel/
           retention-days: 30
 
+      - name: Trigger render workflow
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Triggering render workflow for run ${{ github.run_id }}..."
+
+          # Trigger with retry logic
+          MAX_RETRIES=3
+          RETRY_DELAY=5
+          SUCCESS=false
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i of $MAX_RETRIES..."
+            if gh workflow run render-report.yml \
+                --ref main \
+                -f metrics_run_id=${{ github.run_id }} \
+                -f metrics_workflow=e2e-unified.yml 2>&1; then
+              SUCCESS=true
+              break
+            fi
+            echo "Trigger failed, waiting ${RETRY_DELAY}s before retry..."
+            sleep $RETRY_DELAY
+            RETRY_DELAY=$((RETRY_DELAY * 2))
+          done
+
+          if [ "$SUCCESS" = "true" ]; then
+            echo "Render workflow triggered successfully"
+          else
+            echo "WARNING: Failed to trigger render workflow after $MAX_RETRIES attempts"
+            echo "Manually run: gh workflow run render-report.yml -f metrics_run_id=${{ github.run_id }}"
+          fi
+
       - name: Summary
         if: always()
         run: |
           echo "## E2E Unified Test Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Metrics uploaded. To render the report, run the **Render E2E Report** workflow." >> $GITHUB_STEP_SUMMARY
+          echo "Render workflow has been **automatically triggered** to publish the report." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Quick Render" >> $GITHUB_STEP_SUMMARY
+          echo "### Manual Render (if needed)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "gh workflow run render-report.yml -f metrics_run_id=${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
