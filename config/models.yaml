@@ -1,7 +1,9 @@
 # MLOS E2E Test - Model Configuration
 # Add new models here to include them in test runs
 #
-# Updated: 2024-12-29 - Kernel optimization release (Core v6.1.0-alpha, Axon v3.1.9)
+# Updated: 2024-12-30 - Kernel prefetch plans release (Core v6.2.0-alpha, Axon v3.1.9)
+# - Kernel prefetch plans for ONNX and GGUF plugins (5-15% latency reduction)
+# - High priority scheduling for ML inference
 # - NUMA-aware tensor placement (10-20% throughput improvement)
 # - Predictive tensor prefetching (25-35% latency reduction)
 # - Deadline-miss prediction for ML inference
@@ -17,7 +19,7 @@
 #   - CoreML (.mlmodel, .mlpackage) - Plugin ready
 #
 # Current versions:
-#   - Core v6.1.0-alpha: Kernel optimizations + NUMA + Prefetching + Deadline prediction
+#   - Core v6.2.0-alpha: Kernel prefetch plans + High priority scheduling + Performance cleanup
 #   - Axon v3.1.9: Latest model packaging
 
 # Test runner settings
