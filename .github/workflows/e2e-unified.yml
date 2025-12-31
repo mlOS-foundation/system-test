@@ -15,7 +15,7 @@ on:
       core_version:
         description: 'Core version to test'
         required: false
-        default: '6.2.0-alpha'
+        default: '6.3.0-alpha'
       kernel_mode:
         description: 'Kernel module mode'
         required: true
@@ -204,7 +204,7 @@ jobs:
 
       - name: Download Core
         run: |
-          VERSION="${{ github.event.inputs.core_version || '6.2.0-alpha' }}"
+          VERSION="${{ github.event.inputs.core_version || '6.3.0-alpha' }}"
           VERSION_NO_V="${VERSION#v}"
           ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH="amd64"
 
@@ -389,61 +389,58 @@ jobs:
           echo "========================================"
 
           # Kernel module version should match Core version
-          KERNEL_MODULE_VERSION="${{ github.event.inputs.core_version || '6.2.0-alpha' }}"
+          KERNEL_MODULE_VERSION="${{ github.event.inputs.core_version || '6.3.0-alpha' }}"
           echo "kernel_module_version=$KERNEL_MODULE_VERSION" >> $GITHUB_OUTPUT
 
           # Show exact kernel version
           echo "Runner kernel: $(uname -r)"
           LINUX_KERNEL=$(uname -r)
 
-          # FIRST: Try pre-installed module (built for exact kernel version)
+          # FIRST: Try downloading from releases (ensures we use the correct version)
           MODULE_PATH=""
-          echo "Looking for pre-installed kernel module..."
-          for path in "/lib/modules/${LINUX_KERNEL}/extra/mlos-ml.ko" \
-                      "/lib/modules/${LINUX_KERNEL}/extra/mlos_ml.ko" \
-                      "/opt/mlos/kernel/mlos-ml.ko" \
-                      "/opt/mlos/kernel/mlos_ml.ko"; do
-            if [ -f "$path" ]; then
-              MODULE_PATH="$path"
-              echo "Found pre-installed module: $MODULE_PATH"
-              break
-            fi
-          done
+          echo "Downloading kernel module for version ${KERNEL_MODULE_VERSION}..."
 
-          # SECOND: If no pre-installed, try downloading from releases
-          if [ -z "$MODULE_PATH" ] || [ ! -f "$MODULE_PATH" ]; then
-            echo "No pre-installed module found, trying release download..."
+          # Map to supported kernel versions
+          KERNEL_MAJOR=$(echo "$LINUX_KERNEL" | cut -d. -f1,2)
+          case "$KERNEL_MAJOR" in
+            5.15*) KERNEL_SUFFIX="5.15" ;;
+            6.1*)  KERNEL_SUFFIX="6.1" ;;
+            6.5*)  KERNEL_SUFFIX="6.5" ;;
+            6.8*)  KERNEL_SUFFIX="6.8" ;;
+            *)
+              echo "Unsupported kernel version: $KERNEL_MAJOR"
+              KERNEL_SUFFIX="6.8"
+              ;;
+          esac
 
-            # Map to supported kernel versions
-            KERNEL_MAJOR=$(echo "$LINUX_KERNEL" | cut -d. -f1,2)
-            case "$KERNEL_MAJOR" in
-              5.15*) KERNEL_SUFFIX="5.15" ;;
-              6.1*)  KERNEL_SUFFIX="6.1" ;;
-              6.5*)  KERNEL_SUFFIX="6.5" ;;
-              6.8*)  KERNEL_SUFFIX="6.8" ;;
-              *)
-                echo "Unsupported kernel version: $KERNEL_MAJOR"
-                KERNEL_SUFFIX="6.8"
-                ;;
-            esac
+          MODULE_FILE="mlos-ml-v${KERNEL_MODULE_VERSION}-linux-${KERNEL_SUFFIX}.ko"
+          DOWNLOAD_PATH="$HOME/${MODULE_FILE}"
 
-            MODULE_FILE="mlos-ml-v${KERNEL_MODULE_VERSION}-linux-${KERNEL_SUFFIX}.ko"
-            DOWNLOAD_PATH="$HOME/${MODULE_FILE}"
-
-            echo "Downloading kernel module: $MODULE_FILE"
-            if gh release download "v${KERNEL_MODULE_VERSION}" \
-                --repo mlOS-foundation/mlos-linux-kernel \
-                --pattern "$MODULE_FILE" \
-                --dir "$HOME" 2>/dev/null; then
-              MODULE_PATH="$DOWNLOAD_PATH"
-              echo "Downloaded module: $MODULE_PATH"
-            else
-              echo "WARNING: Could not download module from releases"
-            fi
+          echo "Downloading kernel module: $MODULE_FILE"
+          if gh release download "v${KERNEL_MODULE_VERSION}" \
+              --repo mlOS-foundation/mlos-linux-kernel \
+              --pattern "$MODULE_FILE" \
+              --dir "$HOME" 2>/dev/null; then
+            MODULE_PATH="$DOWNLOAD_PATH"
+            echo "✅ Downloaded module: $MODULE_PATH"
+          else
+            echo "⚠️  Could not download module from releases, trying pre-installed..."
+            # FALLBACK: Try pre-installed module
+            for path in "/lib/modules/${LINUX_KERNEL}/extra/mlos-ml.ko" \
+                        "/lib/modules/${LINUX_KERNEL}/extra/mlos_ml.ko" \
+                        "/opt/mlos/kernel/mlos-ml.ko" \
+                        "/opt/mlos/kernel/mlos_ml.ko"; do
+              if [ -f "$path" ]; then
+                MODULE_PATH="$path"
+                echo "Found pre-installed module: $MODULE_PATH"
+                echo "⚠️  WARNING: Using pre-installed module (may not match Core version ${KERNEL_MODULE_VERSION})"
+                break
+              fi
+            done
           fi
 
           if [ -z "$MODULE_PATH" ] || [ ! -f "$MODULE_PATH" ]; then
-            echo "ERROR: No kernel module found!"
+            echo "❌ ERROR: No kernel module found!"
             echo "Please install the kernel module on the runner:"
             echo "  sudo cp mlos-ml.ko /lib/modules/$(uname -r)/extra/"
             echo "  sudo depmod -a"
@@ -632,7 +629,7 @@ jobs:
         if: always()
         env:
           AXON_VERSION: ${{ github.event.inputs.axon_version || 'v3.1.9' }}
-          CORE_VERSION: ${{ github.event.inputs.core_version || '6.2.0-alpha' }}
+          CORE_VERSION: ${{ github.event.inputs.core_version || '6.3.0-alpha' }}
         run: |
           mkdir -p output metrics
 
@@ -649,7 +646,7 @@ jobs:
         if: always()
         env:
           KERNEL_MODE: ${{ github.event.inputs.kernel_mode || 'scheduler' }}
-          KERNEL_MODULE_VERSION: ${{ steps.kernel-check.outputs.kernel_module_version || '6.2.0-alpha' }}
+          KERNEL_MODULE_VERSION: ${{ steps.kernel-check.outputs.kernel_module_version || '6.3.0-alpha' }}
         run: |
           python3 << 'KERNEL_SCRIPT'
           import json
@@ -764,7 +761,7 @@ jobs:
           kernel_comparison = {
               "timestamp": datetime.utcnow().isoformat() + "Z",
               "kernel_mode": os.environ.get("KERNEL_MODE", "scheduler"),
-              "kernel_module_version": os.environ.get("KERNEL_MODULE_VERSION", "6.2.0-alpha"),
+              "kernel_module_version": os.environ.get("KERNEL_MODULE_VERSION", "6.3.0-alpha"),
               "models_tested": len(set(list(kernel_results.keys()) + list(userspace_results.keys()))),
               "comparison_enabled": True,
               "hardware": hardware,
