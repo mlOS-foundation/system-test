@@ -721,7 +721,7 @@ models:
   # =============================================================================
 
   bge-small:
-    enabled: false  # Disabled: Inference fails with HTTP 400 - embedding model runtime issue
+    enabled: true  # Fixed in Core v6.3.0-alpha (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/BAAI/bge-small-en-v1.5@latest"
     description: "BGE Small - BAAI General Embedding (384-dim)"
@@ -734,7 +734,7 @@ models:
       tokens: 512
 
   bge-base:
-    enabled: false  # Disabled: Inference fails with HTTP 400 - embedding model runtime issue
+    enabled: true  # Fixed in Core v6.3.0-alpha (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/BAAI/bge-base-en-v1.5@latest"
     description: "BGE Base - BAAI General Embedding (768-dim)"
@@ -747,7 +747,7 @@ models:
       tokens: 512
 
   e5-small:
-    enabled: false  # Disabled: Inference fails with HTTP 400 - embedding model runtime issue
+    enabled: true  # Fixed in Core v6.3.0-alpha (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/intfloat/e5-small-v2@latest"
     description: "E5 Small - Text embeddings for retrieval (384-dim)"
@@ -760,7 +760,7 @@ models:
       tokens: 512
 
   e5-base:
-    enabled: false  # Disabled: Inference fails with HTTP 400 - embedding model runtime issue
+    enabled: true  # Fixed in Core v6.3.0-alpha (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/intfloat/e5-base-v2@latest"
     description: "E5 Base - Text embeddings for retrieval (768-dim)"
@@ -773,7 +773,7 @@ models:
       tokens: 512
 
   gte-small:
-    enabled: false  # Disabled: Inference fails with HTTP 400 - embedding model runtime issue
+    enabled: true  # Fixed in Core v6.3.0-alpha (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/thenlper/gte-small@latest"
     description: "GTE Small - General Text Embeddings (384-dim)"
@@ -786,7 +786,7 @@ models:
       tokens: 512
 
   gte-base:
-    enabled: false  # Disabled: Inference fails with HTTP 400 - embedding model runtime issue
+    enabled: true  # Fixed in Core v6.3.0-alpha (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/thenlper/gte-base@latest"
     description: "GTE Base - General Text Embeddings (768-dim)"
