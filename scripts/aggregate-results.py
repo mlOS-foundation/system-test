@@ -54,6 +54,9 @@ def aggregate_results(results: list, hardware: dict = None, setup_timings: dict 
         # NLP models
         'gpt2': 'nlp', 'bert': 'nlp', 'roberta': 'nlp', 't5': 'nlp',
         'distilbert': 'nlp', 'albert': 'nlp', 'sentence-transformers': 'nlp',
+        # Embedding models (NLP)
+        'bge-small': 'nlp', 'bge-base': 'nlp', 'e5-small': 'nlp',
+        'e5-base': 'nlp', 'gte-small': 'nlp', 'gte-base': 'nlp',
         # Vision models
         'resnet': 'vision', 'vit': 'vision', 'convnext': 'vision',
         'mobilenet': 'vision', 'deit': 'vision', 'efficientnet': 'vision', 'swin': 'vision',
@@ -156,11 +159,8 @@ def aggregate_results(results: list, hardware: dict = None, setup_timings: dict 
         else:
             summary["failed_models"] += 1
         
-        # Get version info from first result
-        if result.get("axon_version"):
-            summary["versions"]["axon"] = result["axon_version"]
-        if result.get("core_version"):
-            summary["versions"]["core"] = result["core_version"]
+        # NOTE: Version info comes from environment variables (AXON_VERSION, CORE_VERSION)
+        # set at workflow level. Do NOT override from result files as they may have stale data.
         
         # Build model entry in format render.py expects
         install_phase = phases.get("install", {})

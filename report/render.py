@@ -669,55 +669,86 @@ class ReportRenderer:
         # Build comparison table if enabled
         comparison_html = ''
         if comparison_enabled and userspace_results:
-            # Helper function to build comparison table for a specific inference size
+            # Category display names and colors
+            CATEGORY_CONFIG = {
+                'nlp': {'name': 'NLP Models', 'color': '#667eea'},
+                'vision': {'name': 'Vision Models', 'color': '#17998e'},
+                'multimodal': {'name': 'Multimodal Models', 'color': '#764ba2'},
+                'llm': {'name': 'LLM Models', 'color': '#f59e0b'}
+            }
+
+            # Get model categories from metrics
+            models_data = self.metrics.get('models', {})
+
+            # Helper function to build comparison table for a specific inference size (grouped by category)
             def build_comparison_table(title: str, size_key: str, speedup_dict: dict, avg_speedup_val: float) -> str:
+                # Group models by category
+                categorized_models = {'nlp': [], 'vision': [], 'multimodal': [], 'llm': []}
+                for model_name in kernel_results.keys():
+                    category = models_data.get(model_name, {}).get('category', 'nlp')
+                    if category in categorized_models:
+                        categorized_models[category].append(model_name)
+
                 rows = []
-                for model_name in sorted(kernel_results.keys()):
-                    kernel_model = kernel_results.get(model_name, {})
-                    userspace_model = userspace_results.get(model_name, {})
-
-                    # Get the specific size inference time
-                    kernel_inf_ms = kernel_model.get(f'inference_{size_key}_ms', 0)
-                    userspace_inf_ms = userspace_model.get(f'inference_{size_key}_ms', 0)
-
-                    # Skip if no data for this size
-                    if kernel_inf_ms == 0 and userspace_inf_ms == 0:
+                for category in ['nlp', 'vision', 'multimodal', 'llm']:
+                    cat_models = sorted(categorized_models.get(category, []))
+                    if not cat_models:
                         continue
 
-                    model_speedup = speedup_dict.get(model_name, 0)
-
-                    # Winner arrows
-                    if kernel_inf_ms > 0 and userspace_inf_ms > 0:
-                        if kernel_inf_ms < userspace_inf_ms:
-                            kernel_arrow = '<span style="color: #22c55e; font-weight: bold;">&#9660;</span>'
-                            userspace_arrow = '<span style="color: #ef4444; font-weight: bold;">&#9650;</span>'
-                        elif userspace_inf_ms < kernel_inf_ms:
-                            kernel_arrow = '<span style="color: #ef4444; font-weight: bold;">&#9650;</span>'
-                            userspace_arrow = '<span style="color: #22c55e; font-weight: bold;">&#9660;</span>'
-                        else:
-                            kernel_arrow = userspace_arrow = ''
-                    else:
-                        kernel_arrow = userspace_arrow = ''
-
-                    # Speedup display
-                    if model_speedup > 1.0:
-                        speedup_class = 'speedup-positive'
-                        speedup_str = f'+{((model_speedup - 1) * 100):.1f}%'
-                    elif model_speedup < 1.0 and model_speedup > 0:
-                        speedup_class = 'speedup-negative'
-                        speedup_str = f'{((model_speedup - 1) * 100):.1f}%'
-                    else:
-                        speedup_class = 'speedup-neutral'
-                        speedup_str = '0.0%' if model_speedup == 1.0 else 'N/A'
-
+                    # Add category header row
+                    cat_config = CATEGORY_CONFIG.get(category, {'name': category.upper(), 'color': '#888'})
                     rows.append(f'''
-                    <tr>
-                        <td style="font-weight: 600;">{model_name.upper()}</td>
-                        <td>{kernel_inf_ms:.1f} ms {kernel_arrow}</td>
-                        <td>{userspace_inf_ms:.1f} ms {userspace_arrow}</td>
-                        <td class="{speedup_class}" style="font-weight: 700;">{speedup_str}</td>
+                    <tr class="category-header" style="background: linear-gradient(90deg, {cat_config['color']}22, transparent);">
+                        <td colspan="4" style="font-weight: 700; color: {cat_config['color']}; padding: 0.5rem;">{cat_config['name']}</td>
                     </tr>
                     ''')
+
+                    for model_name in cat_models:
+                        kernel_model = kernel_results.get(model_name, {})
+                        userspace_model = userspace_results.get(model_name, {})
+
+                        # Get the specific size inference time
+                        kernel_inf_ms = kernel_model.get(f'inference_{size_key}_ms', 0)
+                        userspace_inf_ms = userspace_model.get(f'inference_{size_key}_ms', 0)
+
+                        # Skip if no data for this size
+                        if kernel_inf_ms == 0 and userspace_inf_ms == 0:
+                            continue
+
+                        model_speedup = speedup_dict.get(model_name, 0)
+
+                        # Winner arrows
+                        if kernel_inf_ms > 0 and userspace_inf_ms > 0:
+                            if kernel_inf_ms < userspace_inf_ms:
+                                kernel_arrow = '<span style="color: #22c55e; font-weight: bold;">&#9660;</span>'
+                                userspace_arrow = '<span style="color: #ef4444; font-weight: bold;">&#9650;</span>'
+                            elif userspace_inf_ms < kernel_inf_ms:
+                                kernel_arrow = '<span style="color: #ef4444; font-weight: bold;">&#9650;</span>'
+                                userspace_arrow = '<span style="color: #22c55e; font-weight: bold;">&#9660;</span>'
+                            else:
+                                kernel_arrow = userspace_arrow = ''
+                        else:
+                            kernel_arrow = userspace_arrow = ''
+
+                        # Speedup display
+                        if model_speedup > 1.0:
+                            speedup_class = 'speedup-positive'
+                            speedup_str = f'+{((model_speedup - 1) * 100):.1f}%'
+                        elif model_speedup < 1.0 and model_speedup > 0:
+                            speedup_class = 'speedup-negative'
+                            speedup_str = f'{((model_speedup - 1) * 100):.1f}%'
+                        else:
+                            speedup_class = 'speedup-neutral'
+                            speedup_str = '0.0%' if model_speedup == 1.0 else 'N/A'
+
+                        rows.append(f'''
+                        <tr>
+                            <td style="font-weight: 600; padding-left: 1rem;">{model_name.upper()}</td>
+                            <td>{kernel_inf_ms:.1f} ms {kernel_arrow}</td>
+                            <td>{userspace_inf_ms:.1f} ms {userspace_arrow}</td>
+                            <td class="{speedup_class}" style="font-weight: 700;">{speedup_str}</td>
+                        </tr>
+                        ''')
 
                 if not rows:
                     return ''
