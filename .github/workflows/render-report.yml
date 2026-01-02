@@ -159,8 +159,8 @@ jobs:
           # Create clean output directory
           mkdir -p _site
 
-          # Copy report files
-          cp output/index.html _site/
+          # Copy all report HTML files (index.html, models.html, test-details.html)
+          cp output/*.html _site/ 2>/dev/null || cp output/index.html _site/
           cp report/styles.css _site/
 
           # Copy metrics
