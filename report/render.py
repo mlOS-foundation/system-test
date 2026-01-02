@@ -695,11 +695,11 @@ class ReportRenderer:
                     if not cat_models:
                         continue
 
-                    # Add category header row
+                    # Add prominent category header row
                     cat_config = CATEGORY_CONFIG.get(category, {'name': category.upper(), 'color': '#888'})
                     rows.append(f'''
-                    <tr class="category-header" style="background: linear-gradient(90deg, {cat_config['color']}22, transparent);">
-                        <td colspan="4" style="font-weight: 700; color: {cat_config['color']}; padding: 0.5rem;">{cat_config['name']}</td>
+                    <tr class="category-header">
+                        <td colspan="4" style="background: linear-gradient(90deg, {cat_config['color']}, {cat_config['color']}88); color: white; font-weight: 700; font-size: 0.95rem; padding: 0.6rem 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">{cat_config['name']}</td>
                     </tr>
                     ''')
 
@@ -1065,42 +1065,73 @@ class ReportRenderer:
         except:
             last_run_fmt = last_run
 
-        # Build model stats rows
+        # Category configuration for grouping
+        CATEGORY_CONFIG = {
+            'nlp': {'name': 'NLP Models', 'color': '#667eea'},
+            'vision': {'name': 'Vision Models', 'color': '#17998e'},
+            'multimodal': {'name': 'Multimodal Models', 'color': '#764ba2'},
+            'llm': {'name': 'LLM Models', 'color': '#f59e0b'}
+        }
+
+        # Get model categories from main metrics
+        models_data = self.metrics.get('models', {})
+
+        # Build model stats rows grouped by category
         model_stats_rows = []
         models_stats = self.statistics.get('models', {})
 
-        for model_name in sorted(models_stats.keys()):
-            model_data = models_stats[model_name]
-            inf_stats = model_data.get('inference_time_ms', {})
+        # Group models by category
+        categorized_models = {'nlp': [], 'vision': [], 'multimodal': [], 'llm': []}
+        for model_name in models_stats.keys():
+            category = models_data.get(model_name, {}).get('category', 'nlp')
+            if category in categorized_models:
+                categorized_models[category].append(model_name)
 
-            if inf_stats.get('count', 0) > 0:
-                mean = inf_stats.get('mean', 0)
-                median = inf_stats.get('median', 0)
-                stddev = inf_stats.get('stddev', 0)
-                min_val = inf_stats.get('min', 0)
-                max_val = inf_stats.get('max', 0)
-                count = inf_stats.get('count', 0)
+        for category in ['nlp', 'vision', 'multimodal', 'llm']:
+            cat_models = sorted(categorized_models.get(category, []))
+            if not cat_models:
+                continue
 
-                # Calculate coefficient of variation (CV) for consistency indicator
-                cv = (stddev / mean * 100) if mean > 0 else 0
-                if cv < 10:
-                    consistency = '<span style="color: #10b981; font-weight: 600;">Stable</span>'
-                elif cv < 25:
-                    consistency = '<span style="color: #f59e0b; font-weight: 600;">Moderate</span>'
-                else:
-                    consistency = '<span style="color: #ef4444; font-weight: 600;">Variable</span>'
+            # Add prominent category header row
+            cat_config = CATEGORY_CONFIG.get(category, {'name': category.upper(), 'color': '#888'})
+            model_stats_rows.append(f'''
+            <tr class="category-header">
+                <td colspan="7" style="background: linear-gradient(90deg, {cat_config['color']}, {cat_config['color']}88); color: white; font-weight: 700; font-size: 0.95rem; padding: 0.6rem 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">{cat_config['name']}</td>
+            </tr>
+            ''')
 
-                model_stats_rows.append(f'''
-                <tr>
-                    <td style="font-weight: 600;">{model_name.upper()}</td>
-                    <td>{mean:.1f} ms</td>
-                    <td>{median:.1f} ms</td>
-                    <td>{stddev:.1f} ms</td>
-                    <td>{min_val:.1f} - {max_val:.1f} ms</td>
-                    <td style="text-align: center;">{count}</td>
-                    <td>{consistency}</td>
-                </tr>
-                ''')
+            for model_name in cat_models:
+                model_data = models_stats[model_name]
+                inf_stats = model_data.get('inference_time_ms', {})
+
+                if inf_stats.get('count', 0) > 0:
+                    mean = inf_stats.get('mean', 0)
+                    median = inf_stats.get('median', 0)
+                    stddev = inf_stats.get('stddev', 0)
+                    min_val = inf_stats.get('min', 0)
+                    max_val = inf_stats.get('max', 0)
+                    count = inf_stats.get('count', 0)
+
+                    # Calculate coefficient of variation (CV) for consistency indicator
+                    cv = (stddev / mean * 100) if mean > 0 else 0
+                    if cv < 10:
+                        consistency = '<span style="color: #10b981; font-weight: 600;">Stable</span>'
+                    elif cv < 25:
+                        consistency = '<span style="color: #f59e0b; font-weight: 600;">Moderate</span>'
+                    else:
+                        consistency = '<span style="color: #ef4444; font-weight: 600;">Variable</span>'
+
+                    model_stats_rows.append(f'''
+                    <tr>
+                        <td style="font-weight: 600; padding-left: 1.25rem;">{model_name.upper()}</td>
+                        <td>{mean:.1f} ms</td>
+                        <td>{median:.1f} ms</td>
+                        <td>{stddev:.1f} ms</td>
+                        <td>{min_val:.1f} - {max_val:.1f} ms</td>
+                        <td style="text-align: center;">{count}</td>
+                        <td>{consistency}</td>
+                    </tr>
+                    ''')
 
         # Kernel comparison stats
         kc_stats = self.statistics.get('kernel_comparison', {})
