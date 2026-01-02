@@ -15,7 +15,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 AXON_DIR="$(cd "$ROOT_DIR/../axon" && pwd)"
 
 # Configuration
-CORE_VERSION="${CORE_VERSION:-5.2.0-alpha}"
+CORE_VERSION="${CORE_VERSION:-7.0.0-beta}"
 TEST_MODEL="${TEST_MODEL:-resnet}"  # Default to resnet for vision testing
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
