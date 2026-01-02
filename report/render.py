@@ -692,8 +692,8 @@ class ReportRenderer:
                 rows = []
                 for category in ['nlp', 'vision', 'multimodal', 'llm']:
                     cat_models = categorized_models.get(category, [])
-                    # Sort by speedup descending (highest speedup first)
-                    cat_models = sorted(cat_models, key=lambda m: speedup_dict.get(m, 0), reverse=True)
+                    # Sort by speedup descending, then by model name ascending (for ties)
+                    cat_models = sorted(cat_models, key=lambda m: (-speedup_dict.get(m, 0), m))
                     if not cat_models:
                         continue
 
@@ -1099,8 +1099,8 @@ class ReportRenderer:
 
         for category in ['nlp', 'vision', 'multimodal', 'llm']:
             cat_models = categorized_models.get(category, [])
-            # Sort by consistency (CV ascending - most stable first)
-            cat_models = sorted(cat_models, key=get_cv)
+            # Sort by consistency (CV ascending), then by model name (for ties)
+            cat_models = sorted(cat_models, key=lambda m: (get_cv(m), m))
             if not cat_models:
                 continue
 
