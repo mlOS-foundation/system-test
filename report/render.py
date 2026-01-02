@@ -691,7 +691,9 @@ class ReportRenderer:
 
                 rows = []
                 for category in ['nlp', 'vision', 'multimodal', 'llm']:
-                    cat_models = sorted(categorized_models.get(category, []))
+                    cat_models = categorized_models.get(category, [])
+                    # Sort by speedup descending (highest speedup first)
+                    cat_models = sorted(cat_models, key=lambda m: speedup_dict.get(m, 0), reverse=True)
                     if not cat_models:
                         continue
 
@@ -1080,6 +1082,14 @@ class ReportRenderer:
         model_stats_rows = []
         models_stats = self.statistics.get('models', {})
 
+        # Helper to calculate CV (coefficient of variation) for sorting
+        def get_cv(model_name):
+            model_data = models_stats.get(model_name, {})
+            inf_stats = model_data.get('inference_time_ms', {})
+            mean = inf_stats.get('mean', 0)
+            stddev = inf_stats.get('stddev', 0)
+            return (stddev / mean * 100) if mean > 0 else 999  # High CV for missing data
+
         # Group models by category
         categorized_models = {'nlp': [], 'vision': [], 'multimodal': [], 'llm': []}
         for model_name in models_stats.keys():
@@ -1088,7 +1098,9 @@ class ReportRenderer:
                 categorized_models[category].append(model_name)
 
         for category in ['nlp', 'vision', 'multimodal', 'llm']:
-            cat_models = sorted(categorized_models.get(category, []))
+            cat_models = categorized_models.get(category, [])
+            # Sort by consistency (CV ascending - most stable first)
+            cat_models = sorted(cat_models, key=get_cv)
             if not cat_models:
                 continue
 
