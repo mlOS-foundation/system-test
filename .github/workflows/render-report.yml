@@ -86,28 +86,53 @@ jobs:
           # Find the metrics artifact name based on workflow
           case "$WORKFLOW" in
             e2e-unified.yml)
-              PATTERN="unified-e2e-metrics"
+              METRICS_PATTERN="unified-e2e-metrics"
+              RESULTS_PATTERN="unified-e2e-results"
               ;;
             e2e-parallel.yml)
-              PATTERN="e2e-metrics"
+              METRICS_PATTERN="e2e-metrics"
+              RESULTS_PATTERN="e2e-results"
               ;;
             e2e-kernel.yml)
-              PATTERN="kernel-e2e-results"
+              METRICS_PATTERN="kernel-e2e-results"
+              RESULTS_PATTERN="kernel-e2e-results"
               ;;
           esac
 
-          # Get artifact name
+          # Get metrics artifact name
           ARTIFACT_NAME=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
-            --jq ".artifacts[] | select(.name | startswith(\"$PATTERN\")) | .name" | head -1)
+            --jq ".artifacts[] | select(.name | startswith(\"$METRICS_PATTERN\")) | .name" | head -1)
 
           if [ -z "$ARTIFACT_NAME" ]; then
-            echo "ERROR: No metrics artifact found matching pattern: $PATTERN"
+            echo "ERROR: No metrics artifact found matching pattern: $METRICS_PATTERN"
             gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" --jq '.artifacts[].name'
             exit 1
           fi
 
-          echo "Downloading artifact: $ARTIFACT_NAME"
+          echo "Downloading metrics artifact: $ARTIFACT_NAME"
           gh run download "$RUN_ID" -n "$ARTIFACT_NAME" -D metrics/
+
+          # Also download results artifact for validation data (test-details page)
+          RESULTS_ARTIFACT=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
+            --jq ".artifacts[] | select(.name | startswith(\"$RESULTS_PATTERN\")) | .name" | head -1)
+
+          if [ -n "$RESULTS_ARTIFACT" ]; then
+            echo "Downloading results artifact: $RESULTS_ARTIFACT"
+            gh run download "$RUN_ID" -n "$RESULTS_ARTIFACT" -D results/
+
+            # Copy model-results to expected location for render.py
+            if [ -d "results/model-results-userspace" ]; then
+              mkdir -p model-results
+              cp -r results/model-results-userspace/* model-results/
+              echo "Copied userspace validation results to model-results/"
+            fi
+            if [ -d "results/model-results-kernel" ]; then
+              cp -r results/model-results-kernel/* model-results/ 2>/dev/null || true
+              echo "Copied kernel validation results to model-results/"
+            fi
+          else
+            echo "No results artifact found (test-details page may show incomplete data)"
+          fi
 
           echo "Downloaded metrics:"
           ls -la metrics/
