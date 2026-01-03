@@ -8,7 +8,7 @@
 # - Previously disabled: xlnet, electra, deberta, deberta-v3, mpnet, xlm-roberta
 # - Disabled large LLMs (gemma-2b, openchat-3.5, mistral-7b, stablelm-2-zephyr)
 # - Remaining 31 models validated for CI
-# - Core v7.0.0-beta, Axon v3.1.9
+# - Core v7.0.0, Axon v3.1.9
 # - Kernel prefetch plans for ONNX and GGUF plugins (5-15% latency reduction)
 # - High priority scheduling for ML inference
 # - NUMA-aware tensor placement (10-20% throughput improvement)
@@ -26,7 +26,7 @@
 #   - CoreML (.mlmodel, .mlpackage) - Plugin ready
 #
 # Current versions:
-#   - Core v7.0.0-beta: Kernel prefetch plans + High priority scheduling + Performance cleanup
+#   - Core v7.0.0: Kernel memory optimizations (Tensor Fusion + Deduplication)
 #   - Axon v3.1.9: Latest model packaging
 
 # Test runner settings
@@ -721,7 +721,7 @@ models:
   # =============================================================================
 
   bge-small:
-    enabled: true  # Fixed in Core v7.0.0-beta (PR #76) - auto-generates attention_mask/token_type_ids
+    enabled: true  # Fixed in Core v7.0.0 (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/BAAI/bge-small-en-v1.5@latest"
     description: "BGE Small - BAAI General Embedding (384-dim)"
@@ -734,7 +734,7 @@ models:
       tokens: 512
 
   bge-base:
-    enabled: true  # Fixed in Core v7.0.0-beta (PR #76) - auto-generates attention_mask/token_type_ids
+    enabled: true  # Fixed in Core v7.0.0 (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/BAAI/bge-base-en-v1.5@latest"
     description: "BGE Base - BAAI General Embedding (768-dim)"
@@ -747,7 +747,7 @@ models:
       tokens: 512
 
   e5-small:
-    enabled: true  # Fixed in Core v7.0.0-beta (PR #76) - auto-generates attention_mask/token_type_ids
+    enabled: true  # Fixed in Core v7.0.0 (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/intfloat/e5-small-v2@latest"
     description: "E5 Small - Text embeddings for retrieval (384-dim)"
@@ -760,7 +760,7 @@ models:
       tokens: 512
 
   e5-base:
-    enabled: true  # Fixed in Core v7.0.0-beta (PR #76) - auto-generates attention_mask/token_type_ids
+    enabled: true  # Fixed in Core v7.0.0 (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/intfloat/e5-base-v2@latest"
     description: "E5 Base - Text embeddings for retrieval (768-dim)"
@@ -773,7 +773,7 @@ models:
       tokens: 512
 
   gte-small:
-    enabled: true  # Fixed in Core v7.0.0-beta (PR #76) - auto-generates attention_mask/token_type_ids
+    enabled: true  # Fixed in Core v7.0.0 (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/thenlper/gte-small@latest"
     description: "GTE Small - General Text Embeddings (384-dim)"
@@ -786,7 +786,7 @@ models:
       tokens: 512
 
   gte-base:
-    enabled: true  # Fixed in Core v7.0.0-beta (PR #76) - auto-generates attention_mask/token_type_ids
+    enabled: true  # Fixed in Core v7.0.0 (PR #76) - auto-generates attention_mask/token_type_ids
     category: nlp
     axon_id: "hf/thenlper/gte-base@latest"
     description: "GTE Base - General Text Embeddings (768-dim)"
