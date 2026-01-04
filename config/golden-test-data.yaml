@@ -142,6 +142,147 @@ models:
           min_output_size: 100000
           notes: "Sentence transformer returns hidden states (large output)"
 
+  # ---------------------------------------------------------------------------
+  # DistilRoBERTa - Distilled RoBERTa variant
+  # ---------------------------------------------------------------------------
+  distilroberta:
+    description: "DistilRoBERTa - validates inference produces output"
+    test_cases:
+      - name: "status_success"
+        input:
+          text: "DistilRoBERTa is efficient."
+          max_length: 12
+        expected:
+          validation_type: "status_success"
+          min_output_size: 100000
+          notes: "DistilRoBERTa output_size validation"
+
+  # ---------------------------------------------------------------------------
+  # SqueezeBERT - Mobile-optimized BERT
+  # ---------------------------------------------------------------------------
+  squeezebert:
+    description: "SqueezeBERT - mobile-optimized BERT variant"
+    test_cases:
+      - name: "status_success"
+        input:
+          text: "SqueezeBERT is optimized for mobile."
+          max_length: 12
+        expected:
+          validation_type: "status_success"
+          min_output_size: 100000
+          notes: "SqueezeBERT output_size validation"
+
+  # ---------------------------------------------------------------------------
+  # MiniLM - Compact Model with Deep Self-Attention Distillation
+  # ---------------------------------------------------------------------------
+  minilm:
+    description: "MiniLM - compact distilled model"
+    test_cases:
+      - name: "status_success"
+        input:
+          text: "MiniLM uses deep self-attention distillation."
+          max_length: 12
+        expected:
+          validation_type: "status_success"
+          min_output_size: 100000
+          notes: "MiniLM output_size validation"
+
+  # ---------------------------------------------------------------------------
+  # BART - Denoising Autoencoder for Pretraining
+  # ---------------------------------------------------------------------------
+  bart-base:
+    description: "BART base - denoising autoencoder model"
+    test_cases:
+      - name: "status_success"
+        input:
+          text: "BART is a denoising autoencoder."
+          max_length: 12
+        expected:
+          validation_type: "status_success"
+          min_output_size: 100000
+          notes: "BART output_size validation"
+
+  # ---------------------------------------------------------------------------
+  # BGE Embedding Models - BAAI General Embeddings
+  # ---------------------------------------------------------------------------
+  bge-small:
+    description: "BGE Small - BAAI General Embedding (384-dim)"
+    test_cases:
+      - name: "status_success"
+        input:
+          text: "BGE embeddings for semantic search."
+          max_length: 128
+        expected:
+          validation_type: "status_success"
+          min_output_size: 50000
+          notes: "BGE-small produces 384-dim embeddings"
+
+  bge-base:
+    description: "BGE Base - BAAI General Embedding (768-dim)"
+    test_cases:
+      - name: "status_success"
+        input:
+          text: "BGE embeddings for semantic search."
+          max_length: 128
+        expected:
+          validation_type: "status_success"
+          min_output_size: 100000
+          notes: "BGE-base produces 768-dim embeddings"
+
+  # ---------------------------------------------------------------------------
+  # E5 Embedding Models - Microsoft E5
+  # ---------------------------------------------------------------------------
+  e5-small:
+    description: "E5 Small - Microsoft text embeddings (384-dim)"
+    test_cases:
+      - name: "status_success"
+        input:
+          text: "E5 embeddings for retrieval."
+          max_length: 128
+        expected:
+          validation_type: "status_success"
+          min_output_size: 50000
+          notes: "E5-small produces 384-dim embeddings"
+
+  e5-base:
+    description: "E5 Base - Microsoft text embeddings (768-dim)"
+    test_cases:
+      - name: "status_success"
+        input:
+          text: "E5 embeddings for retrieval."
+          max_length: 128
+        expected:
+          validation_type: "status_success"
+          min_output_size: 100000
+          notes: "E5-base produces 768-dim embeddings"
+
+  # ---------------------------------------------------------------------------
+  # GTE Embedding Models - Alibaba GTE
+  # ---------------------------------------------------------------------------
+  gte-small:
+    description: "GTE Small - Alibaba text embeddings (384-dim)"
+    test_cases:
+      - name: "status_success"
+        input:
+          text: "GTE embeddings for semantic matching."
+          max_length: 128
+        expected:
+          validation_type: "status_success"
+          min_output_size: 50000
+          notes: "GTE-small produces 384-dim embeddings"
+
+  gte-base:
+    description: "GTE Base - Alibaba text embeddings (768-dim)"
+    test_cases:
+      - name: "status_success"
+        input:
+          text: "GTE embeddings for semantic matching."
+          max_length: 128
+        expected:
+          validation_type: "status_success"
+          min_output_size: 100000
+          notes: "GTE-base produces 768-dim embeddings"
+
 # ===============================================================================
 # VISION MODELS - Image Classification
 # ===============================================================================
@@ -397,6 +538,74 @@ models:
       #     expected_label: "analog clock"
       #     alternative_classes: [410, 530, 892]
       #     notes: "Validates EfficientNet correctly classifies analog clock image"
+
+  # ---------------------------------------------------------------------------
+  # RegNet - Designing Network Design Spaces
+  # ---------------------------------------------------------------------------
+  regnet:
+    description: "RegNet - modern CNN architecture"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          image_size: 224
+          channels: 3
+          seed: 42
+        expected:
+          validation_type: "output_shape"
+          output_name: "output"
+          # ImageNet: 1000 classes
+          expected_shape: [1000]
+
+  # ---------------------------------------------------------------------------
+  # BEiT - BERT Pre-Training of Image Transformers
+  # ---------------------------------------------------------------------------
+  beit:
+    description: "BEiT - BERT-style vision transformer"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          image_size: 224
+          channels: 3
+          seed: 42
+        expected:
+          validation_type: "output_shape"
+          output_name: "output"
+          # ImageNet: 1000 classes
+          expected_shape: [1000]
+
+  # ---------------------------------------------------------------------------
+  # PoolFormer - MetaFormer Baseline with Pooling
+  # ---------------------------------------------------------------------------
+  poolformer:
+    description: "PoolFormer - MetaFormer with pooling instead of attention"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          image_size: 224
+          channels: 3
+          seed: 42
+        expected:
+          validation_type: "output_shape"
+          output_name: "output"
+          # ImageNet: 1000 classes
+          expected_shape: [1000]
+
+  # ---------------------------------------------------------------------------
+  # ConvNeXt Small - Larger ConvNeXt variant
+  # ---------------------------------------------------------------------------
+  convnext-small:
+    description: "ConvNeXt Small - larger ConvNeXt variant"
+    test_cases:
+      - name: "output_shape_validation"
+        input:
+          image_size: 224
+          channels: 3
+          seed: 42
+        expected:
+          validation_type: "output_shape"
+          output_name: "output"
+          # ImageNet: 1000 classes
+          expected_shape: [1000]
 
 # ===============================================================================
 # MULTIMODAL MODELS
