@@ -15,7 +15,7 @@ on:
       core_version:
         description: 'Core version to test'
         required: false
-        default: '7.0.0-beta'
+        default: '7.0.0'
       kernel_mode:
         description: 'Kernel module mode'
         required: true
