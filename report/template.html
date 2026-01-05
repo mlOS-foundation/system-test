@@ -5,161 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MLOS Release E2E Validation Report</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <h1>MLOS Release E2E Validation Report</h1>
-            <p>Comprehensive testing of Axon and MLOS Core releases</p>
+            <h1>MLOS E2E Validation Report</h1>
+            <p>Axon {{AXON_VERSION}} + MLOS Core {{CORE_VERSION}}</p>
         </header>
 
-        <!-- Summary Cards -->
+        <!-- Hero Summary Cards - Key Metrics Only -->
         <div class="summary-grid">
             <div class="summary-card">
-                <h3>Overall Status</h3>
+                <h3>Success Rate</h3>
                 <div class="big-number">{{OVERALL_SUCCESS_RATE}}%</div>
             </div>
             <div class="summary-card">
-                <h3>Total Duration</h3>
-                <div class="big-number">{{TOTAL_DURATION}}s</div>
+                <h3>Models Tested</h3>
+                <div class="big-number">{{MODELS_TESTED}}</div>
             </div>
             <div class="summary-card">
                 <h3>Inferences</h3>
                 <div class="big-number">{{TOTAL_INFERENCES}}</div>
             </div>
             <div class="summary-card">
-                <h3>Models Tested</h3>
-                <div class="big-number">{{MODELS_TESTED}}</div>
+                <h3>Total Time</h3>
+                <div class="big-number">{{TOTAL_DURATION}}s</div>
             </div>
+        </div>
+
+        <!-- Quick Navigation -->
+        <div style="display: flex; justify-content: center; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;">
+            <a href="test-details.html" class="config-link">📋 Test Details</a>
+            <a href="models.html" class="config-link">📦 All Models</a>
         </div>
 
         <!-- Main Content Grid -->
         <div class="content-grid">
-            <!-- Release Versions -->
+            <!-- Model Support by Category - Primary Focus -->
             <div class="section">
-                <h2>Release Versions</h2>
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <h4>Axon Version</h4>
-                        <div class="metric-value">{{AXON_VERSION}}</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>MLOS Core Version</h4>
-                        <div class="metric-value">{{CORE_VERSION}}</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>Runtime Mode</h4>
-                        <div class="metric-value">{{KERNEL_MODE_DISPLAY}}</div>
-                        <div class="metric-detail">Kernel Module: {{KERNEL_MODULE_LOADED}}</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Hardware Specifications -->
-            <div class="section">
-                <h2>Hardware Specifications</h2>
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <h4>Operating System</h4>
-                        <div class="metric-value">{{OS_NAME}} {{OS_VERSION}}</div>
-                        <div class="metric-detail">Architecture: {{ARCH}}</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>CPU</h4>
-                        <div class="metric-value">{{CPU_MODEL}}</div>
-                        <div class="metric-detail">Cores: {{CPU_CORES}} | Threads: {{CPU_THREADS}}</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>Memory</h4>
-                        <div class="metric-value">{{MEMORY_GB}} GB</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>GPU</h4>
-                        <div class="metric-value">{{GPU_NAME}}</div>
-                        <div class="metric-detail">Count: {{GPU_COUNT}} | Memory: {{GPU_MEMORY}}</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>Disk</h4>
-                        <div class="metric-value">{{DISK_TOTAL}}</div>
-                        <div class="metric-detail">Available: {{DISK_AVAILABLE}}</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Resource Usage -->
-            <div class="section">
-                <h2>Resource Usage</h2>
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <h4>MLOS Core (Idle)</h4>
-                        <div class="metric-value">CPU: {{CORE_IDLE_CPU}}% | Memory: {{CORE_IDLE_MEM}} MB</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>MLOS Core (Under Load)</h4>
-                        <div class="metric-value">CPU: {{CORE_LOAD_CPU_AVG}}% (max: {{CORE_LOAD_CPU_MAX}}%)</div>
-                        <div class="metric-detail">Memory: {{CORE_LOAD_MEM_AVG}} MB (max: {{CORE_LOAD_MEM_MAX}} MB)</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>Axon</h4>
-                        <div class="metric-value">CPU: {{AXON_CPU}}% | Memory: {{AXON_MEM}} MB</div>
-                    </div>
-                </div>
-                <div class="info-box">
-                    <h4>Resource Type</h4>
-                    <p><strong>CPU:</strong> Used for model inference execution, ONNX Runtime operations, and HTTP request handling.</p>
-                    <p><strong>Memory:</strong> Used for model loading, input/output tensor buffers, and ONNX Runtime workspace.</p>
-                    <p><strong>GPU:</strong> {{GPU_STATUS}}</p>
-                </div>
-            </div>
-
-            <!-- Installation & Setup Times -->
-            <div class="section">
-                <h2>Installation &amp; Setup Times</h2>
-                <div class="chart-container">
-                    <canvas id="installationChart"></canvas>
-                </div>
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <h4>Axon Download Time</h4>
-                        <div class="metric-value">{{AXON_DOWNLOAD_TIME}}</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>Core Download Time</h4>
-                        <div class="metric-value">{{CORE_DOWNLOAD_TIME}}</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>Core Startup Time</h4>
-                        <div class="metric-value">{{CORE_STARTUP_TIME}}</div>
-                    </div>
-                    <div class="metric-card">
-                        <h4>Total Model Install Time</h4>
-                        <div class="metric-value">{{TOTAL_MODEL_INSTALL_TIME}}</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Inference Performance -->
-            <div class="section">
-                <h2>Inference Performance</h2>
-                <div class="chart-container">
-                    <canvas id="inferenceChart"></canvas>
-                </div>
-                <div class="metrics-grid" id="inferenceMetricsGrid">
-                    {{INFERENCE_METRICS_HTML}}
-                </div>
-            </div>
-
-            <!-- Model Support by Category -->
-            <div class="section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h2 style="margin: 0;">Model Support by Category</h2>
-                    <div style="display: flex; gap: 1rem;">
-                        <a href="test-details.html" class="config-link">Test Details →</a>
-                        <a href="models.html" class="config-link">View Full Config →</a>
-                    </div>
-                </div>
+                <h2>Model Validation Results</h2>
                 <div class="category-grid">
                     <!-- NLP Models Card -->
                     <div class="category-card nlp">
@@ -174,7 +63,7 @@
                             <strong>Status:</strong> <span class="status-badge {{NLP_STATUS_CLASS}}">{{NLP_STATUS}}</span>
                         </div>
                     </div>
-                    
+
                     <!-- Vision Models Card -->
                     <div class="category-card vision">
                         <h3>Vision Models</h3>
@@ -190,13 +79,13 @@
                             <strong>Status:</strong> <span class="status-badge {{VISION_STATUS_CLASS}}">{{VISION_STATUS}}</span>
                         </div>
                     </div>
-                    
+
                     <!-- Multi-Modal Card -->
                     <div class="category-card multimodal">
                         <h3>Multi-Modal</h3>
                         <ul>
                             <li><span class="status-badge {{CLIP_STATUS_CLASS}}">{{CLIP_STATUS}}</span> CLIP</li>
-                            <li><span class="status-badge {{WAV2VEC2_STATUS_CLASS}}">{{WAV2VEC2_STATUS}}</span> Wav2Vec2 <small>(audio)</small></li>
+                            <li><span class="status-badge {{WAV2VEC2_STATUS_CLASS}}">{{WAV2VEC2_STATUS}}</span> Wav2Vec2</li>
                         </ul>
                         <div class="category-status">
                             <strong>Status:</strong> <span class="status-badge {{MULTIMODAL_STATUS_CLASS}}">{{MULTIMODAL_STATUS}}</span>
@@ -205,122 +94,284 @@
                 </div>
             </div>
 
-            <!-- Model Details -->
+            <!-- Inference Performance Chart -->
             <div class="section">
-                <h2>Model Details</h2>
-                {{MODEL_DETAILS_HTML}}
+                <h2>Inference Performance</h2>
+                <div class="chart-container">
+                    <canvas id="inferenceChart"></canvas>
+                </div>
             </div>
 
-            <!-- Kernel Module Performance Section -->
+            <!-- Kernel Module Performance Section (if applicable) -->
             {{KERNEL_SECTION_HTML}}
 
-            <!-- Historical Statistics Section (populated if data available) -->
+            <!-- Collapsible: Environment Details -->
+            <div class="section" id="environment-section">
+                <h2 class="section-toggle" onclick="toggleSection('environment-section')">
+                    <span>Environment Details</span>
+                </h2>
+                <div class="section-content">
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <h4>Operating System</h4>
+                            <div class="metric-value">{{OS_NAME}} {{OS_VERSION}}</div>
+                            <div class="metric-detail">{{ARCH}}</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>CPU</h4>
+                            <div class="metric-value">{{CPU_MODEL}}</div>
+                            <div class="metric-detail">{{CPU_CORES}} cores / {{CPU_THREADS}} threads</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>Memory</h4>
+                            <div class="metric-value">{{MEMORY_GB}} GB</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>GPU</h4>
+                            <div class="metric-value">{{GPU_NAME}}</div>
+                            <div class="metric-detail">{{GPU_COUNT}} GPU(s) • {{GPU_MEMORY}}</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>Runtime Mode</h4>
+                            <div class="metric-value">{{KERNEL_MODE_DISPLAY}}</div>
+                            <div class="metric-detail">Kernel: {{KERNEL_MODULE_LOADED}}</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>Disk</h4>
+                            <div class="metric-value">{{DISK_TOTAL}}</div>
+                            <div class="metric-detail">Available: {{DISK_AVAILABLE}}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Collapsible: Resource Usage -->
+            <div class="section" id="resource-section">
+                <h2 class="section-toggle" onclick="toggleSection('resource-section')">
+                    <span>Resource Usage</span>
+                </h2>
+                <div class="section-content">
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <h4>MLOS Core (Idle)</h4>
+                            <div class="metric-value">CPU: {{CORE_IDLE_CPU}}%</div>
+                            <div class="metric-detail">Memory: {{CORE_IDLE_MEM}} MB</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>MLOS Core (Load)</h4>
+                            <div class="metric-value">CPU: {{CORE_LOAD_CPU_AVG}}% avg</div>
+                            <div class="metric-detail">Peak: {{CORE_LOAD_CPU_MAX}}% • Mem: {{CORE_LOAD_MEM_AVG}} MB</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>Axon</h4>
+                            <div class="metric-value">CPU: {{AXON_CPU}}%</div>
+                            <div class="metric-detail">Memory: {{AXON_MEM}} MB</div>
+                        </div>
+                    </div>
+                    <div class="info-box">
+                        <h4>GPU Status</h4>
+                        <p>{{GPU_STATUS}}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Collapsible: Installation Times -->
+            <div class="section" id="install-section">
+                <h2 class="section-toggle" onclick="toggleSection('install-section')">
+                    <span>Installation & Setup</span>
+                </h2>
+                <div class="section-content">
+                    <div class="chart-container">
+                        <canvas id="installationChart"></canvas>
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <h4>Axon Download</h4>
+                            <div class="metric-value">{{AXON_DOWNLOAD_TIME}}</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>Core Download</h4>
+                            <div class="metric-value">{{CORE_DOWNLOAD_TIME}}</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>Core Startup</h4>
+                            <div class="metric-value">{{CORE_STARTUP_TIME}}</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>Model Install</h4>
+                            <div class="metric-value">{{TOTAL_MODEL_INSTALL_TIME}}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Collapsible: Model Details -->
+            <div class="section" id="details-section">
+                <h2 class="section-toggle" onclick="toggleSection('details-section')">
+                    <span>Detailed Model Metrics</span>
+                </h2>
+                <div class="section-content">
+                    <div class="metrics-grid" id="inferenceMetricsGrid">
+                        {{INFERENCE_METRICS_HTML}}
+                    </div>
+                    {{MODEL_DETAILS_HTML}}
+                </div>
+            </div>
+
+            <!-- Historical Statistics Section (if data available) -->
             {{STATISTICS_SECTION}}
 
-            <!-- Performance Breakdown -->
-            <div class="section">
-                <h2>Performance Breakdown</h2>
-                <div class="chart-container">
-                    <canvas id="breakdownChart"></canvas>
-                </div>
-                <div class="callout-box">
-                    <h4>Model Installation (not shown in chart)</h4>
-                    <div class="big-number">{{MODEL_INSTALL_TIME_CALLOUT}}</div>
-                    <p>Model installation includes downloading from HuggingFace and ONNX conversion via Docker. This dominates the total time (~99%) so it's shown separately.</p>
+            <!-- Collapsible: Performance Breakdown -->
+            <div class="section" id="breakdown-section">
+                <h2 class="section-toggle" onclick="toggleSection('breakdown-section')">
+                    <span>Time Distribution</span>
+                </h2>
+                <div class="section-content">
+                    <div class="chart-container">
+                        <canvas id="breakdownChart"></canvas>
+                    </div>
+                    <div class="callout-box">
+                        <h4>Model Installation Time</h4>
+                        <div class="big-number">{{MODEL_INSTALL_TIME_CALLOUT}}</div>
+                        <p>Includes HuggingFace download + ONNX conversion (~99% of total)</p>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Footer -->
         <footer class="footer">
-            <p><strong>MLOS Foundation</strong> - Signal. Propagate. Myelinate.</p>
+            <p><strong>MLOS Foundation</strong></p>
             <p>Generated: {{TIMESTAMP}}</p>
-            <p>Test Directory: {{TEST_DIR}}</p>
         </footer>
     </div>
+
+    <!-- Section Toggle Script -->
+    <script>
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            section.classList.toggle('collapsed');
+        }
+
+        // Collapse detail sections by default on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const detailSections = ['environment-section', 'resource-section', 'install-section', 'details-section', 'breakdown-section'];
+            detailSections.forEach(id => {
+                const section = document.getElementById(id);
+                if (section) {
+                    section.classList.add('collapsed');
+                }
+            });
+        });
+    </script>
 
     <!-- Chart.js Configuration -->
     <script>
         // Installation Chart (Bar with log scale)
-        const installationCtx = document.getElementById('installationChart').getContext('2d');
-        new Chart(installationCtx, {
-            type: 'bar',
-            data: {
-                labels: {{INSTALL_CHART_LABELS}},
-                datasets: [{
-                    label: 'Time (ms)',
-                    data: {{INSTALL_CHART_DATA}},
-                    backgroundColor: {{INSTALL_CHART_COLORS}},
-                    borderRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        type: 'logarithmic',
-                        beginAtZero: false,
-                        title: { display: true, text: 'Time (ms) - Log Scale' }
-                    }
+        const installationCtx = document.getElementById('installationChart');
+        if (installationCtx) {
+            new Chart(installationCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: {{INSTALL_CHART_LABELS}},
+                    datasets: [{
+                        label: 'Time (ms)',
+                        data: {{INSTALL_CHART_DATA}},
+                        backgroundColor: {{INSTALL_CHART_COLORS}},
+                        borderRadius: 6
+                    }]
                 },
-                plugins: {
-                    legend: { display: false }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'logarithmic',
+                            beginAtZero: false,
+                            title: { display: true, text: 'Time (ms) - Log Scale', color: '#a1a1aa' },
+                            grid: { color: '#27272a' },
+                            ticks: { color: '#a1a1aa' }
+                        },
+                        x: {
+                            grid: { color: '#27272a' },
+                            ticks: { color: '#a1a1aa' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
                 }
-            }
-        });
+            });
+        }
 
         // Inference Chart (Bar)
-        const inferenceCtx = document.getElementById('inferenceChart').getContext('2d');
-        new Chart(inferenceCtx, {
-            type: 'bar',
-            data: {
-                labels: {{INFERENCE_CHART_LABELS}},
-                datasets: [{
-                    label: 'Inference Time (ms)',
-                    data: {{INFERENCE_CHART_DATA}},
-                    backgroundColor: {{INFERENCE_CHART_COLORS}},
-                    borderRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: { display: true, text: 'Time (ms)' }
-                    }
+        const inferenceCtx = document.getElementById('inferenceChart');
+        if (inferenceCtx) {
+            new Chart(inferenceCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: {{INFERENCE_CHART_LABELS}},
+                    datasets: [{
+                        label: 'Inference Time (ms)',
+                        data: {{INFERENCE_CHART_DATA}},
+                        backgroundColor: {{INFERENCE_CHART_COLORS}},
+                        borderRadius: 6
+                    }]
                 },
-                plugins: {
-                    legend: { display: false }
-                }
-            }
-        });
-
-        // Breakdown Chart (Pie/Doughnut)
-        const breakdownCtx = document.getElementById('breakdownChart').getContext('2d');
-        new Chart(breakdownCtx, {
-            type: 'doughnut',
-            data: {
-                labels: {{BREAKDOWN_CHART_LABELS}},
-                datasets: [{
-                    data: {{BREAKDOWN_CHART_DATA}},
-                    backgroundColor: {{BREAKDOWN_CHART_COLORS}}
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Quick Operations Time Distribution'
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Time (ms)', color: '#a1a1aa' },
+                            grid: { color: '#27272a' },
+                            ticks: { color: '#a1a1aa' }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#e4e4e7' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
                     }
                 }
-            }
-        });
+            });
+        }
+
+        // Breakdown Chart (Doughnut)
+        const breakdownCtx = document.getElementById('breakdownChart');
+        if (breakdownCtx) {
+            new Chart(breakdownCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: {{BREAKDOWN_CHART_LABELS}},
+                    datasets: [{
+                        data: {{BREAKDOWN_CHART_DATA}},
+                        backgroundColor: {{BREAKDOWN_CHART_COLORS}},
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#a1a1aa', padding: 16 }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Quick Operations Distribution',
+                            color: '#e4e4e7'
+                        }
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html>
-
