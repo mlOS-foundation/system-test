@@ -34,14 +34,14 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
-    font-size: 16px;
+    font-size: 18px;
 }
 
-/* Responsive Container */
+/* Responsive Container - Use full width */
 .container {
-    max-width: min(95vw, 1800px);
+    max-width: 98vw;
     margin: 0 auto;
-    padding: clamp(20px, 4vw, 60px) clamp(16px, 3vw, 40px);
+    padding: clamp(20px, 3vw, 40px) clamp(20px, 2vw, 40px);
 }
 
 /* Header - Compact & Impactful */
@@ -138,7 +138,7 @@ body {
 }
 
 .section h2 {
-    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    font-size: clamp(1.4rem, 2.5vw, 1.8rem);
     margin-bottom: clamp(16px, 2vw, 24px);
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border-color);
@@ -197,7 +197,7 @@ body {
 }
 
 .metric-card h4 {
-    font-size: clamp(0.7rem, 1vw, 0.8rem);
+    font-size: clamp(0.85rem, 1.2vw, 1rem);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-muted);
@@ -205,14 +205,14 @@ body {
 }
 
 .metric-value {
-    font-size: clamp(1rem, 1.5vw, 1.2rem);
+    font-size: clamp(1.2rem, 1.8vw, 1.5rem);
     font-weight: 600;
     color: var(--text-primary);
     word-break: break-word;
 }
 
 .metric-detail {
-    font-size: clamp(0.75rem, 1vw, 0.85rem);
+    font-size: clamp(0.9rem, 1.2vw, 1rem);
     color: var(--text-secondary);
     margin-top: 4px;
 }
@@ -433,7 +433,7 @@ body {
     color: #a0aec0;
 }
 
-/* Comparison Table - Responsive */
+/* Comparison Table - Large & Readable */
 .comparison-table {
     width: 100%;
     border-collapse: collapse;
@@ -441,24 +441,24 @@ body {
     background: var(--bg-card);
     border-radius: 8px;
     overflow: hidden;
-    font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+    font-size: 1.1rem;
 }
 
 .comparison-table th {
     background: linear-gradient(135deg, #0f3460, #16213e);
     color: var(--kernel-accent);
-    padding: clamp(12px, 2vw, 18px) clamp(14px, 2vw, 22px);
+    padding: 16px 20px;
     text-align: left;
     font-weight: 600;
-    font-size: clamp(0.9rem, 1.6vw, 1rem);
+    font-size: 1rem;
     border-bottom: 2px solid var(--kernel-accent);
     white-space: nowrap;
 }
 
 .comparison-table td {
-    padding: clamp(12px, 2vw, 16px) clamp(14px, 2vw, 22px);
+    padding: 14px 20px;
     border-bottom: 1px solid var(--border-color);
-    font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+    font-size: 1.1rem;
 }
 
 .comparison-table tr:hover {
@@ -505,13 +505,13 @@ body {
 }
 
 .quick-stat-content h4 {
-    font-size: 0.75rem;
+    font-size: 1rem;
     color: var(--text-muted);
     text-transform: uppercase;
 }
 
 .quick-stat-content .value {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     font-weight: 600;
     color: var(--text-primary);
 }
@@ -616,7 +616,7 @@ body {
 /* Desktop (1200px+) */
 @media (min-width: 1200px) {
     body {
-        font-size: 17px;
+        font-size: 18px;
     }
 
     .metrics-grid {
@@ -628,28 +628,28 @@ body {
     }
 
     .comparison-table {
-        font-size: 1rem;
+        font-size: 1.15rem;
     }
 
     .comparison-table th {
-        padding: 16px 20px;
-        font-size: 0.95rem;
+        padding: 18px 24px;
+        font-size: 1.05rem;
     }
 
     .comparison-table td {
-        padding: 14px 20px;
-        font-size: 1rem;
+        padding: 16px 24px;
+        font-size: 1.15rem;
     }
 }
 
 /* Large Desktop (1600px+) */
 @media (min-width: 1600px) {
     body {
-        font-size: 18px;
+        font-size: 20px;
     }
 
     .container {
-        max-width: 1800px;
+        max-width: 98vw;
     }
 
     .chart-container {
@@ -665,24 +665,28 @@ body {
     }
 
     .comparison-table {
-        font-size: 1.05rem;
+        font-size: 1.2rem;
     }
 
     .comparison-table th {
-        padding: 18px 24px;
-        font-size: 1rem;
+        padding: 20px 28px;
+        font-size: 1.1rem;
     }
 
     .comparison-table td {
-        padding: 16px 24px;
-        font-size: 1.05rem;
+        padding: 18px 28px;
+        font-size: 1.2rem;
     }
 }
 
 /* Ultra-wide (2560px+) */
 @media (min-width: 2560px) {
+    body {
+        font-size: 22px;
+    }
+
     .container {
-        max-width: 2200px;
+        max-width: 98vw;
     }
 
     .chart-container {
@@ -691,6 +695,20 @@ body {
 
     .category-grid {
         grid-template-columns: repeat(4, 1fr);
+    }
+
+    .comparison-table {
+        font-size: 1.3rem;
+    }
+
+    .comparison-table th {
+        padding: 22px 32px;
+        font-size: 1.15rem;
+    }
+
+    .comparison-table td {
+        padding: 20px 32px;
+        font-size: 1.3rem;
     }
 }
 
