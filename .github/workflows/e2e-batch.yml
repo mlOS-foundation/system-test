@@ -23,6 +23,11 @@ on:
           - scheduler
           - full
         default: 'scheduler'
+      full_isolation:
+        description: 'Full isolation - reload kernel module between each model'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -50,6 +55,7 @@ jobs:
           # Trigger the workflow
           gh workflow run e2e-unified.yml \
             --field kernel_mode=${{ inputs.kernel_mode }} \
+            --field full_isolation=${{ inputs.full_isolation }} \
             --field track_history=true
 
           # Wait a moment for the run to be created
@@ -97,6 +103,7 @@ jobs:
 
           gh workflow run e2e-unified.yml \
             --field kernel_mode=${{ inputs.kernel_mode }} \
+            --field full_isolation=${{ inputs.full_isolation }} \
             --field track_history=true
 
           sleep 10
@@ -135,6 +142,7 @@ jobs:
 
           gh workflow run e2e-unified.yml \
             --field kernel_mode=${{ inputs.kernel_mode }} \
+            --field full_isolation=${{ inputs.full_isolation }} \
             --field track_history=true
 
           sleep 10
@@ -164,6 +172,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Runs Completed**: ${{ inputs.num_runs }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Kernel Mode**: ${{ inputs.kernel_mode }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Full Isolation**: ${{ inputs.full_isolation }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Report URL**: https://mlos-foundation.github.io/system-test/" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Check the report for variance analysis across runs." >> $GITHUB_STEP_SUMMARY

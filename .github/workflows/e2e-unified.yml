@@ -39,6 +39,11 @@ on:
         required: false
         type: boolean
         default: true
+      full_isolation:
+        description: 'Full isolation mode - reload kernel module between each model test'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -582,6 +587,35 @@ jobs:
           chmod +x scripts/test-single-model.sh
           export PATH="$HOME/.local/bin:$PATH"
 
+          # Store kernel module info for full isolation reloads
+          MODULE_PATH="${{ steps.kernel-check.outputs.module_path }}"
+          KERNEL_MODE="${{ github.event.inputs.kernel_mode || 'scheduler' }}"
+          FULL_ISOLATION="${{ github.event.inputs.full_isolation || 'true' }}"
+
+          # Compute kernel params
+          KERNEL_PARAMS="debug_level=2"
+          case "$KERNEL_MODE" in
+            basic)
+              KERNEL_PARAMS="$KERNEL_PARAMS enable_tmm=1 enable_scheduler=0 enable_gpu_manager=0"
+              ;;
+            scheduler)
+              KERNEL_PARAMS="$KERNEL_PARAMS enable_tmm=1 enable_scheduler=1 enable_gpu_manager=0"
+              ;;
+            full)
+              KERNEL_PARAMS="$KERNEL_PARAMS enable_tmm=1 enable_scheduler=1 enable_gpu_manager=1"
+              ;;
+          esac
+
+          # Store Core startup info for restarts
+          cd ~/mlos-core
+          CORE_BINARY=$(find . -name "mlos_core" -type f -executable | head -1)
+          BINARY_DIR=$(dirname "$CORE_BINARY")
+          LLAMA_LIB=""
+          [ -d "$BINARY_DIR/llama.cpp/lib" ] && LLAMA_LIB="$BINARY_DIR/llama.cpp/lib"
+          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
+          cd - > /dev/null
+
+          echo "Full Isolation Mode: $FULL_ISOLATION"
           echo "Testing models (KERNEL): $MODELS"
           TEST_START=$(date +%s%3N)
 
@@ -626,11 +660,47 @@ jobs:
             sync
 
             # 3. Drop kernel page cache to reset memory state
-            # For kernel mode, this ensures each model starts with clean slate
             echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
 
-            # 4. Brief stabilization delay
-            sleep 1
+            # 4. FULL ISOLATION: Reload kernel module to reset all internal state
+            if [ "$FULL_ISOLATION" = "true" ]; then
+              echo "Full isolation: Reloading kernel module..."
+
+              # Stop Core process
+              CORE_PID=$(cat /tmp/core-kernel.pid 2>/dev/null)
+              if [ -n "$CORE_PID" ]; then
+                kill "$CORE_PID" 2>/dev/null || true
+                sleep 1
+              fi
+
+              # Unload kernel module
+              sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
+              sleep 1
+
+              # Reload kernel module with same params
+              sudo insmod "$MODULE_PATH" $KERNEL_PARAMS
+              sleep 1
+
+              # Restart Core
+              cd ~/mlos-core
+              nohup $CORE_BINARY --http-port 8080 > /tmp/core-kernel.log 2>&1 &
+              echo $! > /tmp/core-kernel.pid
+              cd - > /dev/null
+
+              # Wait for Core to be ready
+              for i in {1..15}; do
+                if curl -s http://127.0.0.1:8080/health >/dev/null 2>&1; then
+                  echo "Core restarted successfully"
+                  break
+                fi
+                sleep 1
+              done
+
+              echo "Kernel module reloaded - fresh state for next model"
+            else
+              # Light cleanup only
+              sleep 1
+            fi
 
             echo "Memory after cleanup:"
             free -m | head -2
