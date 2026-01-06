@@ -302,11 +302,20 @@ jobs:
           MAX_MEM=0
           CORE_PID=$(cat /tmp/core-userspace.pid 2>/dev/null)
 
+          MODEL_COUNT=0
+          TOTAL_MODELS=$(echo "$MODELS" | wc -w)
+
           for model in $MODELS; do
             [ -z "$model" ] && continue
-            echo "----------------------------------------"
-            echo "Testing: $model (userspace)"
-            echo "----------------------------------------"
+            MODEL_COUNT=$((MODEL_COUNT + 1))
+            echo "========================================"
+            echo "Testing: $model (userspace) [$MODEL_COUNT/$TOTAL_MODELS]"
+            echo "========================================"
+
+            # Log memory state BEFORE test
+            echo "Memory before $model:"
+            free -m | head -2
+
             ./scripts/test-single-model.sh "$model" \
               --output-dir model-results-userspace \
               --core-url http://127.0.0.1:8080 \
@@ -321,7 +330,31 @@ jobs:
               MEM_INT=${MEM%.*}
               [ "${CPU_INT:-0}" -gt "${MAX_CPU:-0}" ] && MAX_CPU=$CPU_INT
               [ "${MEM_INT:-0}" -gt "${MAX_MEM:-0}" ] && MAX_MEM=$MEM_INT
+              echo "Core process: CPU=${CPU}%, Memory=${MEM}MB"
             fi
+
+            # ================================================================
+            # BETWEEN-MODEL CLEANUP: Isolate each model's performance
+            # This prevents memory state from previous models affecting results
+            # ================================================================
+            echo "--- Cleanup between models ---"
+
+            # 1. Clean temp inference files (not model caches - those are needed)
+            rm -rf /tmp/inference_* /tmp/warmup_* 2>/dev/null || true
+
+            # 2. Sync filesystem
+            sync
+
+            # 3. Drop kernel page cache to reset memory pressure
+            # This is critical for fair kernel vs userspace comparison
+            echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+
+            # 4. Brief stabilization delay
+            sleep 1
+
+            echo "Memory after cleanup:"
+            free -m | head -2
+            echo "----------------------------------------"
           done
 
           TEST_END=$(date +%s%3N)
@@ -538,16 +571,56 @@ jobs:
           echo "Testing models (KERNEL): $MODELS"
           TEST_START=$(date +%s%3N)
 
+          MODEL_COUNT=0
+          TOTAL_MODELS=$(echo "$MODELS" | wc -w)
+
           for model in $MODELS; do
             [ -z "$model" ] && continue
-            echo "----------------------------------------"
-            echo "Testing: $model (kernel mode)"
-            echo "----------------------------------------"
+            MODEL_COUNT=$((MODEL_COUNT + 1))
+            echo "========================================"
+            echo "Testing: $model (kernel mode) [$MODEL_COUNT/$TOTAL_MODELS]"
+            echo "========================================"
+
+            # Log memory state BEFORE test
+            echo "Memory before $model:"
+            free -m | head -2
+
             ./scripts/test-single-model.sh "$model" \
               --output-dir model-results-kernel \
               --core-url http://127.0.0.1:8080 \
               --golden-images \
               || echo "Warning: $model had issues"
+
+            # Log Core process memory usage (kernel mode may differ)
+            CORE_PID=$(cat /tmp/core-kernel.pid 2>/dev/null)
+            if [ -n "$CORE_PID" ] && ps -p "$CORE_PID" > /dev/null 2>&1; then
+              MEM=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | awk '{printf "%.0f", $1/1024}' || echo "0")
+              echo "Core process memory: ${MEM}MB"
+            fi
+
+            # ================================================================
+            # BETWEEN-MODEL CLEANUP: Isolate each model's performance
+            # This is CRITICAL for kernel tests to prevent tensor memory
+            # optimizations from one model affecting the next model's results
+            # ================================================================
+            echo "--- Cleanup between models ---"
+
+            # 1. Clean temp inference files
+            rm -rf /tmp/inference_* /tmp/warmup_* 2>/dev/null || true
+
+            # 2. Sync filesystem
+            sync
+
+            # 3. Drop kernel page cache to reset memory state
+            # For kernel mode, this ensures each model starts with clean slate
+            echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+
+            # 4. Brief stabilization delay
+            sleep 1
+
+            echo "Memory after cleanup:"
+            free -m | head -2
+            echo "----------------------------------------"
           done
 
           TEST_END=$(date +%s%3N)
