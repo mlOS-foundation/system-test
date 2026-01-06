@@ -1,0 +1,169 @@
+name: E2E Batch Run (Sequential Tests)
+
+# Orchestrates multiple E2E test runs in sequence
+# Each run is triggered via API and we wait for completion before the next
+
+on:
+  workflow_dispatch:
+    inputs:
+      num_runs:
+        description: 'Number of E2E runs to execute'
+        required: true
+        type: choice
+        options:
+          - '2'
+          - '3'
+        default: '2'
+      kernel_mode:
+        description: 'Kernel module mode'
+        required: true
+        type: choice
+        options:
+          - basic
+          - scheduler
+          - full
+        default: 'scheduler'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  actions: write
+
+jobs:
+  orchestrate:
+    name: "Orchestrate Batch Runs"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run E2E Test 1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "========================================"
+          echo "TRIGGERING E2E RUN 1 OF ${{ inputs.num_runs }}"
+          echo "========================================"
+
+          # Trigger the workflow
+          gh workflow run e2e-unified.yml \
+            --field kernel_mode=${{ inputs.kernel_mode }} \
+            --field track_history=true
+
+          # Wait a moment for the run to be created
+          sleep 10
+
+          # Get the run ID
+          RUN_ID=$(gh run list --workflow=e2e-unified.yml --limit=1 --json databaseId --jq '.[0].databaseId')
+          echo "Started run: $RUN_ID"
+
+          # Wait for completion (timeout 3 hours)
+          echo "Waiting for run $RUN_ID to complete..."
+          gh run watch $RUN_ID --exit-status || true
+
+          # Check final status
+          STATUS=$(gh run view $RUN_ID --json conclusion --jq '.conclusion')
+          echo "Run 1 completed with status: $STATUS"
+
+          if [ "$STATUS" != "success" ]; then
+            echo "::warning::Run 1 did not succeed (status: $STATUS)"
+          fi
+
+      - name: Render Report 1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "========================================"
+          echo "RENDERING REPORT 1"
+          echo "========================================"
+
+          gh workflow run render-report.yml \
+            --field metrics_workflow=e2e-unified.yml
+
+          sleep 5
+          RUN_ID=$(gh run list --workflow="Render E2E Report" --limit=1 --json databaseId --jq '.[0].databaseId')
+          echo "Render run: $RUN_ID"
+          gh run watch $RUN_ID --exit-status || true
+
+      - name: Run E2E Test 2
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "========================================"
+          echo "TRIGGERING E2E RUN 2 OF ${{ inputs.num_runs }}"
+          echo "========================================"
+
+          gh workflow run e2e-unified.yml \
+            --field kernel_mode=${{ inputs.kernel_mode }} \
+            --field track_history=true
+
+          sleep 10
+          RUN_ID=$(gh run list --workflow=e2e-unified.yml --limit=1 --json databaseId --jq '.[0].databaseId')
+          echo "Started run: $RUN_ID"
+
+          echo "Waiting for run $RUN_ID to complete..."
+          gh run watch $RUN_ID --exit-status || true
+
+          STATUS=$(gh run view $RUN_ID --json conclusion --jq '.conclusion')
+          echo "Run 2 completed with status: $STATUS"
+
+      - name: Render Report 2
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "========================================"
+          echo "RENDERING REPORT 2"
+          echo "========================================"
+
+          gh workflow run render-report.yml \
+            --field metrics_workflow=e2e-unified.yml
+
+          sleep 5
+          RUN_ID=$(gh run list --workflow="Render E2E Report" --limit=1 --json databaseId --jq '.[0].databaseId')
+          gh run watch $RUN_ID --exit-status || true
+
+      - name: Run E2E Test 3
+        if: ${{ inputs.num_runs == '3' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "========================================"
+          echo "TRIGGERING E2E RUN 3 OF 3"
+          echo "========================================"
+
+          gh workflow run e2e-unified.yml \
+            --field kernel_mode=${{ inputs.kernel_mode }} \
+            --field track_history=true
+
+          sleep 10
+          RUN_ID=$(gh run list --workflow=e2e-unified.yml --limit=1 --json databaseId --jq '.[0].databaseId')
+          echo "Started run: $RUN_ID"
+
+          gh run watch $RUN_ID --exit-status || true
+
+          STATUS=$(gh run view $RUN_ID --json conclusion --jq '.conclusion')
+          echo "Run 3 completed with status: $STATUS"
+
+      - name: Render Report 3
+        if: ${{ inputs.num_runs == '3' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run render-report.yml \
+            --field metrics_workflow=e2e-unified.yml
+
+          sleep 5
+          RUN_ID=$(gh run list --workflow="Render E2E Report" --limit=1 --json databaseId --jq '.[0].databaseId')
+          gh run watch $RUN_ID --exit-status || true
+
+      - name: Summary
+        run: |
+          echo "## E2E Batch Run Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Runs Completed**: ${{ inputs.num_runs }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Kernel Mode**: ${{ inputs.kernel_mode }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Report URL**: https://mlos-foundation.github.io/system-test/" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the report for variance analysis across runs." >> $GITHUB_STEP_SUMMARY
