@@ -374,40 +374,54 @@ jobs:
           sleep 2
           echo "Core (userspace) stopped"
 
-      - name: "Phase 1->2: Clean model cache for fresh kernel tests"
+      - name: "Phase 1->2: Prepare for kernel tests (keep model cache)"
         run: |
           echo "========================================"
-          echo "CLEANUP BETWEEN USERSPACE AND KERNEL TESTS"
+          echo "PREPARING FOR KERNEL TESTS"
           echo "========================================"
 
-          # 1. Clean model caches
-          echo "Cleaning model caches..."
-          rm -rf ~/.axon/cache/models 2>/dev/null || true
-          rm -rf ~/.axon/cache 2>/dev/null || true
-          rm -rf ~/mlos-core/models 2>/dev/null || true
-          rm -rf ~/.cache/huggingface/hub 2>/dev/null || true
+          # ================================================================
+          # OPTIMIZATION: Keep model cache between phases
+          # ================================================================
+          # Previously, we deleted all model caches here, forcing kernel tests
+          # to re-download every model (~45 min wasted).
+          #
+          # Now we KEEP the models and only reset:
+          # - Temp inference files (test artifacts)
+          # - Kernel page cache (memory state)
+          #
+          # This ensures kernel tests start with clean MEMORY state while
+          # avoiding redundant downloads. Models are identical between phases.
+          # ================================================================
 
-          # 2. Clean temp files from userspace tests
-          echo "Cleaning temp files..."
+          echo "📦 Keeping model cache to skip re-download (~45 min saved)"
+          echo "Model cache size:"
+          du -sh ~/.axon/cache/models 2>/dev/null || echo "  (no cache yet)"
+          du -sh ~/.cache/huggingface/hub 2>/dev/null || echo "  (no HF cache)"
+
+          # 1. Clean temp files from userspace tests (test artifacts only)
+          echo "🧹 Cleaning temp inference files..."
           rm -rf /tmp/inference_* /tmp/warmup_* /tmp/model_* 2>/dev/null || true
 
-          # 3. Sync filesystem to flush any pending writes
-          echo "Syncing filesystem..."
+          # 2. Sync filesystem to flush any pending writes
+          echo "💾 Syncing filesystem..."
           sync
 
-          # 4. Drop kernel caches (requires sudo) for consistent memory state
-          # This ensures kernel tests start with similar memory conditions as userspace
-          echo "Dropping kernel caches for consistent benchmark..."
+          # 3. Drop kernel page cache for consistent memory state
+          # This is the KEY step - ensures kernel tests start with same
+          # memory conditions as userspace tests had at start
+          echo "🧠 Dropping kernel page cache for fair comparison..."
           echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
 
-          # 5. Small delay to let system stabilize
+          # 4. Stabilization delay
           sleep 2
 
-          # 6. Show memory state
+          # 5. Show memory state (should be similar to pre-userspace)
           echo "Memory state before kernel tests:"
           free -m
 
-          echo "Phase cleanup complete"
+          echo ""
+          echo "✅ Ready for kernel tests (models cached, memory reset)"
 
       # ========================================================================
       # PHASE 2: KERNEL TESTS (With kernel module)
