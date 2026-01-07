@@ -871,6 +871,135 @@ class ReportRenderer:
             </div>
             '''
 
+        # Concurrent inference section (if available)
+        concurrent_html = ''
+        concurrent_tests = kernel_data.get('concurrent_tests', {})
+        if concurrent_tests.get('models_tested', 0) > 0:
+            concurrency = concurrent_tests.get('concurrency', 8)
+            ct_userspace = concurrent_tests.get('userspace_results', {})
+            ct_kernel = concurrent_tests.get('kernel_results', {})
+            ct_speedup_tput = concurrent_tests.get('speedup_throughput', {})
+            ct_speedup_p95 = concurrent_tests.get('speedup_p95_latency', {})
+            avg_tput_speedup = concurrent_tests.get('average_speedup_throughput', 0)
+            avg_p95_speedup = concurrent_tests.get('average_speedup_p95_latency', 0)
+
+            # Build concurrent test results table
+            ct_rows = []
+            for model_name in sorted(ct_speedup_tput.keys(), key=lambda m: -ct_speedup_tput.get(m, 0)):
+                k_data = ct_kernel.get(model_name, {})
+                u_data = ct_userspace.get(model_name, {})
+
+                k_tput = k_data.get('throughput_rps', 0)
+                u_tput = u_data.get('throughput_rps', 0)
+                k_p95 = k_data.get('latency_p95_ms', 0)
+                u_p95 = u_data.get('latency_p95_ms', 0)
+
+                tput_speedup = ct_speedup_tput.get(model_name, 0)
+                p95_speedup = ct_speedup_p95.get(model_name, 0)
+
+                # Speedup formatting
+                if tput_speedup > 1.0:
+                    tput_class = 'speedup-positive'
+                    tput_str = f'+{((tput_speedup - 1) * 100):.0f}%'
+                elif tput_speedup < 1.0 and tput_speedup > 0:
+                    tput_class = 'speedup-negative'
+                    tput_str = f'{((tput_speedup - 1) * 100):.0f}%'
+                else:
+                    tput_class = 'speedup-neutral'
+                    tput_str = 'N/A'
+
+                if p95_speedup > 1.0:
+                    p95_class = 'speedup-positive'
+                    p95_str = f'+{((p95_speedup - 1) * 100):.0f}%'
+                elif p95_speedup < 1.0 and p95_speedup > 0:
+                    p95_class = 'speedup-negative'
+                    p95_str = f'{((p95_speedup - 1) * 100):.0f}%'
+                else:
+                    p95_class = 'speedup-neutral'
+                    p95_str = 'N/A'
+
+                ct_rows.append(f'''
+                <tr>
+                    <td style="font-weight: 600;">{model_name.upper()}</td>
+                    <td>{k_tput:.1f}</td>
+                    <td>{u_tput:.1f}</td>
+                    <td class="{tput_class}" style="font-weight: 700;">{tput_str}</td>
+                    <td>{k_p95:.0f} ms</td>
+                    <td>{u_p95:.0f} ms</td>
+                    <td class="{p95_class}" style="font-weight: 700;">{p95_str}</td>
+                </tr>
+                ''')
+
+            # Summary cards for concurrent tests
+            concurrent_summary = f'''
+            <div class="metrics-grid" style="margin-bottom: 1rem;">
+                <div class="metric-card" style="border-left-color: #f59e0b;">
+                    <h4>Throughput Improvement</h4>
+                    <div class="metric-value" style="color: {'#22c55e' if avg_tput_speedup > 1.0 else '#ef4444'};">{avg_tput_speedup:.2f}x</div>
+                    <div class="metric-detail">{'Kernel faster' if avg_tput_speedup > 1.0 else 'Userspace faster'}</div>
+                </div>
+                <div class="metric-card" style="border-left-color: #f59e0b;">
+                    <h4>P95 Latency Improvement</h4>
+                    <div class="metric-value" style="color: {'#22c55e' if avg_p95_speedup > 1.0 else '#ef4444'};">{avg_p95_speedup:.2f}x</div>
+                    <div class="metric-detail">{'Lower latency' if avg_p95_speedup > 1.0 else 'Higher latency'}</div>
+                </div>
+                <div class="metric-card" style="border-left-color: #f59e0b;">
+                    <h4>Concurrency Level</h4>
+                    <div class="metric-value">{concurrency}</div>
+                    <div class="metric-detail">Parallel requests</div>
+                </div>
+                <div class="metric-card" style="border-left-color: #f59e0b;">
+                    <h4>Models Tested</h4>
+                    <div class="metric-value">{concurrent_tests.get('models_tested', 0)}</div>
+                    <div class="metric-detail">Representative models</div>
+                </div>
+            </div>
+            '''
+
+            concurrent_html = f'''
+            <div style="margin-top: 2rem; padding: 1.5rem; background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.05)); border-radius: 12px; border-left: 4px solid #f59e0b;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="margin: 0; color: #f59e0b;">Concurrent Inference Performance</h4>
+                    <span style="background: #f59e0b; color: #1a1a2e; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">SCHEDULER SHOWCASE</span>
+                </div>
+                <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;">
+                    Tests with {concurrency} parallel inference requests per model. This is where the kernel scheduler
+                    demonstrates its ability to efficiently manage concurrent workloads.
+                </p>
+                {concurrent_summary}
+                <div class="comparison-table-wrapper">
+                    <table class="comparison-table" style="width: 100%; font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th rowspan="2">Model</th>
+                                <th colspan="3" style="text-align: center; border-bottom: 1px solid var(--border-color);">Throughput (req/s)</th>
+                                <th colspan="3" style="text-align: center; border-bottom: 1px solid var(--border-color);">P95 Latency</th>
+                            </tr>
+                            <tr>
+                                <th>Kernel</th>
+                                <th>Userspace</th>
+                                <th>Speedup</th>
+                                <th>Kernel</th>
+                                <th>Userspace</th>
+                                <th>Improvement</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {''.join(ct_rows)}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: linear-gradient(90deg, #f59e0b, #f59e0b88); color: white;">
+                                <td colspan="3" style="text-align: right; font-weight: 600;">Avg Throughput:</td>
+                                <td style="font-weight: 700;">{avg_tput_speedup:.2f}x</td>
+                                <td colspan="2" style="text-align: right; font-weight: 600;">Avg P95:</td>
+                                <td style="font-weight: 700;">{avg_p95_speedup:.2f}x</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            '''
+
         # Kernel benefits callout
         benefits_html = '''
         <div class="info-box" style="margin-top: 1.5rem; background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(0,100,150,0.1)); border-left: 4px solid #00d4ff;">
@@ -909,6 +1038,7 @@ class ReportRenderer:
             </p>
             {hardware_html}
             {comparison_html}
+            {concurrent_html}
             {benefits_html}
             <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem;">
                 Kernel test timestamp: {test_timestamp}
