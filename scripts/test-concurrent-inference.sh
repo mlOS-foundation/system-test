@@ -106,13 +106,40 @@ echo "Iterations: $ITERATIONS"
 echo "Core URL: $CORE_URL"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+# Step 1: Install the model first (required before inference)
+echo "Installing model..."
+INSTALL_RESPONSE=$(curl -sf -X POST "$CORE_URL/models/install" \
+    -H "Content-Type: application/json" \
+    -d "{\"model_id\": \"$AXON_ID\"}" 2>&1) || true
+
+if [ -z "$INSTALL_RESPONSE" ]; then
+    echo "Warning: Could not install model via API, trying axon CLI..."
+    axon install "$AXON_ID" 2>&1 || echo "Install warning (may already be cached)"
+fi
+
+# Step 2: Wait for model to be ready
+echo "Waiting for model to be ready..."
+sleep 2
+
 # Verify model is available
 echo "Verifying model is registered..."
 if ! curl -sf "$CORE_URL/models/${ENCODED_MODEL_ID}" > /dev/null 2>&1; then
     echo "ERROR: Model not found. Please ensure model is installed and registered."
     exit 1
 fi
-echo "✓ Model available"
+echo "✓ Model registered"
+
+# Step 3: Warmup inference to ensure model is loaded
+echo "Running warmup inference..."
+WARMUP_RESPONSE=$(curl -sf -X POST "$CORE_URL/models/${ENCODED_MODEL_ID}/inference" \
+    -H "Content-Type: application/json" \
+    -d "$TEST_INPUT" 2>&1) || true
+
+if [ -z "$WARMUP_RESPONSE" ]; then
+    echo "Warning: Warmup inference failed, model may not be loaded"
+else
+    echo "✓ Warmup complete"
+fi
 
 # Results file
 RESULTS_FILE="$OUTPUT_DIR/${MODEL_NAME}-concurrent.json"
