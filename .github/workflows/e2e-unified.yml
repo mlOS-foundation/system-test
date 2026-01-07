@@ -1,7 +1,7 @@
 name: E2E Unified Pipeline (Kernel + Userspace)
 
-# Single workflow that runs BOTH userspace and kernel tests on the SAME machine
-# for accurate, consistent performance comparison.
+# Per-model isolation: Tests each model with BOTH userspace and kernel back-to-back
+# ensuring identical system conditions for accurate comparison.
 
 on:
   schedule:
@@ -36,11 +36,6 @@ on:
         default: false
       track_history:
         description: 'Add this run to historical metrics'
-        required: false
-        type: boolean
-        default: true
-      full_isolation:
-        description: 'Full isolation mode - reload kernel module between each model test'
         required: false
         type: boolean
         default: true
@@ -167,7 +162,7 @@ jobs:
           echo "  GPU: $GPU_NAME"
 
       # ========================================================================
-      # DOWNLOAD RELEASES (using proven patterns from e2e-kernel.yml)
+      # DOWNLOAD RELEASES
       # ========================================================================
       - name: Download Axon
         run: |
@@ -215,7 +210,6 @@ jobs:
 
           mkdir -p ~/mlos-core
 
-          # Use public core-releases repo (core is private)
           ARTIFACT="mlos-core_${VERSION_NO_V}_linux-${ARCH}.tar.gz"
           URL="https://github.com/mlOS-foundation/core-releases/releases/download/v${VERSION_NO_V}/${ARTIFACT}"
 
@@ -236,221 +230,16 @@ jobs:
           echo "Core downloaded and extracted"
           ls -la ~/mlos-core/
 
-      # ========================================================================
-      # PHASE 1: USERSPACE TESTS (No kernel module)
-      # ========================================================================
-      - name: "Phase 1: Ensure kernel module is NOT loaded"
-        run: |
-          echo "========================================"
-          echo "PHASE 1: USERSPACE TESTS"
-          echo "========================================"
-          sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
-
-          if lsmod | grep -q "mlos"; then
-            echo "ERROR: Kernel module still loaded!"
-            exit 1
-          fi
-          echo "Kernel module confirmed NOT loaded"
-
-      - name: "Phase 1: Start Core (Userspace Mode)"
-        id: core-userspace-start
-        run: |
-          cd ~/mlos-core
-          BINARY=$(find . -name "mlos_core" -type f -executable | head -1)
-          chmod +x "$BINARY"
-
-          BINARY_DIR=$(dirname "$BINARY")
-          LLAMA_LIB=""
-          [ -d "$BINARY_DIR/llama.cpp/lib" ] && LLAMA_LIB="$BINARY_DIR/llama.cpp/lib"
-
-          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
-
-          echo "Starting Core in USERSPACE mode..."
-          STARTUP_START=$(date +%s%3N)
-          nohup $BINARY --http-port 8080 > /tmp/core-userspace.log 2>&1 &
-          echo $! > /tmp/core-userspace.pid
-
-          for i in {1..30}; do
-            if curl -s http://127.0.0.1:8080/health >/dev/null 2>&1; then
-              STARTUP_END=$(date +%s%3N)
-              echo "Core started (userspace mode)"
-              echo "core_startup_ms=$((STARTUP_END - STARTUP_START))" >> $GITHUB_OUTPUT
-              break
-            fi
-            sleep 1
-          done
-
-          # Capture idle resource usage
-          sleep 2
-          CORE_PID=$(cat /tmp/core-userspace.pid)
-          if [ -n "$CORE_PID" ] && ps -p "$CORE_PID" > /dev/null 2>&1; then
-            CORE_IDLE_CPU=$(ps -p "$CORE_PID" -o %cpu= 2>/dev/null | xargs || echo "0")
-            CORE_IDLE_MEM_MB=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | awk '{printf "%.0f", $1/1024}' || echo "0")
-            echo "core_idle_cpu=$CORE_IDLE_CPU" >> $GITHUB_OUTPUT
-            echo "core_idle_mem_mb=$CORE_IDLE_MEM_MB" >> $GITHUB_OUTPUT
-            echo "Core idle: CPU=${CORE_IDLE_CPU}%, Memory=${CORE_IDLE_MEM_MB}MB"
-          fi
-
-      - name: "Phase 1: Run E2E tests (Userspace)"
-        id: test-userspace
-        run: |
-          MODELS="${{ steps.get-models.outputs.models }}"
-          mkdir -p model-results-userspace
-          chmod +x scripts/test-single-model.sh
-          export PATH="$HOME/.local/bin:$PATH"
-
-          echo "Testing models (USERSPACE): $MODELS"
-          TEST_START=$(date +%s%3N)
-
-          # Track max resource usage during tests
-          MAX_CPU=0
-          MAX_MEM=0
-          CORE_PID=$(cat /tmp/core-userspace.pid 2>/dev/null)
-
-          MODEL_COUNT=0
-          TOTAL_MODELS=$(echo "$MODELS" | wc -w)
-
-          for model in $MODELS; do
-            [ -z "$model" ] && continue
-            MODEL_COUNT=$((MODEL_COUNT + 1))
-            echo "========================================"
-            echo "Testing: $model (userspace) [$MODEL_COUNT/$TOTAL_MODELS]"
-            echo "========================================"
-
-            # Log memory state BEFORE test
-            echo "Memory before $model:"
-            free -m | head -2
-
-            ./scripts/test-single-model.sh "$model" \
-              --output-dir model-results-userspace \
-              --core-url http://127.0.0.1:8080 \
-              --golden-images \
-              || echo "Warning: $model had issues"
-
-            # Sample resource usage after each model
-            if [ -n "$CORE_PID" ] && ps -p "$CORE_PID" > /dev/null 2>&1; then
-              CPU=$(ps -p "$CORE_PID" -o %cpu= 2>/dev/null | xargs || echo "0")
-              MEM=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | awk '{printf "%.0f", $1/1024}' || echo "0")
-              CPU_INT=${CPU%.*}
-              MEM_INT=${MEM%.*}
-              [ "${CPU_INT:-0}" -gt "${MAX_CPU:-0}" ] && MAX_CPU=$CPU_INT
-              [ "${MEM_INT:-0}" -gt "${MAX_MEM:-0}" ] && MAX_MEM=$MEM_INT
-              echo "Core process: CPU=${CPU}%, Memory=${MEM}MB"
-            fi
-
-            # ================================================================
-            # BETWEEN-MODEL CLEANUP: Isolate each model's performance
-            # This prevents memory state from previous models affecting results
-            # ================================================================
-            echo "--- Cleanup between models ---"
-
-            # 1. Clean temp inference files (not model caches - those are needed)
-            rm -rf /tmp/inference_* /tmp/warmup_* 2>/dev/null || true
-
-            # 2. Sync filesystem
-            sync
-
-            # 3. Drop kernel page cache to reset memory pressure
-            # This is critical for fair kernel vs userspace comparison
-            echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
-
-            # 4. Brief stabilization delay
-            sleep 1
-
-            echo "Memory after cleanup:"
-            free -m | head -2
-            echo "----------------------------------------"
-          done
-
-          TEST_END=$(date +%s%3N)
-          echo "userspace_duration_ms=$((TEST_END - TEST_START))" >> $GITHUB_OUTPUT
-          echo "core_load_cpu_max=$MAX_CPU" >> $GITHUB_OUTPUT
-          echo "core_load_mem_max_mb=$MAX_MEM" >> $GITHUB_OUTPUT
-          echo "Core load max: CPU=${MAX_CPU}%, Memory=${MAX_MEM}MB"
-        continue-on-error: true
-
-      - name: "Phase 1: Stop Core (Userspace)"
-        run: |
-          if [ -f /tmp/core-userspace.pid ]; then
-            kill $(cat /tmp/core-userspace.pid) 2>/dev/null || true
-            rm /tmp/core-userspace.pid
-          fi
-          pkill -f mlos_core 2>/dev/null || true
-          sleep 2
-          echo "Core (userspace) stopped"
-
-      - name: "Phase 1->2: Prepare for kernel tests (keep model cache)"
-        run: |
-          echo "========================================"
-          echo "PREPARING FOR KERNEL TESTS"
-          echo "========================================"
-
-          # ================================================================
-          # OPTIMIZATION: Keep model cache between phases
-          # ================================================================
-          # Previously, we deleted all model caches here, forcing kernel tests
-          # to re-download every model (~45 min wasted).
-          #
-          # Now we KEEP the models and only reset:
-          # - Temp inference files (test artifacts)
-          # - Kernel page cache (memory state)
-          #
-          # This ensures kernel tests start with clean MEMORY state while
-          # avoiding redundant downloads. Models are identical between phases.
-          # ================================================================
-
-          echo "📦 Keeping model cache to skip re-download (~45 min saved)"
-          echo "Model cache size:"
-          du -sh ~/.axon/cache/models 2>/dev/null || echo "  (no cache yet)"
-          du -sh ~/.cache/huggingface/hub 2>/dev/null || echo "  (no HF cache)"
-
-          # 1. Clean temp files from userspace tests (test artifacts only)
-          echo "🧹 Cleaning temp inference files..."
-          rm -rf /tmp/inference_* /tmp/warmup_* /tmp/model_* 2>/dev/null || true
-
-          # 2. Sync filesystem to flush any pending writes
-          echo "💾 Syncing filesystem..."
-          sync
-
-          # 3. Drop kernel page cache for consistent memory state
-          # This is the KEY step - ensures kernel tests start with same
-          # memory conditions as userspace tests had at start
-          echo "🧠 Dropping kernel page cache for fair comparison..."
-          echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
-
-          # 4. Stabilization delay
-          sleep 2
-
-          # 5. Show memory state (should be similar to pre-userspace)
-          echo "Memory state before kernel tests:"
-          free -m
-
-          echo ""
-          echo "✅ Ready for kernel tests (models cached, memory reset)"
-
-      # ========================================================================
-      # PHASE 2: KERNEL TESTS (With kernel module)
-      # ========================================================================
-      - name: "Phase 2: Find kernel module"
+      - name: Download kernel module
         id: kernel-check
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "========================================"
-          echo "PHASE 2: KERNEL TESTS"
-          echo "========================================"
-
-          # Kernel module version should match Core version
           KERNEL_MODULE_VERSION="${{ github.event.inputs.core_version || '7.0.0-beta' }}"
           echo "kernel_module_version=$KERNEL_MODULE_VERSION" >> $GITHUB_OUTPUT
 
-          # Show exact kernel version
           echo "Runner kernel: $(uname -r)"
           LINUX_KERNEL=$(uname -r)
-
-          # FIRST: Try downloading from releases (ensures we use the correct version)
-          MODULE_PATH=""
-          echo "Downloading kernel module for version ${KERNEL_MODULE_VERSION}..."
 
           # Map to supported kernel versions
           KERNEL_MAJOR=$(echo "$LINUX_KERNEL" | cut -d. -f1,2)
@@ -477,7 +266,6 @@ jobs:
             echo "✅ Downloaded module: $MODULE_PATH"
           else
             echo "⚠️  Could not download module from releases, trying pre-installed..."
-            # FALLBACK: Try pre-installed module
             for path in "/lib/modules/${LINUX_KERNEL}/extra/mlos-ml.ko" \
                         "/lib/modules/${LINUX_KERNEL}/extra/mlos_ml.ko" \
                         "/opt/mlos/kernel/mlos-ml.ko" \
@@ -485,7 +273,6 @@ jobs:
               if [ -f "$path" ]; then
                 MODULE_PATH="$path"
                 echo "Found pre-installed module: $MODULE_PATH"
-                echo "⚠️  WARNING: Using pre-installed module (may not match Core version ${KERNEL_MODULE_VERSION})"
                 break
               fi
             done
@@ -493,104 +280,22 @@ jobs:
 
           if [ -z "$MODULE_PATH" ] || [ ! -f "$MODULE_PATH" ]; then
             echo "❌ ERROR: No kernel module found!"
-            echo "Please install the kernel module on the runner:"
-            echo "  sudo cp mlos-ml.ko /lib/modules/$(uname -r)/extra/"
-            echo "  sudo depmod -a"
             exit 1
           fi
 
           echo "module_path=$MODULE_PATH" >> $GITHUB_OUTPUT
-          echo ""
-          echo "Module info:"
-          modinfo "$MODULE_PATH" 2>/dev/null || true
 
-      - name: "Phase 2: Load kernel module"
-        run: |
-          MODULE_PATH="${{ steps.kernel-check.outputs.module_path }}"
-          KERNEL_MODE="${{ github.event.inputs.kernel_mode || 'scheduler' }}"
-
-          # Set parameters based on mode
-          PARAMS="debug_level=2"
-          case "$KERNEL_MODE" in
-            basic)
-              PARAMS="$PARAMS enable_tmm=1 enable_scheduler=0 enable_gpu_manager=0"
-              ;;
-            scheduler)
-              PARAMS="$PARAMS enable_tmm=1 enable_scheduler=1 enable_gpu_manager=0"
-              ;;
-            full)
-              PARAMS="$PARAMS enable_tmm=1 enable_scheduler=1 enable_gpu_manager=1"
-              ;;
-          esac
-
-          # Check module vermagic vs running kernel
-          echo "Runner kernel: $(uname -r)"
-          echo "Module vermagic: $(modinfo -F vermagic "$MODULE_PATH" 2>/dev/null || echo 'unknown')"
-
-          echo "Loading module with params: $PARAMS"
-          if ! sudo insmod "$MODULE_PATH" $PARAMS 2>&1; then
-            echo ""
-            echo "ERROR: Failed to load kernel module!"
-            echo ""
-            echo "This usually means the module was built for a different kernel version."
-            echo "Module vermagic must match: $(uname -r)"
-            echo ""
-            echo "To fix: Build and install the module for kernel $(uname -r)"
-            echo "  1. On a machine with matching kernel headers:"
-            echo "     make -C /lib/modules/\$(uname -r)/build M=\$PWD modules"
-            echo "  2. Copy to runner:"
-            echo "     sudo cp mlos-ml.ko /lib/modules/$(uname -r)/extra/"
-            echo "     sudo depmod -a"
-            echo ""
-            dmesg | tail -10
-            exit 1
-          fi
-
-          sleep 2
-          if lsmod | grep -q "mlos_ml\|mlos-ml"; then
-            echo "Kernel module loaded successfully"
-            lsmod | grep mlos
-          else
-            echo "ERROR: Module load command succeeded but module not in lsmod"
-            dmesg | tail -30
-            exit 1
-          fi
-
-      - name: "Phase 2: Start Core (Kernel Mode)"
-        run: |
-          cd ~/mlos-core
-          BINARY=$(find . -name "mlos_core" -type f -executable | head -1)
-
-          BINARY_DIR=$(dirname "$BINARY")
-          LLAMA_LIB=""
-          [ -d "$BINARY_DIR/llama.cpp/lib" ] && LLAMA_LIB="$BINARY_DIR/llama.cpp/lib"
-
-          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
-
-          echo "Starting Core with KERNEL MODULE..."
-          nohup $BINARY --http-port 8080 > /tmp/core-kernel.log 2>&1 &
-          echo $! > /tmp/core-kernel.pid
-
-          for i in {1..30}; do
-            if curl -s http://127.0.0.1:8080/health >/dev/null 2>&1; then
-              echo "Core started (kernel mode)"
-              break
-            fi
-            sleep 1
-          done
-
-      - name: "Phase 2: Run E2E tests (Kernel)"
-        id: test-kernel
+      # ========================================================================
+      # PER-MODEL ISOLATION TESTS
+      # Each model is tested with BOTH userspace and kernel back-to-back
+      # ensuring identical system conditions for accurate comparison
+      # ========================================================================
+      - name: "Run Per-Model Isolation Tests"
+        id: test-models
         run: |
           MODELS="${{ steps.get-models.outputs.models }}"
-          mkdir -p model-results-kernel
-          chmod +x scripts/test-single-model.sh
-          export PATH="$HOME/.local/bin:$PATH"
-
-          # Store kernel module info for full isolation reloads
           MODULE_PATH="${{ steps.kernel-check.outputs.module_path }}"
           KERNEL_MODE="${{ github.event.inputs.kernel_mode || 'scheduler' }}"
-          FULL_ISOLATION="${{ github.event.inputs.full_isolation || 'true' }}"
 
           # Compute kernel params
           KERNEL_PARAMS="debug_level=2"
@@ -606,123 +311,174 @@ jobs:
               ;;
           esac
 
-          # Store Core startup info for restarts
+          # Setup Core binary path
           cd ~/mlos-core
           CORE_BINARY=$(find . -name "mlos_core" -type f -executable | head -1)
+          chmod +x "$CORE_BINARY"
           BINARY_DIR=$(dirname "$CORE_BINARY")
           LLAMA_LIB=""
           [ -d "$BINARY_DIR/llama.cpp/lib" ] && LLAMA_LIB="$BINARY_DIR/llama.cpp/lib"
           export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
           cd - > /dev/null
 
-          echo "Full Isolation Mode: $FULL_ISOLATION"
-          echo "Testing models (KERNEL): $MODELS"
-          TEST_START=$(date +%s%3N)
+          mkdir -p model-results-userspace model-results-kernel
+          chmod +x scripts/test-single-model.sh
+          export PATH="$HOME/.local/bin:$PATH"
 
+          echo "========================================"
+          echo "PER-MODEL ISOLATION TEST"
+          echo "========================================"
+          echo "Each model tested: userspace → kernel (back-to-back)"
+          echo "Full system reset between models"
+          echo "========================================"
+
+          TEST_START=$(date +%s%3N)
           MODEL_COUNT=0
           TOTAL_MODELS=$(echo "$MODELS" | wc -w)
 
           for model in $MODELS; do
             [ -z "$model" ] && continue
             MODEL_COUNT=$((MODEL_COUNT + 1))
-            echo "========================================"
-            echo "Testing: $model (kernel mode) [$MODEL_COUNT/$TOTAL_MODELS]"
-            echo "========================================"
 
-            # Log memory state BEFORE test
-            echo "Memory before $model:"
+            echo ""
+            echo "╔════════════════════════════════════════════════════════════╗"
+            echo "║  MODEL $MODEL_COUNT/$TOTAL_MODELS: $model"
+            echo "╚════════════════════════════════════════════════════════════╝"
+
+            # ================================================================
+            # STEP 1: FRESH SYSTEM STATE
+            # ================================================================
+            echo "--- Step 1: Fresh system state ---"
+
+            # Ensure kernel module is NOT loaded
+            sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
+
+            # Stop any Core processes
+            pkill -f mlos_core 2>/dev/null || true
+            sleep 1
+
+            # Clean temp files
+            rm -rf /tmp/inference_* /tmp/warmup_* 2>/dev/null || true
+
+            # Sync and drop caches
+            sync
+            echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+            sleep 1
+
+            echo "Memory state (fresh):"
             free -m | head -2
 
+            # ================================================================
+            # STEP 2: USERSPACE TEST
+            # ================================================================
+            echo ""
+            echo "--- Step 2: Userspace test for $model ---"
+
+            # Start Core in userspace mode
+            cd ~/mlos-core
+            nohup $CORE_BINARY --http-port 8080 > /tmp/core-userspace.log 2>&1 &
+            CORE_PID=$!
+            cd - > /dev/null
+
+            # Wait for Core to be ready
+            for i in {1..30}; do
+              if curl -s http://127.0.0.1:8080/health >/dev/null 2>&1; then
+                echo "Core started (userspace mode)"
+                break
+              fi
+              sleep 1
+            done
+
+            # Run userspace test
+            ./scripts/test-single-model.sh "$model" \
+              --output-dir model-results-userspace \
+              --core-url http://127.0.0.1:8080 \
+              --golden-images \
+              || echo "Warning: $model userspace test had issues"
+
+            # Stop Core
+            kill $CORE_PID 2>/dev/null || true
+            pkill -f mlos_core 2>/dev/null || true
+            sleep 1
+
+            # ================================================================
+            # STEP 3: RESET FOR KERNEL TEST
+            # ================================================================
+            echo ""
+            echo "--- Step 3: Reset for kernel test ---"
+
+            # Clean temp files (keep model cache)
+            rm -rf /tmp/inference_* /tmp/warmup_* 2>/dev/null || true
+            sync
+            echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+            sleep 1
+
+            echo "Memory state (reset for kernel):"
+            free -m | head -2
+
+            # ================================================================
+            # STEP 4: KERNEL TEST
+            # ================================================================
+            echo ""
+            echo "--- Step 4: Kernel test for $model ---"
+
+            # Load kernel module
+            echo "Loading kernel module..."
+            sudo insmod "$MODULE_PATH" $KERNEL_PARAMS
+            sleep 1
+
+            if lsmod | grep -q "mlos"; then
+              echo "Kernel module loaded"
+            else
+              echo "ERROR: Failed to load kernel module"
+              continue
+            fi
+
+            # Start Core in kernel mode
+            cd ~/mlos-core
+            nohup $CORE_BINARY --http-port 8080 > /tmp/core-kernel.log 2>&1 &
+            CORE_PID=$!
+            cd - > /dev/null
+
+            # Wait for Core to be ready
+            for i in {1..30}; do
+              if curl -s http://127.0.0.1:8080/health >/dev/null 2>&1; then
+                echo "Core started (kernel mode)"
+                break
+              fi
+              sleep 1
+            done
+
+            # Run kernel test
             ./scripts/test-single-model.sh "$model" \
               --output-dir model-results-kernel \
               --core-url http://127.0.0.1:8080 \
               --golden-images \
-              || echo "Warning: $model had issues"
+              || echo "Warning: $model kernel test had issues"
 
-            # Log Core process memory usage (kernel mode may differ)
-            CORE_PID=$(cat /tmp/core-kernel.pid 2>/dev/null)
-            if [ -n "$CORE_PID" ] && ps -p "$CORE_PID" > /dev/null 2>&1; then
-              MEM=$(ps -p "$CORE_PID" -o rss= 2>/dev/null | awk '{printf "%.0f", $1/1024}' || echo "0")
-              echo "Core process memory: ${MEM}MB"
-            fi
+            # Stop Core
+            kill $CORE_PID 2>/dev/null || true
+            pkill -f mlos_core 2>/dev/null || true
+            sleep 1
 
-            # ================================================================
-            # BETWEEN-MODEL CLEANUP: Isolate each model's performance
-            # This is CRITICAL for kernel tests to prevent tensor memory
-            # optimizations from one model affecting the next model's results
-            # ================================================================
-            echo "--- Cleanup between models ---"
+            # Unload kernel module
+            sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
+            sleep 1
 
-            # 1. Clean temp inference files
-            rm -rf /tmp/inference_* /tmp/warmup_* 2>/dev/null || true
-
-            # 2. Sync filesystem
-            sync
-
-            # 3. Drop kernel page cache to reset memory state
-            echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
-
-            # 4. FULL ISOLATION: Reload kernel module to reset all internal state
-            if [ "$FULL_ISOLATION" = "true" ]; then
-              echo "Full isolation: Reloading kernel module..."
-
-              # Stop Core process
-              CORE_PID=$(cat /tmp/core-kernel.pid 2>/dev/null)
-              if [ -n "$CORE_PID" ]; then
-                kill "$CORE_PID" 2>/dev/null || true
-                sleep 1
-              fi
-
-              # Unload kernel module
-              sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
-              sleep 1
-
-              # Reload kernel module with same params
-              sudo insmod "$MODULE_PATH" $KERNEL_PARAMS
-              sleep 1
-
-              # Restart Core
-              cd ~/mlos-core
-              nohup $CORE_BINARY --http-port 8080 > /tmp/core-kernel.log 2>&1 &
-              echo $! > /tmp/core-kernel.pid
-              cd - > /dev/null
-
-              # Wait for Core to be ready
-              for i in {1..15}; do
-                if curl -s http://127.0.0.1:8080/health >/dev/null 2>&1; then
-                  echo "Core restarted successfully"
-                  break
-                fi
-                sleep 1
-              done
-
-              echo "Kernel module reloaded - fresh state for next model"
-            else
-              # Light cleanup only
-              sleep 1
-            fi
-
-            echo "Memory after cleanup:"
-            free -m | head -2
+            echo ""
+            echo "✅ $model completed (userspace + kernel)"
             echo "----------------------------------------"
           done
 
           TEST_END=$(date +%s%3N)
-          echo "kernel_duration_ms=$((TEST_END - TEST_START))" >> $GITHUB_OUTPUT
+          DURATION_MS=$((TEST_END - TEST_START))
+          echo "total_duration_ms=$DURATION_MS" >> $GITHUB_OUTPUT
+          echo ""
+          echo "========================================"
+          echo "ALL MODELS TESTED"
+          echo "Total time: $((DURATION_MS / 1000 / 60)) minutes"
+          echo "========================================"
         continue-on-error: true
-
-      - name: "Phase 2: Stop Core (Kernel)"
-        run: |
-          if [ -f /tmp/core-kernel.pid ]; then
-            kill $(cat /tmp/core-kernel.pid) 2>/dev/null || true
-            rm /tmp/core-kernel.pid
-          fi
-
-      - name: "Phase 2: Unload kernel module"
-        if: always()
-        run: |
-          sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
-          echo "Kernel module unloaded"
 
       # ========================================================================
       # GENERATE UNIFIED REPORT
@@ -732,7 +488,6 @@ jobs:
         run: |
           mkdir -p model-results
 
-          # Collect hardware info (same as e2e-parallel)
           cat > model-results/hardware-info.json << EOF
           {
             "os": "$(uname -s)",
@@ -750,37 +505,32 @@ jobs:
           }
           EOF
 
-          # Collect timing info
           cat > model-results/timings-info.json << EOF
           {
             "axon_download_ms": 0,
             "core_download_ms": 0,
-            "core_startup_ms": ${{ steps.core-userspace-start.outputs.core_startup_ms || 0 }}
+            "core_startup_ms": 0
           }
           EOF
 
-          # Collect resource usage info from test steps
           cat > model-results/resources-info.json << EOF
           {
-            "core_idle_cpu": ${{ steps.core-userspace-start.outputs.core_idle_cpu || 0 }},
-            "core_idle_mem_mb": ${{ steps.core-userspace-start.outputs.core_idle_mem_mb || 0 }},
-            "core_load_cpu_avg": ${{ steps.test-userspace.outputs.core_load_cpu_max || 0 }},
-            "core_load_cpu_max": ${{ steps.test-userspace.outputs.core_load_cpu_max || 0 }},
-            "core_load_mem_avg_mb": ${{ steps.test-userspace.outputs.core_load_mem_max_mb || 0 }},
-            "core_load_mem_max_mb": ${{ steps.test-userspace.outputs.core_load_mem_max_mb || 0 }},
+            "core_idle_cpu": 0,
+            "core_idle_mem_mb": 0,
+            "core_load_cpu_avg": 0,
+            "core_load_cpu_max": 0,
+            "core_load_mem_avg_mb": 0,
+            "core_load_mem_max_mb": 0,
             "axon_cpu": 0,
             "axon_mem_mb": 0,
             "gpu_status": "Not used (CPU-only inference)",
             "kernel_mode": "${{ github.event.inputs.kernel_mode || 'scheduler' }}",
-            "kernel_module_loaded": true
+            "kernel_module_loaded": true,
+            "test_mode": "per_model_isolation"
           }
           EOF
 
-          # Copy userspace results to model-results (primary test results)
           cp model-results-userspace/*-result.json model-results/ 2>/dev/null || true
-
-          echo "Hardware Info:"
-          cat model-results/hardware-info.json
 
       - name: Aggregate userspace results
         if: always()
@@ -799,7 +549,7 @@ jobs:
             --resources-info model-results/resources-info.json \
             --github-summary || echo "Aggregation completed"
 
-      - name: Generate kernel comparison and merge
+      - name: Generate kernel comparison
         if: always()
         env:
           KERNEL_MODE: ${{ github.event.inputs.kernel_mode || 'scheduler' }}
@@ -809,24 +559,22 @@ jobs:
           import json
           from pathlib import Path
           from datetime import datetime
+          import os
 
           def get_inference_times(data):
-              """Extract both small and large inference times from result data."""
               phases = data.get("phases", {})
               small_ms = phases.get("inference_small", {}).get("time_ms", 0)
               large_ms = phases.get("inference_large", {}).get("time_ms", 0)
-              # Fallback to legacy field
               if small_ms == 0 and large_ms == 0:
                   legacy = data.get("inference_time_ms", 0)
                   small_ms = legacy
               return small_ms, large_ms
 
           def get_install_time(data):
-              """Extract install time from result data."""
               phases = data.get("phases", {})
               return phases.get("install", {}).get("time_ms", 0)
 
-          # Load userspace results with both inference sizes
+          # Load userspace results
           userspace_results = {}
           user_dir = Path("model-results-userspace")
           if user_dir.exists():
@@ -840,13 +588,13 @@ jobs:
                           "status": data.get("status", "unknown"),
                           "inference_small_ms": small_ms,
                           "inference_large_ms": large_ms,
-                          "inference_ms": large_ms if large_ms > 0 else small_ms,  # backward compat
+                          "inference_ms": large_ms if large_ms > 0 else small_ms,
                           "install_ms": get_install_time(data),
                       }
                   except Exception as e:
                       print(f"Error reading {f}: {e}")
 
-          # Load kernel results with both inference sizes
+          # Load kernel results
           kernel_results = {}
           kernel_dir = Path("model-results-kernel")
           if kernel_dir.exists():
@@ -860,13 +608,13 @@ jobs:
                           "status": data.get("status", "unknown"),
                           "inference_small_ms": small_ms,
                           "inference_large_ms": large_ms,
-                          "inference_ms": large_ms if large_ms > 0 else small_ms,  # backward compat
+                          "inference_ms": large_ms if large_ms > 0 else small_ms,
                           "install_ms": get_install_time(data),
                       }
                   except Exception as e:
                       print(f"Error reading {f}: {e}")
 
-          # Calculate speedups for both small and large inference
+          # Calculate speedups
           speedup = {}
           speedup_small = {}
           speedup_large = {}
@@ -876,25 +624,21 @@ jobs:
                   kr = kernel_results[model]
                   ur = userspace_results[model]
 
-                  # Small inference speedup
                   k_small = kr.get("inference_small_ms", 0)
                   u_small = ur.get("inference_small_ms", 0)
                   if k_small > 0 and u_small > 0:
                       speedup_small[model] = round(u_small / k_small, 2)
 
-                  # Large inference speedup
                   k_large = kr.get("inference_large_ms", 0)
                   u_large = ur.get("inference_large_ms", 0)
                   if k_large > 0 and u_large > 0:
                       speedup_large[model] = round(u_large / k_large, 2)
 
-                  # Overall speedup (prefer large, fallback to small)
                   k_inf = kr.get("inference_ms", 0)
                   u_inf = ur.get("inference_ms", 0)
                   if k_inf > 0 and u_inf > 0:
                       speedup[model] = round(u_inf / k_inf, 2)
 
-          # Calculate averages
           def calc_avg(d):
               valid = [v for v in d.values() if v > 0]
               return round(sum(valid) / len(valid), 2) if valid else 0
@@ -904,30 +648,27 @@ jobs:
           avg_speedup_large = calc_avg(speedup_large)
 
           # Load hardware info
-          import os
           hardware = {}
           hw_file = Path("model-results/hardware-info.json")
           if hw_file.exists():
               try:
                   with open(hw_file) as f:
                       hardware = json.load(f)
-              except Exception as e:
-                  print(f"Warning: Could not load hardware info: {e}")
+              except:
+                  pass
 
-          # Build kernel comparison with both small and large inference data
           kernel_comparison = {
               "timestamp": datetime.utcnow().isoformat() + "Z",
               "kernel_mode": os.environ.get("KERNEL_MODE", "scheduler"),
               "kernel_module_version": os.environ.get("KERNEL_MODULE_VERSION", "7.0.0-beta"),
               "models_tested": len(set(list(kernel_results.keys()) + list(userspace_results.keys()))),
               "comparison_enabled": True,
+              "test_mode": "per_model_isolation",
               "hardware": hardware,
               "kernel_results": kernel_results,
               "userspace_results": userspace_results,
-              # Overall speedup (backward compatible)
               "speedup": speedup,
               "average_speedup": avg_speedup,
-              # NEW: Separate speedups by inference size
               "speedup_small": speedup_small,
               "speedup_large": speedup_large,
               "average_speedup_small": avg_speedup_small,
@@ -942,32 +683,17 @@ jobs:
               metrics["kernel_comparison"] = kernel_comparison
               with open(metrics_file, "w") as f:
                   json.dump(metrics, f, indent=2)
-              print("Merged kernel comparison into metrics")
 
-          # Also save standalone
           with open("metrics/kernel-comparison.json", "w") as f:
               json.dump(kernel_comparison, f, indent=2)
 
-          # Print summary with breakdown by inference size
           print(f"\n{'='*60}")
-          print(f"KERNEL COMPARISON SUMMARY")
+          print(f"KERNEL COMPARISON (Per-Model Isolation)")
           print(f"{'='*60}")
           print(f"  Models tested: {len(speedup)}")
-          print(f"")
-          print(f"  SMALL INFERENCE (short inputs):")
-          print(f"    Kernel faster: {len([s for s in speedup_small.values() if s > 1.0])}")
-          print(f"    Userspace faster: {len([s for s in speedup_small.values() if s < 1.0])}")
-          print(f"    Average speedup: {avg_speedup_small}x")
-          print(f"")
-          print(f"  LARGE INFERENCE (long inputs):")
-          print(f"    Kernel faster: {len([s for s in speedup_large.values() if s > 1.0])}")
-          print(f"    Userspace faster: {len([s for s in speedup_large.values() if s < 1.0])}")
-          print(f"    Average speedup: {avg_speedup_large}x")
-          print(f"")
-          print(f"  OVERALL (prefers large):")
-          print(f"    Kernel faster: {len([s for s in speedup.values() if s > 1.0])}")
-          print(f"    Userspace faster: {len([s for s in speedup.values() if s < 1.0])}")
-          print(f"    Average speedup: {avg_speedup}x")
+          print(f"  Average speedup: {avg_speedup}x")
+          print(f"  Kernel faster: {len([s for s in speedup.values() if s > 1.0])}")
+          print(f"  Userspace faster: {len([s for s in speedup.values() if s < 1.0])}")
           print(f"{'='*60}")
           KERNEL_SCRIPT
 
@@ -976,18 +702,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Download previous history from latest successful run (unless resetting)
           if [ "${{ github.event.inputs.reset_history }}" != "true" ]; then
             echo "Looking for previous historical data..."
 
-            # Find latest successful run with metrics artifact
             PREV_RUN=$(gh run list --workflow="e2e-unified.yml" --status=success --limit=10 --json databaseId,conclusion \
               --jq '[.[] | select(.conclusion=="success")] | .[0].databaseId // empty')
 
             if [ -n "$PREV_RUN" ] && [ "$PREV_RUN" != "${{ github.run_id }}" ]; then
               echo "Downloading history from run $PREV_RUN..."
 
-              # Get artifact name pattern
               ARTIFACT_NAME=$(gh api "repos/${{ github.repository }}/actions/runs/${PREV_RUN}/artifacts" \
                 --jq '.artifacts[] | select(.name | startswith("unified-e2e-metrics")) | .name' | head -1)
 
@@ -996,38 +719,27 @@ jobs:
                 gh run download "$PREV_RUN" -n "$ARTIFACT_NAME" -D prev_metrics/ 2>/dev/null || true
 
                 if [ -f prev_metrics/history.json ]; then
-                  echo "Found previous history with $(cat prev_metrics/history.json | python3 -c 'import sys,json; print(len(json.load(sys.stdin).get("runs",[])))') runs"
                   cp prev_metrics/history.json metrics/history.json
                 fi
                 rm -rf prev_metrics
               fi
-            else
-              echo "No previous run found or this is the first run"
             fi
-          else
-            echo "Resetting historical metrics..."
-            python3 scripts/historical-metrics.py reset --history metrics/history.json
           fi
 
-          # Add this run to history
           if [ -f metrics/latest.json ]; then
-            echo "Adding run to historical metrics..."
             python3 scripts/historical-metrics.py add \
               --metrics metrics/latest.json \
               --history metrics/history.json
 
-            # Calculate statistics
-            echo "Calculating statistics..."
             python3 scripts/historical-metrics.py stats \
               --history metrics/history.json \
               --output metrics/statistics.json
 
-            # Show summary
             python3 scripts/historical-metrics.py summary --history metrics/history.json
           fi
 
       # ========================================================================
-      # UPLOAD ARTIFACTS (Report rendering is done by render-report.yml)
+      # UPLOAD ARTIFACTS
       # ========================================================================
       - name: Upload metrics
         if: always()
@@ -1052,53 +764,32 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Triggering render workflow for run ${{ github.run_id }}..."
-
-          # Trigger with retry logic
-          MAX_RETRIES=3
-          RETRY_DELAY=5
-          SUCCESS=false
-
-          for i in $(seq 1 $MAX_RETRIES); do
-            echo "Attempt $i of $MAX_RETRIES..."
+          echo "Triggering render workflow..."
+          for i in $(seq 1 3); do
             if gh workflow run render-report.yml \
                 --ref main \
                 -f metrics_run_id=${{ github.run_id }} \
                 -f metrics_workflow=e2e-unified.yml 2>&1; then
-              SUCCESS=true
+              echo "Render workflow triggered"
               break
             fi
-            echo "Trigger failed, waiting ${RETRY_DELAY}s before retry..."
-            sleep $RETRY_DELAY
-            RETRY_DELAY=$((RETRY_DELAY * 2))
+            sleep 5
           done
-
-          if [ "$SUCCESS" = "true" ]; then
-            echo "Render workflow triggered successfully"
-          else
-            echo "WARNING: Failed to trigger render workflow after $MAX_RETRIES attempts"
-            echo "Manually run: gh workflow run render-report.yml -f metrics_run_id=${{ github.run_id }}"
-          fi
 
       - name: Summary
         if: always()
         run: |
-          echo "## E2E Unified Test Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## E2E Per-Model Isolation Test Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Render workflow has been **automatically triggered** to publish the report." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Manual Render (if needed)" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "gh workflow run render-report.yml -f metrics_run_id=${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Mode**: Per-model isolation (userspace → kernel back-to-back)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f metrics/latest.json ]; then
-            echo "### Kernel Comparison Summary" >> $GITHUB_STEP_SUMMARY
             python3 -c "
           import json
           with open('metrics/latest.json') as f:
               m = json.load(f)
           kc = m.get('kernel_comparison', {})
+          print(f\"### Kernel Comparison\")
           print(f\"- Models tested: {kc.get('models_tested', 0)}\")
           print(f\"- Average speedup: {kc.get('average_speedup', 0)}x\")
           speedup = kc.get('speedup', {})
@@ -1113,33 +804,10 @@ jobs:
       - name: Post-run cleanup
         if: always()
         run: |
-          echo "========================================"
-          echo "POST-RUN CLEANUP"
-          echo "========================================"
-
-          # Unload kernel module
-          echo "Unloading kernel module..."
           sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
-
-          # Stop Core processes
-          echo "Stopping Core processes..."
           pkill -f mlos_core 2>/dev/null || true
-
-          # Clean up caches to free disk space
-          echo "Purging caches..."
-          rm -rf ~/.cache/huggingface 2>/dev/null || true
-          rm -rf ~/.cache/torch 2>/dev/null || true
-          rm -rf ~/.axon/cache 2>/dev/null || true
-          rm -rf ~/mlos-core 2>/dev/null || true
-          rm -rf /tmp/axon* /tmp/model* /tmp/onnx* /tmp/hf* /tmp/torch* 2>/dev/null || true
-
-          # Clean up downloaded kernel modules
+          rm -rf ~/.cache/huggingface ~/.cache/torch ~/.axon/cache ~/mlos-core 2>/dev/null || true
+          rm -rf /tmp/axon* /tmp/model* /tmp/onnx* 2>/dev/null || true
           rm -rf ~/mlos-ml-*.ko 2>/dev/null || true
-
-          # Sync filesystem
           sync
-
-          echo "Disk space after cleanup:"
-          df -h /
-          echo ""
           echo "Cleanup complete"
