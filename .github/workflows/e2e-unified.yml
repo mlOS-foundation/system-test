@@ -470,13 +470,160 @@ jobs:
             echo "----------------------------------------"
           done
 
-          TEST_END=$(date +%s%3N)
-          DURATION_MS=$((TEST_END - TEST_START))
-          echo "total_duration_ms=$DURATION_MS" >> $GITHUB_OUTPUT
+      # ================================================================
+      # CONCURRENT INFERENCE TESTS (Kernel Scheduler Showcase)
+      # ================================================================
+      - name: "Run Concurrent Inference Tests"
+        id: concurrent-tests
+        run: |
+          MODELS="${{ steps.get-models.outputs.models }}"
+          MODULE_PATH="${{ steps.kernel-check.outputs.module_path }}"
+          KERNEL_MODE="${{ github.event.inputs.kernel_mode || 'scheduler' }}"
+          CONCURRENCY=8
+          ITERATIONS=3
+
+          # Compute kernel params
+          KERNEL_PARAMS="debug_level=2"
+          case "$KERNEL_MODE" in
+            basic)
+              KERNEL_PARAMS="$KERNEL_PARAMS enable_tmm=1 enable_scheduler=0 enable_gpu_manager=0"
+              ;;
+            scheduler)
+              KERNEL_PARAMS="$KERNEL_PARAMS enable_tmm=1 enable_scheduler=1 enable_gpu_manager=0"
+              ;;
+            full)
+              KERNEL_PARAMS="$KERNEL_PARAMS enable_tmm=1 enable_scheduler=1 enable_gpu_manager=1"
+              ;;
+          esac
+
+          # Setup Core binary path
+          cd ~/mlos-core
+          CORE_BINARY=$(find . -name "mlos_core" -type f -executable | head -1)
+          chmod +x "$CORE_BINARY"
+          BINARY_DIR=$(dirname "$CORE_BINARY")
+          LLAMA_LIB=""
+          [ -d "$BINARY_DIR/llama.cpp/lib" ] && LLAMA_LIB="$BINARY_DIR/llama.cpp/lib"
+          export LD_LIBRARY_PATH="$(pwd)/build/onnxruntime/lib:${LLAMA_LIB}:$LD_LIBRARY_PATH"
+          cd - > /dev/null
+
+          mkdir -p concurrent-results-userspace concurrent-results-kernel
+          chmod +x scripts/test-concurrent-inference.sh
+          export PATH="$HOME/.local/bin:$PATH"
+
+          echo ""
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║  CONCURRENT INFERENCE TESTS                                ║"
+          echo "║  Testing ${CONCURRENCY} parallel requests per model        ║"
+          echo "║  This showcases kernel scheduler benefits                  ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+
+          # Select representative models for concurrent testing (to save time)
+          # Use 5-6 models across different categories
+          CONCURRENT_MODELS=""
+          for model in bert-base-uncased gpt2 t5-small resnet50 mobilenet; do
+            if echo "$MODELS" | grep -qw "$model"; then
+              CONCURRENT_MODELS="$CONCURRENT_MODELS $model"
+            fi
+          done
+
+          # Fallback: use first 5 models if none of the representative models are available
+          if [ -z "$(echo $CONCURRENT_MODELS | xargs)" ]; then
+            CONCURRENT_MODELS=$(echo "$MODELS" | tr ' ' '\n' | head -5 | tr '\n' ' ')
+          fi
+
+          echo "Testing concurrent inference for: $CONCURRENT_MODELS"
+
+          for model in $CONCURRENT_MODELS; do
+            [ -z "$model" ] && continue
+
+            echo ""
+            echo "── Concurrent test: $model ──"
+
+            # ================================================================
+            # USERSPACE CONCURRENT TEST
+            # ================================================================
+            echo "Starting userspace concurrent test..."
+
+            # Ensure clean state
+            sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
+            pkill -f mlos_core 2>/dev/null || true
+            sleep 1
+            sync
+            echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+
+            # Start Core (userspace mode)
+            cd ~/mlos-core
+            nohup $CORE_BINARY --http-port 8080 > /tmp/core-concurrent-user.log 2>&1 &
+            CORE_PID=$!
+            cd - > /dev/null
+
+            # Wait for ready
+            for i in {1..30}; do
+              if curl -s http://127.0.0.1:8080/health >/dev/null 2>&1; then
+                break
+              fi
+              sleep 1
+            done
+
+            # Run concurrent test
+            ./scripts/test-concurrent-inference.sh "$model" \
+              --concurrency $CONCURRENCY \
+              --iterations $ITERATIONS \
+              --output-dir concurrent-results-userspace \
+              --core-url http://127.0.0.1:8080 \
+              || echo "Warning: $model userspace concurrent test had issues"
+
+            # Stop Core
+            kill $CORE_PID 2>/dev/null || true
+            pkill -f mlos_core 2>/dev/null || true
+            sleep 1
+
+            # ================================================================
+            # KERNEL CONCURRENT TEST
+            # ================================================================
+            echo "Starting kernel concurrent test..."
+
+            sync
+            echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+
+            # Load kernel module
+            sudo insmod "$MODULE_PATH" $KERNEL_PARAMS
+            sleep 1
+
+            # Start Core (kernel mode)
+            cd ~/mlos-core
+            nohup $CORE_BINARY --http-port 8080 > /tmp/core-concurrent-kernel.log 2>&1 &
+            CORE_PID=$!
+            cd - > /dev/null
+
+            # Wait for ready
+            for i in {1..30}; do
+              if curl -s http://127.0.0.1:8080/health >/dev/null 2>&1; then
+                break
+              fi
+              sleep 1
+            done
+
+            # Run concurrent test
+            ./scripts/test-concurrent-inference.sh "$model" \
+              --concurrency $CONCURRENCY \
+              --iterations $ITERATIONS \
+              --output-dir concurrent-results-kernel \
+              --core-url http://127.0.0.1:8080 \
+              || echo "Warning: $model kernel concurrent test had issues"
+
+            # Stop Core and unload kernel
+            kill $CORE_PID 2>/dev/null || true
+            pkill -f mlos_core 2>/dev/null || true
+            sudo rmmod mlos_ml 2>/dev/null || sudo rmmod mlos-ml 2>/dev/null || true
+            sleep 1
+
+            echo "✅ $model concurrent tests complete"
+          done
+
           echo ""
           echo "========================================"
-          echo "ALL MODELS TESTED"
-          echo "Total time: $((DURATION_MS / 1000 / 60)) minutes"
+          echo "CONCURRENT INFERENCE TESTS COMPLETE"
           echo "========================================"
         continue-on-error: true
 
@@ -647,6 +794,61 @@ jobs:
           avg_speedup_small = calc_avg(speedup_small)
           avg_speedup_large = calc_avg(speedup_large)
 
+          # Load concurrent inference results
+          concurrent_userspace = {}
+          concurrent_kernel = {}
+          concurrent_speedup_throughput = {}
+          concurrent_speedup_p95 = {}
+
+          concurrent_user_dir = Path("concurrent-results-userspace")
+          concurrent_kernel_dir = Path("concurrent-results-kernel")
+
+          if concurrent_user_dir.exists():
+              for f in concurrent_user_dir.glob("*-concurrent.json"):
+                  try:
+                      with open(f) as fp:
+                          data = json.load(fp)
+                      model = data.get("model", f.stem.replace("-concurrent", ""))
+                      summary = data.get("summary", {})
+                      concurrent_userspace[model] = {
+                          "throughput_rps": summary.get("avg_throughput_rps", 0),
+                          "latency_avg_ms": summary.get("avg_latency_ms", 0),
+                          "latency_p95_ms": summary.get("avg_p95_ms", 0),
+                      }
+                  except Exception as e:
+                      print(f"Error reading concurrent userspace {f}: {e}")
+
+          if concurrent_kernel_dir.exists():
+              for f in concurrent_kernel_dir.glob("*-concurrent.json"):
+                  try:
+                      with open(f) as fp:
+                          data = json.load(fp)
+                      model = data.get("model", f.stem.replace("-concurrent", ""))
+                      summary = data.get("summary", {})
+                      concurrent_kernel[model] = {
+                          "throughput_rps": summary.get("avg_throughput_rps", 0),
+                          "latency_avg_ms": summary.get("avg_latency_ms", 0),
+                          "latency_p95_ms": summary.get("avg_p95_ms", 0),
+                      }
+                  except Exception as e:
+                      print(f"Error reading concurrent kernel {f}: {e}")
+
+          # Calculate concurrent speedups
+          for model in concurrent_kernel:
+              if model in concurrent_userspace:
+                  k_tput = concurrent_kernel[model].get("throughput_rps", 0)
+                  u_tput = concurrent_userspace[model].get("throughput_rps", 0)
+                  if k_tput > 0 and u_tput > 0:
+                      concurrent_speedup_throughput[model] = round(k_tput / u_tput, 2)
+
+                  k_p95 = concurrent_kernel[model].get("latency_p95_ms", 0)
+                  u_p95 = concurrent_userspace[model].get("latency_p95_ms", 0)
+                  if k_p95 > 0 and u_p95 > 0:
+                      concurrent_speedup_p95[model] = round(u_p95 / k_p95, 2)
+
+          avg_concurrent_speedup_throughput = calc_avg(concurrent_speedup_throughput)
+          avg_concurrent_speedup_p95 = calc_avg(concurrent_speedup_p95)
+
           # Load hardware info
           hardware = {}
           hw_file = Path("model-results/hardware-info.json")
@@ -673,6 +875,17 @@ jobs:
               "speedup_large": speedup_large,
               "average_speedup_small": avg_speedup_small,
               "average_speedup_large": avg_speedup_large,
+              # Concurrent inference metrics
+              "concurrent_tests": {
+                  "models_tested": len(concurrent_speedup_throughput),
+                  "concurrency": 8,
+                  "userspace_results": concurrent_userspace,
+                  "kernel_results": concurrent_kernel,
+                  "speedup_throughput": concurrent_speedup_throughput,
+                  "speedup_p95_latency": concurrent_speedup_p95,
+                  "average_speedup_throughput": avg_concurrent_speedup_throughput,
+                  "average_speedup_p95_latency": avg_concurrent_speedup_p95,
+              }
           }
 
           # Merge into metrics
@@ -695,6 +908,16 @@ jobs:
           print(f"  Kernel faster: {len([s for s in speedup.values() if s > 1.0])}")
           print(f"  Userspace faster: {len([s for s in speedup.values() if s < 1.0])}")
           print(f"{'='*60}")
+          if concurrent_speedup_throughput:
+              print(f"\n{'='*60}")
+              print(f"CONCURRENT INFERENCE (8 parallel requests)")
+              print(f"{'='*60}")
+              print(f"  Models tested: {len(concurrent_speedup_throughput)}")
+              print(f"  Avg throughput speedup: {avg_concurrent_speedup_throughput}x")
+              print(f"  Avg P95 latency improvement: {avg_concurrent_speedup_p95}x")
+              for m, s in sorted(concurrent_speedup_throughput.items(), key=lambda x: -x[1]):
+                  print(f"    {m}: {s}x throughput")
+              print(f"{'='*60}")
           KERNEL_SCRIPT
 
       - name: Track historical metrics
@@ -757,6 +980,8 @@ jobs:
           path: |
             model-results-userspace/
             model-results-kernel/
+            concurrent-results-userspace/
+            concurrent-results-kernel/
           retention-days: 30
 
       - name: Trigger render workflow
@@ -789,12 +1014,24 @@ jobs:
           with open('metrics/latest.json') as f:
               m = json.load(f)
           kc = m.get('kernel_comparison', {})
-          print(f\"### Kernel Comparison\")
+          print(f\"### Single Inference Results\")
           print(f\"- Models tested: {kc.get('models_tested', 0)}\")
           print(f\"- Average speedup: {kc.get('average_speedup', 0)}x\")
           speedup = kc.get('speedup', {})
           print(f\"- Kernel faster: {len([s for s in speedup.values() if s > 1.0])}\")
           print(f\"- Userspace faster: {len([s for s in speedup.values() if s < 1.0])}\")
+
+          # Concurrent results
+          ct = kc.get('concurrent_tests', {})
+          if ct.get('models_tested', 0) > 0:
+              print(f\"\")
+              print(f\"### Concurrent Inference Results (8 parallel requests)\")
+              print(f\"- Models tested: {ct.get('models_tested', 0)}\")
+              print(f\"- Avg throughput speedup: {ct.get('average_speedup_throughput', 0)}x\")
+              print(f\"- Avg P95 latency improvement: {ct.get('average_speedup_p95_latency', 0)}x\")
+              st = ct.get('speedup_throughput', {})
+              for m, s in sorted(st.items(), key=lambda x: -x[1])[:5]:
+                  print(f\"  - {m}: {s}x\")
           " >> $GITHUB_STEP_SUMMARY
           fi
 
