@@ -75,21 +75,49 @@ url_encode() {
 
 ENCODED_MODEL_ID=$(url_encode "$AXON_ID")
 
-# Generate test input based on model type
+# Generate test input based on model - use same format as test-single-model.sh
 generate_input() {
-    case "$INPUT_TYPE" in
-        text)
-            echo '{"inputs": "The quick brown fox jumps over the lazy dog. This is a test sentence for concurrent inference benchmarking."}'
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local generator="$script_dir/generate-test-input.py"
+
+    # Try Python generator first (supports all models correctly)
+    if [ -f "$generator" ]; then
+        local result=$(python3 "$generator" "$MODEL_NAME" "small" 2>/dev/null)
+        if [ -n "$result" ] && [ "$result" != "{}" ] && [ "$result" != "null" ]; then
+            echo "$result"
+            return 0
+        fi
+    fi
+
+    # Fallback: generate correct format based on model
+    case "$MODEL_NAME" in
+        gpt2)
+            # GPT2: flat input_ids array
+            python3 -c "import json; print(json.dumps({'input_ids': [15496, 11, 314, 716, 257, 3303, 2746, 2746, 2746, 2746, 2746, 2746, 2746, 2746, 2746, 2746]}))"
             ;;
-        image)
-            # Use a small test image (base64)
-            echo '{"inputs": {"pixel_values": [[[[0.5, 0.5, 0.5]]]]}}'
+        bert|bert-base-uncased|distilbert)
+            # BERT: input_ids, attention_mask, token_type_ids
+            python3 -c "import json; print(json.dumps({'input_ids': [101] + [7592]*14 + [102], 'attention_mask': [1]*16, 'token_type_ids': [0]*16}))"
             ;;
-        tokens)
-            echo '{"inputs": {"input_ids": [[101, 2054, 2003, 1996, 3099, 1029, 102]]}}'
+        roberta|distilroberta)
+            # RoBERTa: flat input_ids
+            python3 -c "import json; print(json.dumps({'input_ids': [0] + [31414]*14 + [2]}))"
+            ;;
+        t5|t5-small)
+            # T5: input_ids and decoder_input_ids
+            python3 -c "import json; print(json.dumps({'input_ids': [13959, 1566, 12, 1566, 10, 571, 19, 25, 58, 1], 'decoder_input_ids': [0]}))"
+            ;;
+        resnet|resnet50)
+            # Vision: pixel_values [B, C, H, W]
+            python3 -c "import json; import random; pixels = [[[[random.random() for _ in range(224)] for _ in range(224)] for _ in range(3)]]; print(json.dumps({'pixel_values': pixels}))"
+            ;;
+        mobilenet|vit|deit|efficientnet|convnext)
+            # Vision models: same format
+            python3 -c "import json; import random; pixels = [[[[random.random() for _ in range(224)] for _ in range(224)] for _ in range(3)]]; print(json.dumps({'pixel_values': pixels}))"
             ;;
         *)
-            echo '{"inputs": "test input"}'
+            # Generic NLP fallback
+            python3 -c "import json; print(json.dumps({'input_ids': [101, 2054, 2003, 1996, 3099, 1029, 102]}))"
             ;;
     esac
 }
